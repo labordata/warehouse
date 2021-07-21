@@ -36,6 +36,7 @@ jobs:
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
+          pip install datasette
           heroku plugins:install heroku-builds
           datasette publish heroku nlrb.db \
             -n nlrb-datasette \
