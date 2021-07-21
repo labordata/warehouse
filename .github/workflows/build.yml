@@ -44,13 +44,13 @@ jobs:
           heroku plugins:install heroku-builds
           datasette publish heroku nlrb.db f7.db \
             -n labordata-warehouse \
-            --extra-options="--crossdb" \
+            --extra-options="--crossdb --cors" \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
             --version-note=$GITHUB_RUN_NUMBER
           datasette publish heroku odpr.db \
             -n odpr-datasette \
-            --extra-options="--setting sql_time_limit_ms 5000" \
+            --extra-options="--setting sql_time_limit_ms 5000 --cora" \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
             --version-note=$GITHUB_RUN_NUMBER
