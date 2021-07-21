@@ -29,7 +29,7 @@ jobs:
 
       - name: get databases
         run: |
-          wget -O nlrhttps://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
+          wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
           unzip nlrb.db.zip
 
       - name: Deploy to Heroku
