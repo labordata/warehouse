@@ -42,8 +42,15 @@ jobs:
         run: |
           pip install datasette
           heroku plugins:install heroku-builds
-          datasette publish heroku nlrb.db f7.db odpr.db \
+          datasette publish heroku nlrb.db f7.db \
             -n labordata-warehouse \
+            --install=datasette-vega \
+            --install=datasette-jellyfish \
+            --install=datasette-graphql \
+            --install='datasette-copyable>=0.2' \
+            --version-note=$GITHUB_RUN_NUMBER
+          datasette publish heroku odpr.db \
+            -n odpr-datasette \
             --install=datasette-vega \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
