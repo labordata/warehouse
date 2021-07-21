@@ -30,7 +30,11 @@ jobs:
       - name: get databases
         run: |
           wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
+          wget http://labordata.github.io/fmcs-f7/f7.db.zip
+          wget https://github.com/labordata/odpr/releases/download/2021-05-31/odpr.db.zip
           unzip nlrb.db.zip
+          unzip f7.db.zip
+          unzip odpr.db.zip
 
       - name: Deploy to Heroku
         env:
@@ -38,7 +42,7 @@ jobs:
         run: |
           pip install datasette
           heroku plugins:install heroku-builds
-          datasette publish heroku nlrb.db \
+          datasette publish heroku nlrb.db f7.db odpr.db \
             -n nlrb-datasette \
             --install=datasette-vega \
             --install=datasette-jellyfish \
