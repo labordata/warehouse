@@ -44,6 +44,7 @@ jobs:
           heroku plugins:install heroku-builds
           datasette publish heroku nlrb.db f7.db \
             -n labordata-warehouse \
+            --extra-options="-i --crossdb" \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
             --version-note=$GITHUB_RUN_NUMBER
