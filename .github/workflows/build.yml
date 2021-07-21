@@ -32,9 +32,12 @@ jobs:
           wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
           wget http://labordata.github.io/fmcs-f7/f7.db.zip
           wget https://github.com/labordata/odpr/releases/download/2021-05-31/odpr.db.zip
+          wget https://labordata.github.io/nlrb-cats/nlrb.sqlite.zip
           unzip nlrb.db.zip
           unzip f7.db.zip
           unzip odpr.db.zip
+          unzip nlrb.sqlite.zip
+          my nlrb.sqlite old_nlrb.db
 
       - name: Deploy to Heroku
         env:
@@ -42,7 +45,7 @@ jobs:
         run: |
           pip install datasette
           heroku plugins:install heroku-builds
-          datasette publish heroku nlrb.db f7.db \
+          datasette publish heroku nlrb.db f7.db old_nlrb.db \
             -n labordata-warehouse \
             --extra-options="--crossdb --cors" \
             --install=datasette-jellyfish \
