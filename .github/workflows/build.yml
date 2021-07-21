@@ -50,7 +50,7 @@ jobs:
             --version-note=$GITHUB_RUN_NUMBER
           datasette publish heroku odpr.db \
             -n odpr-datasette \
-            --extra-options="--setting sql_time_limit_ms 5000 --cora" \
+            --extra-options="--setting sql_time_limit_ms 5000 --cors" \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
             --version-note=$GITHUB_RUN_NUMBER
