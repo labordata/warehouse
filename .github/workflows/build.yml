@@ -43,7 +43,7 @@ jobs:
           pip install datasette
           heroku plugins:install heroku-builds
           datasette publish heroku nlrb.db f7.db odpr.db \
-            -n nlrb-datasette \
+            -n labordata-warehouse \
             --install=datasette-vega \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
