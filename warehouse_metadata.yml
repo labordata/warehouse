@@ -7,3 +7,5 @@ description_html: |-
 databases:
   nlrb:
     title: NLRB representation and unfair labor practice cases since 2010
+    source_url: https://github.com/labordata/nlrb-data/actions
+    description_html: hello
