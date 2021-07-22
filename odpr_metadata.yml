@@ -7,4 +7,4 @@ source_url: https://github.com/labordata/odpr
 databases:
   odpr:
     description_html: |-
-      <p><img src="https://github.com/labordata/odpr/blob/main/docs/erd.png" alt="ERD Diagram" style="width: 600px; max-width: 100%;"></p>
+      <p><img src="https://github.com/labordata/odpr/raw/main/docs/erd.png" alt="ERD Diagram" style="width: 600px; max-width: 100%;"></p>
