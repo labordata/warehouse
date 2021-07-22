@@ -18,4 +18,4 @@ databases:
       <ol>
           <li>The data starts around 2010. See <a href="./old_nlrb">old_nlrb</a> for data from the previous system</li>
           <li>The update process starts by downloading a CSV of all the cases within a specified time period from the nlrb.gov website. However, repeatingly requesting the same information from nlrb.gov results in spreadsheets with slightly different contents. We might be a bit out of date if the last CSV we downloaded missed a recent case.</li>
-     </ol>
+      </ol>
