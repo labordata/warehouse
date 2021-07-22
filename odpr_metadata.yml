@@ -5,5 +5,6 @@ description_html: |-
 source: OLMS website, scraped
 source_url: https://github.com/labordata/odpr
 databases:
-  description_html: |-
-    <p><img src="https://github.com/labordata/odpr/blob/main/docs/erd.png" alt="ERD Diagram" style="width: 600px; max-width: 100%;"></p>
+  odpr:
+    description_html: |-
+      <p><img src="https://github.com/labordata/odpr/blob/main/docs/erd.png" alt="ERD Diagram" style="width: 600px; max-width: 100%;"></p>
