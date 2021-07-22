@@ -37,7 +37,7 @@ jobs:
           unzip f7.db.zip
           unzip odpr.db.zip
           unzip nlrb.sqlite.zip
-          my nlrb.sqlite old_nlrb.db
+          mv nlrb.sqlite old_nlrb.db
 
       - name: Deploy to Heroku
         env:
