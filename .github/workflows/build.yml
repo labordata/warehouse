@@ -42,6 +42,7 @@ jobs:
       - name: Deploy to Heroku
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          VERCEL_TOKEN: $${ secrets.VERCEL_TOKEN }}
         run: |
           pip install datasette
           heroku plugins:install heroku-builds
@@ -52,6 +53,15 @@ jobs:
             --install=datasette-jellyfish \
             --install=datasette-graphql \
             --version-note=$GITHUB_RUN_NUMBER
+          datasette publish vercel nlrb.db f7.db old_nlrb.db odpr.db \
+            -n labordata-warehouse \
+            -m warehouse_metadata.yml \
+            --extra-options="--crossdb --cors --setting hash_urls 1" \
+            --install=datasette-jellyfish \
+            --install=datasette-graphql \
+            --version-note=$GITHUB_RUN_NUMBER \
+            --token=$VERCEL_TOKEN \
+            --project_name=labordata-warehouse
           datasette publish heroku odpr.db \
             -n odpr-datasette \
             --extra-options="--setting sql_time_limit_ms 5000 --setting hash_urls 1 --cors" \
