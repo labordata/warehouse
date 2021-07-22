@@ -1,0 +1,9 @@
+title: Labor Data
+description_html: |-
+  <p>This description includes a long HTML string</p>
+  <ul>
+    <li>YAML is better for embedding HTML strings than JSON!</li>
+  </ul>
+databases:
+  nlrb:
+    title: NLRB representation and unfair labor practice cases since 2010
