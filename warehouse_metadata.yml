@@ -1,11 +1,11 @@
 title: Labor Data
 description_html: |-
-  <p>This description includes a long HTML string</p>
-  <ul>
-    <li>YAML is better for embedding HTML strings than JSON!</li>
-  </ul>
+  <p>Databases related to the US labor movement collected from government sources</p> 
+  <p>A project of <a href="https://twitter.com/forestgregg">Forest Gregg</a>description includes a long HTML string</p>
 databases:
   nlrb:
-    title: NLRB representation and unfair labor practice cases since 2010
-    source_url: https://github.com/labordata/nlrb-data/actions
-    description_html: hello
+    title: NLRB cases since 2010
+    source: National Labor Relations Board website, scraped
+    source_url: https://github.com/labordata/nlrb-data
+    description_html: |-
+      <p>This is a database of representation cerfification election and unfair labor practice cases since 2010. It is updated nightly.</p>
