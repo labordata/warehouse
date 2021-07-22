@@ -45,14 +45,6 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           pip install datasette
-          pip install datasette-publish-vercel          
-          datasette publish vercel nlrb.db f7.db old_nlrb.db odpr.db \
-            -m warehouse_metadata.yml \
-            --extra-options "--crossdb --cors --setting hash_urls 1" \
-            --install datasette-jellyfish \
-            --install datasette-graphql \
-            --token $VERCEL_TOKEN \
-            --project labordata-warehouse
           heroku plugins:install heroku-builds
           datasette publish heroku nlrb.db f7.db old_nlrb.db \
             -n labordata-warehouse \
