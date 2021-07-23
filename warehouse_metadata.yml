@@ -10,10 +10,6 @@ databases:
     description_html: |-
       <p>This is a database of representation certification election and unfair labor practice cases since 2010. It is updated nightly.</p>
 
-      <p>This diagram shows the different tables and fields contained in the database.</p>
-
-      <p><img src="https://github.com/labordata/nlrb-data/raw/main/docs/erd.png" alt="ERD Diagram" style="width: 600px; max-width: 100%;"></p>
-
       <h2>Data Limitations</h2>
 
       <ul>
