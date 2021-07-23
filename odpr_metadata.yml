@@ -4,7 +4,3 @@ description_html: |-
   <p>Project of <a href="https://twitter.com/forestgregg">Forest Gregg</a></p>
 source: OLMS website, scraped
 source_url: https://github.com/labordata/odpr
-databases:
-  odpr:
-    description_html: |-
-      <p><img src="https://github.com/labordata/odpr/raw/main/docs/erd.png" alt="ERD Diagram" style="width: 600px; max-width: 100%;"></p>
