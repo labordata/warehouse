@@ -44,23 +44,16 @@ jobs:
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
-      - name: Deploy to Heroku
-        env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      - name: Deploy to Cloudrun
         run: |
           pip install datasette
-          heroku plugins:install heroku-builds
-          datasette publish heroku nlrb.db f7.db old_nlrb.db \
-            -n labordata-warehouse \
+          gcloud config set run/region us-central1
+          gcloud config set project labordata          
+          datasette publish cloudrun nlrb.db f7.db old_nlrb.db odpr.db \
+            --memory 2Gi \
+            --service warehouse \
             -m warehouse_metadata.yml \
             --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors" \
-            --install=datasette-jellyfish \
-            --install=datasette-graphql \
-            --version-note=$GITHUB_RUN_NUMBER
-          datasette publish heroku odpr.db \
-            -n odpr-datasette \
-            -m odpr_metadata.yml \
-            --extra-options="--setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors" \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
             --version-note=$GITHUB_RUN_NUMBER
