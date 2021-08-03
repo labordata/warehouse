@@ -49,7 +49,7 @@ jobs:
           datasette publish heroku nlrb.db f7.db old_nlrb.db \
             -n labordata-warehouse \
             -m warehouse_metadata.yml \
-            --extra-options="--crossdb --cors --setting hash_urls 1" \
+            --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors" \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
             --version-note=$GITHUB_RUN_NUMBER
