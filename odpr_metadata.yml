@@ -1,6 +1,0 @@
-title: OLMS Online Public Disclosure Room Database, Annual LM Data
-description_html: |-
-  <p>Daily refreshed mirror of the <a href="https://olmsapps.dol.gov/olpdr/?_ga=2.153682620.544456734.1620145813-42444416.1608177889#Union%20Reports/Yearly%20Data%20Download">Office of Labor-Management Standards Online Public Disclosure Room Database, Annual LM Data</a>.</p>
-  <p>Project of <a href="https://twitter.com/forestgregg">Forest Gregg</a></p>
-source: OLMS website, scraped
-source_url: https://github.com/labordata/odpr
