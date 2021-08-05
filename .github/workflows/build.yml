@@ -56,5 +56,6 @@ jobs:
             --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors" \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
-            --version-note=$GITHUB_RUN_NUMBER
-            --apt-get-install sqlite3
+            --version-note=$GITHUB_RUN_NUMBER \
+            --apt-get-install sqlite3 \
+            --show-files
