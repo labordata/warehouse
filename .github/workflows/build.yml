@@ -57,3 +57,4 @@ jobs:
             --install=datasette-jellyfish \
             --install=datasette-graphql \
             --version-note=$GITHUB_RUN_NUMBER
+            --apt-get-install sqlite3
