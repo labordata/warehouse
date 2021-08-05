@@ -46,7 +46,7 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Deploy to Cloudrun
         run: |
-          pip install https://github.com/datamade/datasette/archive/refs/heads/main.zip
+          pip install datasette
           gcloud config set run/region us-central1
           gcloud config set project labordata          
           datasette publish cloudrun f7.db nlrb.db odpr.db old_nlrb.db \
@@ -56,4 +56,5 @@ jobs:
             --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors" \
             --install=datasette-jellyfish \
             --install=datasette-graphql \
+            --install=pysqlite3-binary \
             --version-note=$GITHUB_RUN_NUMBER
