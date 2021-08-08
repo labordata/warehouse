@@ -55,7 +55,7 @@ jobs:
             --service warehouse \
             -m warehouse_metadata.yml \
             --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors" \
-            --install=datasette-jellyfish \
-            --install=datasette-graphql \
+            --install=datasette-atom \
+            --install=datasette-rure \
             --install=pysqlite3-binary \
             --version-note=$GITHUB_RUN_NUMBER
