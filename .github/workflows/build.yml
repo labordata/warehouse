@@ -54,7 +54,7 @@ jobs:
             --memory 4Gi \
             --service warehouse \
             -m warehouse_metadata.yml \
-            --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors --setting facet_time_limit_ms 500 --setting facet_suggest_time_limit_ms 500" \
+            --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors --setting facet_time_limit_ms 500 --setting allow_facet off" \
             --install=datasette-atom \
             --install=datasette-rure \
             --install=pysqlite3-binary \
