@@ -34,6 +34,7 @@ jobs:
           wget https://github.com/labordata/odpr/releases/download/2021-05-31/odpr.db.zip
           wget https://labordata.github.io/nlrb-cats/nlrb.sqlite.zip
           wget https://github.com/labordata/nlrb-voluntary-recognitions/releases/download/0.1/voluntary_recognitions.db
+          wget https://github.com/labordata/lors/raw/main/lm.db
           unzip nlrb.db.zip
           unzip f7.db.zip
           unzip odpr.db.zip
@@ -50,7 +51,7 @@ jobs:
           pip install datasette
           gcloud config set run/region us-central1
           gcloud config set project labordata          
-          datasette publish cloudrun f7.db nlrb.db odpr.db old_nlrb.db voluntary_recognitions.db \
+          datasette publish cloudrun f7.db nlrb.db odpr.db old_nlrb.db voluntary_recognitions.db lm.db \
             --memory 4Gi \
             --service warehouse \
             -m warehouse_metadata.yml \
