@@ -52,7 +52,7 @@ jobs:
           gcloud config set run/region us-central1
           gcloud config set project labordata          
           datasette publish cloudrun f7.db nlrb.db odpr.db old_nlrb.db voluntary_recognitions.db lm.db \
-            --memory 4Gi \
+            --memory 5Gi \
             --service warehouse \
             -m warehouse_metadata.yml \
             --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors --setting facet_time_limit_ms 500 --setting allow_facet off" \
