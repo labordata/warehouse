@@ -16,6 +16,25 @@ databases:
           <li>The data starts around 2010. See <a href="./old_nlrb">old_nlrb</a> for data from the previous system</li>
           <li>The update process starts by downloading a CSV of all the cases within a specified time period from the nlrb.gov website. However, repeatingly requesting the same information from nlrb.gov results in spreadsheets with slightly different contents. We might be a bit out of date if the last CSV we downloaded missed a recent case.</li>
       </ul>
+    queries:
+      new_rc_cases:
+        title: New petitions for representation elections
+        sql: |-
+          select
+            case_number as atom_id,
+            name as atom_title,
+            datetime(created_at, 'utc') || 'Z' as atom_updated,
+            url as atom_link,
+            '<p>Case Number: <a href="' || url || '">' || case_number || '</a></p><p>Filed on: ' || date_filed || '</p><p>' || number_of_voters_on_petition_or_charge || ' workers at ' || name || ' petitioned for an representation election in ' || city || ', ' || state || '.</p>' as atom_content_html
+          from
+            filing
+          where
+            case_type = 'RC'
+          order by
+            created_at desc,
+            date_filed desc
+          limit
+            100
   f7:
     title: Collective Bargaining Notice (F-7) Data since 1997
     description: Daily refreshed data on bargaining notices from the Federal Mediation and Conciliation Service website. Data is updated nightly at about 10:00 pm Eastern, though the FMCS ony updates their data monthly.
