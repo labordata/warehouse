@@ -36,11 +36,13 @@ jobs:
           wget https://github.com/labordata/nlrb-voluntary-recognitions/releases/download/0.1/voluntary_recognitions.db
           wget https://github.com/labordata/lors/raw/main/lm.db
           wget https://github.com/labordata/fmcs-work-stoppage/raw/main/work_stoppages.db
+          wget https://github.com/labordata/lm20/releases/download/nightly/lm20.db.zip
           unzip nlrb.db.zip
           unzip f7.db.zip
           unzip odpr.db.zip
           unzip nlrb.sqlite.zip
           mv nlrb.sqlite old_nlrb.db
+          unzip lm20.db.zip
 
       - name: Set up Cloud Run
         uses: google-github-actions/setup-gcloud@master
@@ -52,7 +54,7 @@ jobs:
           pip install datasette
           gcloud config set run/region us-central1
           gcloud config set project labordata          
-          datasette publish cloudrun f7.db nlrb.db odpr.db old_nlrb.db voluntary_recognitions.db lm.db work_stoppages.db \
+          datasette publish cloudrun f7.db nlrb.db odpr.db old_nlrb.db voluntary_recognitions.db lm.db work_stoppages.db lm20.db \
             --memory 8Gi \
             --cpu 2 \
             --service warehouse \
