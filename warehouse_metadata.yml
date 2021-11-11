@@ -62,11 +62,11 @@ databases:
     source_url: https://github.com/labordata/nlrb-voluntary-recognitions
   work_stoppages:
     title: Work Stoppages Known to the FMCS
-    decription_html: |-
+    description_html: |-
       <p>The Federal Mediation and Concilliation Service has previously published data on 14,318 work stoppages that their staff tracked in their case management system.</p> <p>The FMCS stopped publishing this data at the end of 2020, and removed the archival data from their website. This data uses data taken from the Internet Archive's copy of the FMCS website.</p>
     source: FMCS website, archived by the Internet Archive
     source_url: https://github.com/labordata/fmcs-work-stoppage
-  lm_20:
+  lm20:
     title: Filings for Activity of Labor Relations Consultants (Anti-union consultants)
     description: |-
       <p>Labor relation consultants hired by employers to oppose a union drive are required to file reports about their activities to the Department of Labor. These forms are called LM20 and LM21.</p><p>This data is gathers nightly from the Office of Labor-Management Standards's Online Public Disclosure Room</p>
