@@ -58,9 +58,10 @@ jobs:
             --cpu 2 \
             --service warehouse \
             -m warehouse_metadata.yml \
-            --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors --setting facet_time_limit_ms 500 --setting allow_facet off" \
+            --extra-options="--crossdb --setting sql_time_limit_ms 50000 --setting hash_urls 1 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1" \
             --install=datasette-atom \
             --install=datasette-rure \
             --install=pysqlite3-binary \
             --install=datasette-block-robots \
+            --install=datasette-pretty-traces \
             --version-note=$GITHUB_RUN_NUMBER
