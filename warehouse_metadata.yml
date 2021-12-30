@@ -77,4 +77,14 @@ databases:
         label_column: companyName
 plugins:
     datasette-block-robots:
-        allow_only_index: true
+        literal: |-
+            User-agent: *
+            Disallow: /
+            Disallow: /_memory*
+            Disallow: /f7*
+            Disallow: /nlrb*
+            Disallow: /odpr*
+            Disallow: /old_nlrb*
+            Disallow: /voluntary_recognitions*
+            Disallow: /work_stoppages*
+            Disallow: /lm20*
