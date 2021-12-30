@@ -79,7 +79,6 @@ plugins:
     datasette-block-robots:
         literal: |-
             User-agent: *
-            Disallow: /
             Disallow: /_memory*
             Disallow: /f7*
             Disallow: /nlrb*
