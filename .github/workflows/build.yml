@@ -42,6 +42,13 @@ jobs:
           unzip nlrb.sqlite.zip
           mv nlrb.sqlite old_nlrb.db
           unzip lm20.db.zip
+          echo "analyze;" | sqlite3 f7.db
+          echo "analyze;" | sqlite3 nlrb.db
+          echo "analyze;" | sqlite3 odpr.db
+          echo "analyze;" | sqlite3 old_nlrb.db
+          echo "analyze;" | sqlite3 voluntary_recognitions.db
+          echo "analyze;" | sqlite3 work_stoppages.db
+          echo "analyze;" | sqlite3 lm20.db
 
       - name: Set up Cloud Run
         uses: google-github-actions/setup-gcloud@master
