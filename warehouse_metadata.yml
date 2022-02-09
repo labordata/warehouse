@@ -75,6 +75,28 @@ databases:
     tables:
       filer:
         label_column: companyName
+    queries:
+      new_lm20_filings:
+        title: New LM20 Filings
+        sql: |-
+          select
+            distinct rptID as atom_id,
+            employer.empLabOrg || ' vs ' || specific_subject_labor_orgs as atom_title,
+            filing_url as atom_link,
+            datetime(receiveDate, 'utc') || 'Z' as atom_updated,
+            '<p>' || employer.empLabOrg || ' (' || employer.city || ', ' || employer.state || ') hired ' || coalesce(contact.organization, contact.name) || ' to meet with ' || specific_subject_employees || ' to help convince workers not to organize with ' || specific_subject_labor_orgs || '</p>' as atom_content_html
+          from
+            filing
+            inner join employer using (rptId)
+            inner join specific_activity using (rptId)
+            inner join contact using (rptId)
+          where
+            contact_type = 'name_and_mailing_address'
+            and atom_title is not null
+            and atom_content_html is not null
+          order by
+            receiveDate desc;
+        
 plugins:
     datasette-block-robots:
         literal: |-
