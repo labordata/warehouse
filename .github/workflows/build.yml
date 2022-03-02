@@ -31,7 +31,7 @@ jobs:
         run: |
           wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
           wget http://labordata.github.io/fmcs-f7/f7.db.zip
-          wget https://github.com/labordata/odpr/releases/download/2021-05-31/odpr.db.zip
+          wget https://github.com/labordata/opdr/releases/download/2021-05-31/opdr.db.zip
           wget https://labordata.github.io/nlrb-cats/nlrb.sqlite.zip
           wget https://github.com/labordata/nlrb-voluntary-recognitions/raw/main/voluntary_recognitions.db
           wget https://github.com/labordata/fmcs-work-stoppage/raw/main/work_stoppages.db
@@ -39,14 +39,14 @@ jobs:
           wget https://github.com/labordata/CHIPS/releases/download/first-chips/chips.db.zip
           unzip nlrb.db.zip
           unzip f7.db.zip
-          unzip odpr.db.zip
+          unzip opdr.db.zip
           unzip nlrb.sqlite.zip
           mv nlrb.sqlite old_nlrb.db
           unzip lm20.db.zip
           unzip chips.db.zip
           echo "analyze;" | sqlite3 f7.db
           echo "analyze;" | sqlite3 nlrb.db
-          echo "analyze;" | sqlite3 odpr.db
+          echo "analyze;" | sqlite3 opdr.db
           echo "analyze;" | sqlite3 old_nlrb.db
           echo "analyze;" | sqlite3 voluntary_recognitions.db
           echo "analyze;" | sqlite3 work_stoppages.db
@@ -64,7 +64,7 @@ jobs:
           pip install datasette
           gcloud config set run/region us-central1
           gcloud config set project labordata          
-          datasette publish cloudrun f7.db nlrb.db odpr.db old_nlrb.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db \
+          datasette publish cloudrun f7.db nlrb.db opdr.db old_nlrb.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db \
             --memory 8Gi \
             --cpu 2 \
             --service warehouse \
