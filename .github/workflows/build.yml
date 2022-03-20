@@ -61,7 +61,7 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Deploy to Cloudrun
         run: |
-          pip install datasette
+          pip install datasette==0.61a0
           gcloud config set run/region us-central1
           gcloud config set project labordata          
           datasette publish cloudrun f7.db nlrb.db opdr.db old_nlrb.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db \
@@ -70,7 +70,7 @@ jobs:
             --service warehouse \
             -m warehouse_metadata.yml \
             --extra-options="--crossdb --setting sql_time_limit_ms 50000 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1 --setting max_returned_rows 5000" \
-            --install=datasette-hashed-urls \
+            --install=https://github.com/simonw/datasette-hashed-urls/archive/be554804c0a68e21c3cd52e9aebb287d10d2179e.zip \
             --install=datasette-atom \
             --install=datasette-rure \
             --install=pysqlite3-binary \
