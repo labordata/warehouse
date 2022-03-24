@@ -73,7 +73,7 @@ jobs:
             --install=datasette-atom \
             --install=datasette-rure \
             --install=pysqlite3-binary \
-            --install=https://github.com/simonw/datasette-hashed-urls/archive/refs/tags/0.4.zip \
+            --install=datasette-hashed-urls \
             --install=datasette-block-robots \
             --install=datasette-pretty-traces \
             --version-note=$GITHUB_RUN_NUMBER
