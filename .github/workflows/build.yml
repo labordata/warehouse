@@ -37,6 +37,8 @@ jobs:
             service_account: 'github-deploy-labordata@labordata.iam.gserviceaccount.com'
       - name: Set up Cloud Run
         uses: google-github-actions/setup-gcloud@v0
+      - name: check time out
+        run: gcloud config get app/cloud_build_timeout
       - name: dependencies
         run: |
           pip install datasette sqlite-utils
