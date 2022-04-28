@@ -39,8 +39,8 @@ jobs:
         uses: google-github-actions/setup-gcloud@v0
       - name: set longer cloud build timeout
         run: |
-          gcloud config set app/cloud_build_timeout 1800
-          gcloud config get app/cloud_build_timeout
+          gcloud config set builds/timeout 1800
+          gcloud config get builds/timeout
       - name: dependencies
         run: |
           pip install datasette sqlite-utils
