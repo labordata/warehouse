@@ -43,7 +43,8 @@ jobs:
           gcloud config get builds/timeout
       - name: dependencies
         run: |
-          pip install datasette sqlite-utils
+          pip install sqlite-utils
+          pip install https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv.zip
       - name: get databases
         run: |
           wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
