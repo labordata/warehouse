@@ -44,7 +44,7 @@ jobs:
       - name: dependencies
         run: |
           pip install sqlite-utils
-          pip install https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv.zip
+          pip install https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv_publish.zip
       - name: get databases
         run: |
           wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
