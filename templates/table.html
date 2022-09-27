@@ -139,7 +139,7 @@
     <p><a class="not-underlined" title="{{ query.sql }}" href="{{ urls.database(database) }}?{{ {'sql': query.sql}|urlencode|safe }}{% if query.params %}&amp;{{ query.params|urlencode|safe }}{% endif %}">&#x270e; <span class="underlined">View and edit SQL</span></a></p>
 {% endif %}
 
-<p class="export-links">Download this data as a <a href="{{ url_csv_path }}?_dl=1&_stream=1">CSV Spreadsheet (All Rows)</a>{% endif %}</p>
+{% if display_rows %}<p class="export-links">Download this data as a <a href="{{ url_csv_path }}?_dl=1&_stream=1">CSV Spreadsheet (All Rows)</a></p>{% endif %}
 
 {% if suggested_facets %}
     {% include "_suggested_facets.html" %}
