@@ -1,7 +1,7 @@
 title: Labor Data
 description_html: |-
   <p>Databases related to the US labor movement collected from government sources</p> 
-  <p>A project of <a href="https://twitter.com/forestgregg">Forest Gregg</a>.</p>
+  <p>A project of <a href="https://mastodon.social/@fgregg">Forest Gregg</a>.</p>
 databases:
   nlrb:
     title: NLRB cases since 2010
