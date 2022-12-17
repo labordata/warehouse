@@ -67,6 +67,12 @@ databases:
       <p>The Federal Mediation and Concilliation Service previously published data on 14,318 work stoppages that their staff tracked in their case management system.</p> <p>The FMCS stopped publishing this data at the end of 2020, and removed the archival data from their website. This databases uses data taken from the Internet Archive's copy of the FMCS website.</p>
     source: FMCS website, archived by the Internet Archive
     source_url: https://github.com/labordata/fmcs-work-stoppage
+  whisard:
+    title: Wage and Hour Compliance Action Data
+    desciption_html: |-
+      <p>The Wage and Hourly Division of the Department of Labor <a href="https://enforcedata.dol.gov/views/data_summary.php">publishes data on their investigations and enforcement actions</a>. We check to see if the data is updated daily, but the divison only updates the data quarterly</p>
+    source: Department of Labor Enforcement Data Catalog, scraped
+    source_url: https://github.com/labordata/whd-compliance
   lm20:
     title: Filings for Activity of Labor Relations Consultants (Anti-union consultants)
     description_html: |-
