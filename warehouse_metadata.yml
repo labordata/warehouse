@@ -1,7 +1,8 @@
 title: Labor Data
 description_html: |-
-  <p>Databases related to the US labor movement collected from government sources</p> 
-  <p>A project of <a href="https://twitter.com/forestgregg">Forest Gregg</a>.</p>
+  <p>Databases related to the US labor movement collected from government sources</p>
+  <p>Read about project updates on <a href="https://notes.labordata.bunkum.us/">Notes on Labor Data</a>.</p>
+  <p>A project of <a href="https://mastodon.social/@fgregg">Forest Gregg</a>.</p>
 databases:
   nlrb:
     title: NLRB cases since 2010
@@ -66,6 +67,12 @@ databases:
       <p>The Federal Mediation and Concilliation Service previously published data on 14,318 work stoppages that their staff tracked in their case management system.</p> <p>The FMCS stopped publishing this data at the end of 2020, and removed the archival data from their website. This databases uses data taken from the Internet Archive's copy of the FMCS website.</p>
     source: FMCS website, archived by the Internet Archive
     source_url: https://github.com/labordata/fmcs-work-stoppage
+  whisard:
+    title: Wage and Hour Compliance Action Data
+    desciption_html: |-
+      <p>The Wage and Hourly Division of the Department of Labor <a href="https://enforcedata.dol.gov/views/data_summary.php">publishes data on their investigations and enforcement actions</a>. We check to see if the data is updated daily, but the divison only updates the data quarterly</p>
+    source: Department of Labor Enforcement Data Catalog, scraped
+    source_url: https://github.com/labordata/whd-compliance
   lm20:
     title: Filings for Activity of Labor Relations Consultants (Anti-union consultants)
     description_html: |-
