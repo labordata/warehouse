@@ -14,7 +14,7 @@ databases:
       <h2>Data Limitations</h2>
 
       <ul>
-          <li>The data starts around 2010. See <a href="./old_nlrb">old_nlrb</a> for data from the previous system</li>
+          <li>The data starts around 2010. See <a href="./cats">cats</a> for data from the previous system</li>
           <li>The update process starts by downloading a CSV of all the cases within a specified time period from the nlrb.gov website. However, repeatingly requesting the same information from nlrb.gov results in spreadsheets with slightly different contents. We might be a bit out of date if the last CSV we downloaded missed a recent case.</li>
       </ul>
     queries:
@@ -43,12 +43,127 @@ databases:
     source_url: https://github.com/labordata/fmcs-f7
     description_html: |-
       <p>Daily refreshed data on <a href="https://www.fmcs.gov/resources/documents-and-data/#tab-d3d7f5344cef9bab4d3">bargaining notices from fmcs.gov</a>. Data is updated nightly at about 10:00 pm Eastern, though the FMCS ony updates their data monthly.</p>
-  old_nlrb:
+  cats:
     title: NLRB cases, 1999-2010
     source: NLRB files posted to data.gov, archived on archive.org 
     source_url: https://github.com/labordata/nlrb-cats
     description_html: |-
       <p>This data and code is based on the work done by <a href="https://github.com/jpfergongithub/nlrb-cats">JP Ferguson</a>. He describes the data in <a href="http://jpferguson.net/project/nlrb_rcase/">some detail on his blog</a>.</p>
+    tables:
+      l_blue_book_codes:
+        label_column: description
+      l_case_party:
+        label_column: description
+      l_geographic_division: 
+        label_column: description
+      l_geographic_region:
+        label_column: description
+      l_labor_org_code:
+        label_column: labor_org_name
+      l_naics_code:
+        label_column: description
+      l_naics_sector:
+        label_column: description
+      l_nlrb_branch:
+        label_column: description
+      l_nlrb_district:
+        label_column: description
+      l_nlrb_division:
+        label_column: description
+      l_nlrb_office:
+        label_column: description
+      l_nlrb_office_type:
+        label_column: description
+      l_nlrb_region:
+        label_column: description
+      l_organization:
+        label_column: formal_name
+      l_parti_type:
+        label_column: description
+      l_participant_group:
+        label_column: description
+      l_party_scope:
+        label_column: description
+      l_party_type:
+        label_column: description
+      l_r_bargain_unit_code:
+        label_column: description
+      l_r_bargain_unit_scope:
+        label_column: description
+      l_r_block_determination:
+        label_column: description
+      l_r_board_action_code:
+        label_column: description
+      l_r_board_action_src_reason:
+        label_column: description
+      l_r_board_received_reason:
+        label_column: description
+      l_r_case_elect_type:
+        label_column: description
+      l_r_case_group_type:
+        label_column: description
+      l_r_case_type:
+        label_column: description
+      l_r_challenge_act_result:
+        label_column: description
+      l_r_challenge_act_type:
+        label_column: description        
+      l_r_challenge_issue:
+        label_column: description
+      l_r_closing_method:
+        label_column: description
+      l_r_closing_stage:
+        label_column: description
+      l_r_elect_agree_type:
+        label_column: description
+      l_r_elect_mode:
+        label_column: description
+      l_r_obj_act_result:
+        label_column: description
+      l_r_obj_act_type:
+        label_column: description
+      l_r_objection_issue:
+        label_column: description
+      l_r_part_role_type:
+        label_column: role_name
+      l_r_postelec_det_eot:
+        label_column: description
+      l_r_postelec_det_p_p:
+        label_column: description
+      l_r_postelec_ho_directed:
+        label_column: description
+      l_r_preelec_det_eot:
+        label_column: description
+      l_r_preelec_hear_det_p_p:
+        label_column: description
+      l_r_preelec_rd_dec_type:
+        label_column: description
+      l_r_preelec_rd_issue_dec:
+        label_column: description
+      l_r_preelec_rd_recon:
+        label_column: description
+      l_r_rd_action_det:
+        label_column: description
+      l_r_rd_action_type:
+        label_column: description
+      l_r_reason_transfer:
+        label_column: description
+      l_r_reopen_reason:
+        label_column: description
+      l_r_status:
+        label_column: description
+      l_r_tally_type:
+        label_column: description
+      l_r_target_description:
+        label_column: description
+      l_r_transfer_type:
+        label_column: description
+      l_blue_book_division:
+        label_column: description
+      l_blue_book_chapter:
+        label_column: description
+        
+
   odpr:
     title: OLMS Online Public Disclosure Room Database, Annual LM Data
     description_html: |-
