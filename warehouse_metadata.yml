@@ -48,7 +48,7 @@ databases:
     source: NLRB files posted to data.gov, archived on archive.org 
     source_url: https://github.com/labordata/nlrb-cats
     description_html: |-
-      <p>This data is the publicly-releasable records for the Case Activity Tracking System that the National Labor Relations Board used from around 1999-2011. That original data exports are on <a href="https://catalog.archives.gov/id/6341122">deposit in the National Archives</a>.</p>
+      <p>This data is the publicly-releasable records for the Case Activity Tracking System that the National Labor Relations Board used from around 1999-2011</p>
     tables:
       l_blue_book_codes:
         label_column: description
