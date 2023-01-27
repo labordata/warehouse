@@ -44,11 +44,11 @@ databases:
     description_html: |-
       <p>Daily refreshed data on <a href="https://www.fmcs.gov/resources/documents-and-data/#tab-d3d7f5344cef9bab4d3">bargaining notices from fmcs.gov</a>. Data is updated nightly at about 10:00 pm Eastern, though the FMCS ony updates their data monthly.</p>
   cats:
-    title: NLRB cases, 1999-2010
+    title: NLRB cases, 1999-2011
     source: NLRB files posted to data.gov, archived on archive.org 
     source_url: https://github.com/labordata/nlrb-cats
     description_html: |-
-      <p>This data and code is based on the work done by <a href="https://github.com/jpfergongithub/nlrb-cats">JP Ferguson</a>. He describes the data in <a href="http://jpferguson.net/project/nlrb_rcase/">some detail on his blog</a>.</p>
+      <p>This data is the publicly-releasable records for the Case Activity Tracking System that the National Labor Relations Board used from around 1999-2011. That original data exports are on <a href="https://catalog.archives.gov/id/6341122">deposit in the National Archives</a>.</p>
     tables:
       l_blue_book_codes:
         label_column: description
@@ -162,7 +162,12 @@ databases:
         label_column: description
       l_blue_book_chapter:
         label_column: description
-        
+  chips:
+    title: NLRB cases, 1999-2010
+    source: NLRB files posted to data.gov, archived on archive.org 
+    source_url: https://github.com/labordata/nlrb-cats
+    description_html: |-
+      <p>This data and code is based on the work done by <a href="https://github.com/jpfergongithub/nlrb-cats">JP Ferguson</a>. He describes the data in <a href="http://jpferguson.net/project/nlrb_rcase/">some detail on his blog</a>.</p>
 
   odpr:
     title: OLMS Online Public Disclosure Room Database, Annual LM Data

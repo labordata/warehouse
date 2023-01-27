@@ -50,7 +50,7 @@ jobs:
           wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
           wget http://labordata.github.io/fmcs-f7/f7.db.zip
           wget https://github.com/labordata/opdr/releases/download/2021-05-31/opdr.db.zip
-          wget https://labordata.github.io/nlrb-cats/nlrb.sqlite.zip
+          wget https://github.com/labordata/nlrb-cats/releases/download/db/nlrb.sqlite.zip
           wget https://github.com/labordata/nlrb-voluntary-recognitions/raw/main/voluntary_recognitions.db
           wget https://github.com/labordata/fmcs-work-stoppage/raw/main/work_stoppages.db
           wget https://github.com/labordata/lm20/releases/download/nightly/lm20.db.zip
