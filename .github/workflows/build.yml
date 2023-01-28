@@ -54,7 +54,7 @@ jobs:
           wget https://github.com/labordata/nlrb-voluntary-recognitions/raw/main/voluntary_recognitions.db
           wget https://github.com/labordata/fmcs-work-stoppage/raw/main/work_stoppages.db
           wget https://github.com/labordata/lm20/releases/download/nightly/lm20.db.zip
-          wget https://github.com/labordata/CHIPS/releases/download/first-chips/chips.db.zip
+          wget https://github.com/labordata/CHIPS/releases/download/current/chips.db.zip
           wget https://github.com/labordata/osha-enforcement/releases/download/nightly/osha_enforcement.db.zip
           wget https://github.com/labordata/whd-compliance/releases/download/nightly/whisard.db.zip
           unzip nlrb.db.zip

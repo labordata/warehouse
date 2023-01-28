@@ -163,12 +163,9 @@ databases:
       l_blue_book_chapter:
         label_column: description
   chips:
-    title: NLRB cases, 1999-2010
-    source: NLRB files posted to data.gov, archived on archive.org 
-    source_url: https://github.com/labordata/nlrb-cats
-    description_html: |-
-      <p>This data and code is based on the work done by <a href="https://github.com/jpfergongithub/nlrb-cats">JP Ferguson</a>. He describes the data in <a href="http://jpferguson.net/project/nlrb_rcase/">some detail on his blog</a>.</p>
-
+    title: NLRB cases, 1984-2000
+    source: NLRB files archived with the National Archive
+    source_url: https://github.com/labordata/CHIPS
   odpr:
     title: OLMS Online Public Disclosure Room Database, Annual LM Data
     description_html: |-
