@@ -186,7 +186,7 @@ databases:
     source_url: https://github.com/labordata/fmcs-work-stoppage
   farber:
     title: 1972-1991 NLRB election data due to Henry Farber
-    description: |-
+    description_html: |-
       <p><a href="https://en.wikipedia.org/wiki/Henry_Farber">Henry Farber</a> got the earliest files on 9-track tape from the NLRB and then updated the data with subsequent FOIA requests. Farber and his co-authors used these data in "Accounting for the Decline of Unions in the Private Sector, 1973-1998" (2001), <a href="https://dataspace.princeton.edu/handle/88435/dsp01j098zb111">"Ronald Reagan and the Politics of Declining Union Organization</a> (2002), and <a href="https://www.nber.org/papers/w19908">"Union Organizing Decisions in a Deteriorating Environment: The Composition of Representation Elections and the Decline in Turnout"</a> (2014).</p>    
   whisard:
     title: Wage and Hour Compliance Action Data
