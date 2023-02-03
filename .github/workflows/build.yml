@@ -85,7 +85,7 @@ jobs:
         run: |
           gcloud config set run/region us-central1
           gcloud config set project labordata          
-          datasette publish cloudrun f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db osha_enforcement.db whisard.db farber.db \
+          datasette publish cloudrun f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db osha_enforcement.db whisard.db \
             --memory 8Gi \
             --cpu 2 \
             --service warehouse \
