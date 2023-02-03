@@ -47,6 +47,7 @@ jobs:
           pip install https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv_publish.zip
       - name: get databases
         run: |
+          wget https://github.com/labordata/nlrb-data/releases/download/nightly/farber.db.zip
           wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
           wget http://labordata.github.io/fmcs-f7/f7.db.zip
           wget https://github.com/labordata/opdr/releases/download/2021-05-31/opdr.db.zip
@@ -57,6 +58,7 @@ jobs:
           wget https://github.com/labordata/CHIPS/releases/download/current/chips.db.zip
           wget https://github.com/labordata/osha-enforcement/releases/download/nightly/osha_enforcement.db.zip
           wget https://github.com/labordata/whd-compliance/releases/download/nightly/whisard.db.zip
+          unzip farber.db.zip
           unzip nlrb.db.zip
           unzip f7.db.zip
           unzip opdr.db.zip
@@ -83,7 +85,7 @@ jobs:
         run: |
           gcloud config set run/region us-central1
           gcloud config set project labordata          
-          datasette publish cloudrun f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db osha_enforcement.db whisard.db \
+          datasette publish cloudrun f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db osha_enforcement.db whisard.db farber.db \
             --memory 8Gi \
             --cpu 2 \
             --service warehouse \
