@@ -42,7 +42,7 @@ lm20.db.zip:
 	wget https://github.com/labordata/lm20/releases/download/nightly/lm20.db.zip
 
 chips.db.zip :
-	wget https://github.com/labordata/CHIPS/releases/download/current/
+	wget https://github.com/labordata/CHIPS/releases/download/current/chips.db.zip
 
 osha_enforcement.db.zip :
 	wget https://github.com/labordata/osha-enforcement/releases/download/nightly/osha_enforcement.db.zip
