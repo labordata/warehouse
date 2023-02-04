@@ -42,50 +42,14 @@ jobs:
           gcloud config set builds/timeout 1800
           gcloud config get builds/timeout
       - name: dependencies
-        run: |
-          pip install sqlite-utils
-          pip install https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv_publish.zip
+        run: pip install -r requirements.txt
       - name: get databases
-        run: |
-          wget https://github.com/labordata/nlrb-data/releases/download/nightly/farber.db.zip
-          wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip
-          wget http://labordata.github.io/fmcs-f7/f7.db.zip
-          wget https://github.com/labordata/opdr/releases/download/2021-05-31/opdr.db.zip
-          wget https://github.com/labordata/nlrb-cats/releases/download/db/nlrb.sqlite.zip
-          wget https://github.com/labordata/nlrb-voluntary-recognitions/raw/main/voluntary_recognitions.db
-          wget https://github.com/labordata/fmcs-work-stoppage/raw/main/work_stoppages.db
-          wget https://github.com/labordata/lm20/releases/download/nightly/lm20.db.zip
-          wget https://github.com/labordata/CHIPS/releases/download/current/chips.db.zip
-          wget https://github.com/labordata/osha-enforcement/releases/download/nightly/osha_enforcement.db.zip
-          wget https://github.com/labordata/whd-compliance/releases/download/nightly/whisard.db.zip
-          unzip farber.db.zip
-          unzip nlrb.db.zip
-          unzip f7.db.zip
-          unzip opdr.db.zip
-          unzip nlrb.sqlite.zip
-          mv nlrb.sqlite cats.db
-          unzip lm20.db.zip
-          unzip chips.db.zip
-          unzip osha_enforcement.db.zip
-          unzip whisard.db.zip
-          sqlite-utils enable-fts opdr.db lm_data union_name aff_abbr unit_name desiq_pre desig_num desig_suf street_adr city state zip
-          sqlite-utils enable-fts f7.db f7 union_name union_street union_city union_state union_zip          
-          echo "analyze; vacuum;" | sqlite3 f7.db
-          echo "analyze; vacuum;" | sqlite3 nlrb.db
-          echo "analyze; vacuum;" | sqlite3 opdr.db
-          echo "analyze; vacuum;" | sqlite3 cats.db
-          echo "analyze; vacuum;" | sqlite3 voluntary_recognitions.db
-          echo "analyze; vacuum;" | sqlite3 work_stoppages.db
-          echo "analyze; vacuum;" | sqlite3 lm20.db
-          echo "analyze; vacuum;" | sqlite3 chips.db
-          echo "analyze; vacuum;" | sqlite3 osha_enforcement.db
-          echo "analyze; vacuum;" | sqlite3 whisard.db
-
+        run: make
       - name: Deploy to Cloudrun
         run: |
           gcloud config set run/region us-central1
           gcloud config set project labordata          
-          datasette publish cloudrun f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db osha_enforcement.db whisard.db \
+          datasette publish cloudrun *.db \
             --memory 8Gi \
             --cpu 2 \
             --service warehouse \
