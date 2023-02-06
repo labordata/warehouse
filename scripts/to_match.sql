@@ -13,11 +13,4 @@ with lowered as (
 select
   *
 from
-  lowered
-group by
-  trade_nm,
-  legal_name,
-  street_addr_1_txt,
-  cty_nm,
-  st_cd,
-  naic_cd;
+  lowered;
