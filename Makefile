@@ -50,11 +50,17 @@ osha_enforcement.db.zip :
 whisard.db.zip :
 	wget https://github.com/labordata/whd-compliance/releases/download/nightly/whisard.db.zip
 
-crosswalk.db : whd_establishment.csv
+crosswalk.db : whd_establishment.csv osha_establishment.csv
 	csvs-to-sqlite $^ $@
 
 whd_to_match.csv : whisard.db
-	sqlite3 $< -csv -header < scripts/to_match.sql > $@
+	sqlite3 $< -csv -header < scripts/whd_to_match.sql > $@
+
+osha_to_match.csv : osha_enforcement.db
+	sqlite3 $< -csv -header < scripts/osha_to_match.sql > $@
 
 whd_establishment.csv : whd_to_match.csv
 	employerlookup $< --identifier=case_id > $@
+
+osha_establishment.csv : osha_to_match.csv
+	employerlookup $< --identifier=activity_nr > $@
