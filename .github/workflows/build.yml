@@ -10,7 +10,7 @@ concurrency:
 on:
   schedule:
     # * is a special character in YAML so you have to quote this string
-    - cron:  '11 10 * * *'    
+    - cron:  '11 05 * * *'    
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
