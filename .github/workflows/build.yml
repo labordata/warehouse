@@ -52,6 +52,7 @@ jobs:
           datasette publish cloudrun *.db \
             --memory 8Gi \
             --cpu 2 \
+            --max-instances=2 \
             --service warehouse \
             -m warehouse_metadata.yml \
             --template-dir=templates/ \
