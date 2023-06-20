@@ -1,5 +1,5 @@
 .PHONY: all
-all : f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db osha_enforcement.db whisard.db crosswalk.db
+all : f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db osha_enforcement.db whisard.db crosswalk.db nlrb_rc_elections_1961_1998.db
 
 f7.db : f7.db.zip
 	unzip $<
@@ -49,6 +49,9 @@ osha_enforcement.db.zip :
 
 whisard.db.zip :
 	wget https://github.com/labordata/whd-compliance/releases/download/nightly/whisard.db.zip
+
+nlrb_rc_elections_1961_1998.db.zip :
+	wget https://github.com/labordata/nlrb_old_rcases/raw/master/nlrb_rc_elections_1961_1998.db.zip
 
 crosswalk.db : whd_establishment.csv osha_establishment.csv
 	csvs-to-sqlite $^ $@
