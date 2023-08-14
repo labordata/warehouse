@@ -1,2 +1,2 @@
 # warehouse
-Datasette Warehouse
+Datasette Warehouse 
