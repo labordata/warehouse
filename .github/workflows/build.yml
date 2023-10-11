@@ -44,7 +44,9 @@ jobs:
       - name: dependencies
         run: pip install -r requirements.txt
       - name: get databases
-        run: make -j 4
+        run: |
+          make osha_enforcement.db
+          make -j 4
       - name: Deploy to Cloudrun
         run: |
           gcloud config set run/region us-central1
