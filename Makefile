@@ -1,5 +1,5 @@
 .PHONY: all
-all : f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db osha_enforcement.db whisard.db nlrb_rc_elections_1961_1998.db
+all : osha_enforcement.db f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db whisard.db nlrb_rc_elections_1961_1998.db
 
 f7.db : f7.db.zip
 	unzip $<
