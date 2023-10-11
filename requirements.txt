@@ -1,5 +1,4 @@
 sqlite-utils
 https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv_publish.zip
-https://github.com/labordata/employer-links/archive/refs/heads/main.zip
 csvs-to-sqlite
 pandas<2
