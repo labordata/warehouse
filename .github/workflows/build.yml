@@ -57,6 +57,7 @@ jobs:
             --max-instances=2 \
             --service warehouse \
             -m warehouse_metadata.yml \
+            -c datasette.yml \
             --template-dir=templates/ \
             --extra-options="--crossdb --setting sql_time_limit_ms 100000 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1" \
             --install=datasette-atom \
