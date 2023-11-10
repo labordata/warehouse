@@ -230,15 +230,3 @@ databases:
           order by
             receiveDate desc;
         
-plugins:
-    datasette-block-robots:
-        literal: |-
-            User-agent: *
-            Disallow: /_memory*
-            Disallow: /f7*
-            Disallow: /nlrb*
-            Disallow: /odpr*
-            Disallow: /old_nlrb*
-            Disallow: /voluntary_recognitions*
-            Disallow: /work_stoppages*
-            Disallow: /lm20*
