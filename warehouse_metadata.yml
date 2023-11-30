@@ -229,6 +229,13 @@ databases:
             and atom_content_html is not null
           order by
             receiveDate desc;
+  lm10:
+    title: Filings for Employers who hire Labor Relation Consultants or Pay Labor Officials
+    description_html: |-
+      <p>Employers must file Form LM-10 annual reports to disclose financial dealings with a union or officer or with a labor relation consultant.</p>
+    source: OLMS website, scraped
+    source_url: https://github.com/labordata/lm10
+
         
 plugins:
     datasette-block-robots:
