@@ -52,7 +52,7 @@ jobs:
           gcloud config set run/region us-central1
           gcloud config set project labordata          
           datasette publish cloudrun *.db \
-            --memory 4Gi \
+            --memory 2Gi \
             --cpu 1 \
             --max-instances=2 \
             --service warehouse \
