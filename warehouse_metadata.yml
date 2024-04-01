@@ -170,6 +170,9 @@ databases:
   chips:
     title: NLRB cases, 1984-2000
     source: NLRB files archived with the National Archive
+    description_html: |-
+      <p>The county table was transcribe by Sean Brailey from the <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook</a>.</p> 
+	
     source_url: https://github.com/labordata/CHIPS
   odpr:
     title: OLMS Online Public Disclosure Room Database, Annual LM Data
