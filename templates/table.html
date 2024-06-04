@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ database }}: {{ table }}: {% if filtered_table_rows_count or filtered_table_rows_count == 0 %}{{ "{:,}".format(filtered_table_rows_count) }} row{% if filtered_table_rows_count == 1 %}{% else %}s{% endif %}{% endif %}{% if human_description_en %} {{ human_description_en }}{% endif %}{% endblock %}
+{% block title %}{{ database }}: {{ table }}: {% if count or count == 0 %}{{ "{:,}".format(count) }} row{% if count == 1 %}{% else %}s{% endif %}{% endif %}{% if human_description_en %} {{ human_description_en }}{% endif %}{% endblock %}
 
 {% block extra_head %}
 {{- super() -}}
@@ -22,32 +22,16 @@
 
 {% block content %}
 <div class="page-header" style="border-color: #{{ database_color }}">
-    <h1>{{ metadata.title or table }}{% if is_view %} (view){% endif %}{% if private %} 🔒{% endif %}</h1>
-    {% set links = table_actions() %}{% if links %}
-    <details class="actions-menu-links details-menu">
-        <summary><svg aria-labelledby="actions-menu-links-title" role="img"
-                style="color: #666" xmlns="http://www.w3.org/2000/svg"
-                width="28" height="28" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <title id="actions-menu-links-title">Table actions</title>
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg></summary>
-        <div class="dropdown-menu">
-            {% if links %}
-            <ul>
-                {% for link in links %}
-                <li><a href="{{ link.href }}">{{ link.label }}</a></li>
-                {% endfor %}
-            </ul>
-            {% endif %}
-        </div>
-    </details>{% endif %}
+    <h1>{{ metadata.get("title") or table }}{% if is_view %} (view){% endif %}{% if private %} 🔒{% endif %}</h1>
 </div>
+{% set action_links, action_title = actions(), "View actions" if is_view else "Table actions" %}
+{% include "_action_menu.html" %}
+
+{{ top_table() }}
 
 {% block description_source_license %}{% include "_description_source_license.html" %}{% endblock %}
 
-{% if metadata.columns %}
+{% if metadata.get("columns") %}
 <dl class="column-descriptions">
     {% for column_name, column_description in metadata.columns.items() %}
         <dt>{{ column_name }}</dt><dd>{{ column_description }}</dd>
@@ -55,8 +39,8 @@
 </dl>
 {% endif %}
 
-{% if filtered_table_rows_count or human_description_en %}
-    <h3>{% if filtered_table_rows_count or filtered_table_rows_count == 0 %}{{ "{:,}".format(filtered_table_rows_count) }} row{% if filtered_table_rows_count == 1 %}{% else %}s{% endif %}{% endif %}
+{% if count or human_description_en %}
+    <h3>{% if count or count == 0 %}{{ "{:,}".format(count) }} row{% if count == 1 %}{% else %}s{% endif %}{% endif %}
         {% if human_description_en %}{{ human_description_en }}{% endif %}
     </h3>
 {% endif %}
@@ -94,7 +78,7 @@
         </div><div class="select-wrapper filter-op">
             <select name="_filter_op">
                 {% for key, display, no_argument in filters.lookups() %}
-                    <option value="{{ key }}{% if no_argument %}__1{% endif %}"{% if key == lookup %} selected{% endif %}>{{ display }}</option>
+                    <option value="{{ key }}{% if no_argument %}__1{% endif %}">{{ display }}</option>
                 {% endfor %}
             </select>
         </div><input type="text" name="_filter_value" class="filter-value">
@@ -135,7 +119,7 @@
     <p><a class="not-underlined" title="{{ query.sql }}" href="{{ urls.database(database) }}?{{ {'sql': query.sql}|urlencode|safe }}{% if query.params %}&amp;{{ query.params|urlencode|safe }}{% endif %}">&#x270e; <span class="underlined">View and edit SQL</span></a></p>
 {% endif %}
 
-{% if display_rows %}<p class="export-links">Download this data as a <a href="{{ url_csv_path }}?_dl=1&_stream=1">CSV Spreadsheet (All Rows)</a></p>{% endif %}
+<p class="export-links">This data as {% for name, url in renderers.items() %}<a href="{{ url }}">{{ name }}</a>{{ ", " if not loop.last }}{% endfor %}{% if display_rows %}, <a href="{{ url_csv }}">CSV</a> (<a href="#export">advanced</a>){% endif %}</p>
 
 {% if suggested_facets %}
     {% include "_suggested_facets.html" %}
@@ -154,6 +138,8 @@
 {% if next_url %}
      <p><a href="{{ next_url }}">Next page</a></p>
 {% endif %}
+
+{% if display_rows %}<p class="export-links">Download this data as a <a href="{{ url_csv_path }}?_dl=1&_stream=1">CSV Spreadsheet (All Rows)</a></p>{% endif %}
 
 {% if table_definition %}
     <pre class="wrapped-sql">{{ table_definition }}</pre>
