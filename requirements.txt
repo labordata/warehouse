@@ -1,4 +1,3 @@
 sqlite-utils
 https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv_publish.zip
-csvs-to-sqlite
-pandas<2
+https://github.com/LuighiV/csvs-to-sqlite/archive/refs/heads/main.zip
