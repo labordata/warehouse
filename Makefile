@@ -5,24 +5,28 @@ f7.db : f7.db.zip
 	unzip $<
 	rm $<
 	sqlite-utils enable-fts $@ f7 union_name union_street union_city union_state union_zip
-	echo "analyze; vacuum;" | sqlite3 $@
+	sqlite-utils query $@ "analyze"
+	sqlite-utils query $@ "vacuum"
 
 opdr.db : opdr.db.zip
 	unzip $<
 	rm $<
 	sqlite-utils enable-fts $@ lm_data union_name aff_abbr unit_name desiq_pre desig_num desig_suf street_adr city state zip
-	echo "analyze; vacuum;" | sqlite3 $@
+	sqlite-utils query $@ "analyze"
+	sqlite-utils query $@ "vacuum"
 
 cats.db : nlrb.sqlite.zip
 	unzip $<
 	rm $<
 	mv nlrb.sqlite $@
-	echo "analyze; vacuum;" | sqlite3 $@
+	sqlite-utils query $@ "analyze"
+	sqlite-utils query $@ "vacuum"
 
 %.db : %.db.zip
 	unzip $<
 	rm $<
-	echo "analyze; vacuum;" | sqlite3 $@
+	sqlite-utils query $@ "analyze"
+	sqlite-utils query $@ "vacuum"
 
 nlrb.db.zip :
 	wget https://github.com/labordata/nlrb-data/releases/download/nightly/nlrb.db.zip

@@ -1,3 +1,4 @@
 sqlite-utils
 https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv_publish.zip
 https://github.com/LuighiV/csvs-to-sqlite/archive/refs/heads/main.zip
+pysqlite3-binary
