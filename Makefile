@@ -53,7 +53,7 @@ chips.db.zip :
 	wget https://github.com/labordata/CHIPS/releases/download/current/chips.db.zip
 
 osha_enforcement.db.zip :
-	wget https://github.com/labordata/osha-enforcement/releases/download/nightly/osha_enforcement.db.zip
+	curl -LO https://github.com/labordata/osha-enforcement/releases/download/nightly/osha_enforcement.db.zip
 
 whisard.db.zip :
 	wget https://github.com/labordata/whd-compliance/releases/download/nightly/whisard.db.zip
