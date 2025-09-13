@@ -65,7 +65,8 @@ jobs:
             --install=datasette-hashed-urls \
             --install=datasette-block-robots \
             --install=datasette-pretty-traces \
-            --version-note=$GITHUB_RUN_NUMBER
+            --version-note=$GITHUB_RUN_NUMBER \
+            --show-files
   workflow-keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
