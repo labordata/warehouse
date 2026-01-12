@@ -64,16 +64,6 @@ nlrb_rc_elections_1961_1998.db.zip :
 lm10.db.zip :
 	curl -LO https://github.com/labordata/lm10/releases/download/nightly/lm10.db.zip
 
-crosswalk.db : whd_establishment.csv osha_establishment.csv
-	csvs-to-sqlite $^ $@
-
-whd_to_match.csv : whisard.db
-	sqlite3 $< -csv -header < scripts/whd_to_match.sql > $@
-
-osha_to_match.csv : osha_enforcement.db
-	sqlite3 $< -csv -header < scripts/osha_to_match.sql > $@
-
-
 union_names_crosswalk.db : union_names_crosswalk.csv
 	csvs-to-sqlite $^ $@
 	sqlite-utils create-index union_names_crosswalk.db union_names_crosswalk union_name --unique
