@@ -1,5 +1,5 @@
 .PHONY: all
-all : osha_enforcement.db f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db whisard.db nlrb_rc_elections_1961_1998.db lm10.db
+all : osha_enforcement.db f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db whisard.db nlrb_rc_elections_1961_1998.db lm10.db union_names_crosswalk.db
 
 f7.db : f7.db.zip
 	unzip $<
@@ -73,8 +73,13 @@ whd_to_match.csv : whisard.db
 osha_to_match.csv : osha_enforcement.db
 	sqlite3 $< -csv -header < scripts/osha_to_match.sql > $@
 
-whd_establishment.csv : whd_to_match.csv
-	employerlookup $< --identifier=case_id > $@
 
-osha_establishment.csv : osha_to_match.csv
-	employerlookup $< --identifier=activity_nr > $@
+union_names_crosswalk.db : union_names_crosswalk.csv
+	csvs-to-sqlite $^ $@
+	sqlite-utils create-index union_names_crosswalk.db union_names_crosswalk union_name --unique
+
+union_names.csv : f7.db nlrb.db lm20.db voluntary_recognitions.db
+	(echo "ATTACH 'f7.db' AS f7; ATTACH 'nlrb.db' AS nlrb; ATTACH 'lm20.db' AS lm20; ATTACH 'voluntary_recognitions.db' AS voluntary_recognitions;"; cat scripts/union_names.sql) | sqlite3 -csv -header :memory: > $@
+
+union_name_crosswalk.csv : union_names.csv
+	labor-union-parser $< > $@
