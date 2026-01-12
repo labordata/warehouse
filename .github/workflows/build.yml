@@ -10,9 +10,32 @@ on:
 
 jobs:
   build-crosswalk:
-    uses: ./.github/workflows/build-crosswalk.yml
-    permissions:
-      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: pip install sqlite-utils csvs-to-sqlite labor-union-parser
+
+      - name: Build union_names.csv and prerequisite databases
+        run: make union_names.csv
+
+      - name: Generate union_names_crosswalk.csv
+        run: labor-union-parser union_names.csv > union_names_crosswalk.csv
+
+      - name: Build union_names_crosswalk.db
+        run: |
+          csvs-to-sqlite union_names_crosswalk.csv union_names_crosswalk.db
+          sqlite-utils create-index union_names_crosswalk.db union_names_crosswalk union_name --unique
+
+      - name: Zip databases
+        run: zip crosswalk-databases.zip union_names_crosswalk.db f7.db nlrb.db lm20.db voluntary_recognitions.db
+
+      - name: Upload databases
+        uses: actions/upload-artifact@v4
+        with:
+          name: crosswalk-databases
+          path: crosswalk-databases.zip
 
   build-and-deploy:
     needs: build-crosswalk
@@ -39,14 +62,13 @@ jobs:
           gcloud config set builds/timeout 1800
           gcloud config get builds/timeout
 
-      - name: Download crosswalk databases from release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release download crosswalk-nightly --pattern "*.zip"
-          unzip union_names_crosswalk.db.zip
-          unzip crosswalk-prereq-dbs.zip
-          rm *.zip
+      - name: Download crosswalk databases
+        uses: actions/download-artifact@v4
+        with:
+          name: crosswalk-databases
+
+      - name: Unzip crosswalk databases
+        run: unzip crosswalk-databases.zip && rm crosswalk-databases.zip
 
       - name: dependencies
         run: pip install -r requirements.txt
