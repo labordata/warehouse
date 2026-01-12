@@ -1,6 +1,8 @@
 .PHONY: all
 all : osha_enforcement.db f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db whisard.db nlrb_rc_elections_1961_1998.db lm10.db union_names_crosswalk.db
 
+.INTERMEDIATE: f7.db.zip nlrb.db.zip opdr.db.zip nlrb.sqlite.zip lm20.db.zip chips.db.zip osha_enforcement.db.zip whisard.db.zip nlrb_rc_elections_1961_1998.db.zip lm10.db.zip
+
 f7.db : f7.db.zip
 	unzip $<
 	rm $<
