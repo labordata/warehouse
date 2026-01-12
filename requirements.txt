@@ -1,4 +1,3 @@
 sqlite-utils
 https://github.com/fgregg/datasette/archive/refs/heads/no_limit_csv_publish.zip
 csvs-to-sqlite
-labor-union-parser
