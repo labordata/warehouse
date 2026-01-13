@@ -1,7 +1,7 @@
 .PHONY: all
 all : osha_enforcement.db f7.db nlrb.db opdr.db cats.db voluntary_recognitions.db work_stoppages.db lm20.db chips.db whisard.db nlrb_rc_elections_1961_1998.db lm10.db union_names_crosswalk.db
 
-.INTERMEDIATE: f7.db.zip nlrb.db.zip opdr.db.zip nlrb.sqlite.zip lm20.db.zip chips.db.zip osha_enforcement.db.zip whisard.db.zip nlrb_rc_elections_1961_1998.db.zip lm10.db.zip
+.INTERMEDIATE: f7.db.zip nlrb.db.zip opdr.db.zip nlrb.sqlite.zip lm20.db.zip chips.db.zip osha_enforcement.db.zip whisard.db.zip nlrb_rc_elections_1961_1998.db.zip lm10.db.zip union_names.csv union_names_crosswalk.csv
 
 f7.db : f7.db.zip
 	unzip $<
@@ -73,5 +73,5 @@ union_names_crosswalk.db : union_names_crosswalk.csv
 union_names.csv : f7.db nlrb.db lm20.db voluntary_recognitions.db
 	(echo "ATTACH 'f7.db' AS f7; ATTACH 'nlrb.db' AS nlrb; ATTACH 'lm20.db' AS lm20; ATTACH 'voluntary_recognitions.db' AS voluntary_recognitions;"; cat scripts/union_names.sql) | sqlite3 -csv -header :memory: > $@
 
-union_name_crosswalk.csv : union_names.csv
+union_names_crosswalk.csv : union_names.csv
 	labor-union-parser $< > $@
