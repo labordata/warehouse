@@ -62,7 +62,6 @@ jobs:
       - name: Unzip crosswalk databases
         run: |
           unzip crosswalk-databases.zip && rm crosswalk-databases.zip
-          rm crosswalk-database.zip
 
       - name: dependencies
         run: pip install -r requirements.txt
