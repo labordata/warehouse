@@ -17,16 +17,8 @@ jobs:
       - name: Install dependencies
         run: pip install sqlite-utils csvs-to-sqlite labor-union-parser
 
-      - name: Build union_names.csv and prerequisite databases
-        run: make union_names.csv
-
-      - name: Generate union_names_crosswalk.csv
-        run: labor-union-parser union_names.csv > union_names_crosswalk.csv
-
-      - name: Build union_names_crosswalk.db
-        run: |
-          csvs-to-sqlite union_names_crosswalk.csv union_names_crosswalk.db
-          sqlite-utils create-index union_names_crosswalk.db union_names_crosswalk union_name --unique
+      - name: Build union_names_crosswalk.db 
+        run: make union_names_crosswalk.db
 
       - name: Zip databases
         run: zip crosswalk-databases.zip union_names_crosswalk.db f7.db nlrb.db lm20.db voluntary_recognitions.db
@@ -68,7 +60,9 @@ jobs:
           name: crosswalk-databases
 
       - name: Unzip crosswalk databases
-        run: unzip crosswalk-databases.zip && rm crosswalk-databases.zip
+        run: |
+          unzip crosswalk-databases.zip && rm crosswalk-databases.zip
+          rm crosswalk-database.zip
 
       - name: dependencies
         run: pip install -r requirements.txt
