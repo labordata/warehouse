@@ -37,8 +37,16 @@ jobs:
       actions: write
     runs-on: ubuntu-latest
 
+    env:
+      IMAGE: gcr.io/labordata/datasette-warehouse
+
     steps:
       - uses: actions/checkout@v3
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/lib/android /opt/ghc
+          df -h
 
       - id: 'auth'
         uses: 'google-github-actions/auth@v0'
@@ -49,10 +57,8 @@ jobs:
       - name: Set up Cloud Run
         uses: google-github-actions/setup-gcloud@v0
 
-      - name: set longer cloud build timeout
-        run: |
-          gcloud config set builds/timeout 1800
-          gcloud config get builds/timeout
+      - name: Configure docker auth for gcr.io
+        run: gcloud auth configure-docker gcr.io --quiet
 
       - name: Download crosswalk databases
         uses: actions/download-artifact@v4
@@ -69,26 +75,45 @@ jobs:
       - name: get remaining databases
         run: make
 
-      - name: Deploy to Cloudrun
+      - name: Build Docker image
+        env:
+          DOCKER_BUILDKIT: "1"
         run: |
-          gcloud config set run/region us-central1
-          gcloud config set project labordata
-          datasette publish cloudrun *.db \
-            --memory 2Gi \
-            --cpu 1 \
-            --max-instances=2 \
-            --service warehouse \
+          datasette package *.db \
+            -t $IMAGE:$GITHUB_RUN_NUMBER \
             -m warehouse_metadata.yml \
             --template-dir=templates/ \
-            --extra-options="--crossdb --setting sql_time_limit_ms 100000 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1 --setting max_csv_mb 1000" \
+            --extra-options="--crossdb --setting sql_time_limit_ms 100000 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1 --setting max_csv_mb 1000 --setting force_https_urls on" \
             --install=datasette-atom \
             --install=datasette-rure \
             --install=pysqlite3-binary \
             --install=datasette-hashed-urls \
             --install=datasette-block-robots \
             --install=datasette-pretty-traces \
-            --version-note=$GITHUB_RUN_NUMBER \
-            --show-files
+            --version-note=$GITHUB_RUN_NUMBER
+          docker tag $IMAGE:$GITHUB_RUN_NUMBER $IMAGE:latest
+
+      - name: Free local artifacts before push
+        run: |
+          rm -f *.db
+          df -h
+
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE:$GITHUB_RUN_NUMBER
+          docker push $IMAGE:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy warehouse \
+            --image=$IMAGE:$GITHUB_RUN_NUMBER \
+            --region=us-central1 \
+            --project=labordata \
+            --platform=managed \
+            --memory=2Gi \
+            --cpu=1 \
+            --max-instances=2 \
+            --set-env-vars=DATASETTE_SECRET=$(openssl rand -hex 32)
 
   workflow-keepalive:
     if: github.event_name == 'schedule'
