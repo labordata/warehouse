@@ -71,7 +71,7 @@ databases:
           bargaining_unit_size: Number of workers in the bargaining unit (the group covered by the collective-bargaining agreement).
           establishment_size: Total number of employees at the establishment (typically larger than bargaining_unit_size).
           notice_submitted_by: Who filed the notice — typically "F-7 from Employer" or "F-7 from Union".
-          category: Type of notice. Common values are "Renegotiation" (advance notice of an existing contract's expiration), "Reopener" (mid-term reopening provision triggered), "Initial Contract" (newly-formed bargaining relationship), and "I & I" (Information & Intervention). Less common categories include "Unspecified", "Employment Mediation", "Regulatory Negotiation", "Facilitate a Meeting", and "Dispute Systems Design".
+          category: Type of notice. Common values are "Renegotiation" (advance notice of an existing contract's expiration), "Reopener" (mid-term reopening provision triggered), and "Initial Contract" (newly-formed bargaining relationship). Less common categories include "I & I" (an FMCS internal service-type code, expansion not publicly documented), "Unspecified", "Employment Mediation", "Regulatory Negotiation", "Facilitate a Meeting", and "Dispute Systems Design".
           healthcare_related: Boolean flag (0 or 1) indicating whether the employer is a healthcare establishment subject to the 60-day NLRA Section 8(d)(A) notice requirement.
           location_negotiation_city: City where bargaining will take place, when supplied.
           location_negotiation_state: State where bargaining will take place, when supplied.
