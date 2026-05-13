@@ -333,17 +333,395 @@ databases:
           valid_for: votes
           valid_cast: votes
   cats:
-    title: NLRB cases, 1999-2011
-    source: NLRB files posted to data.gov, archived on archive.org 
+    title: NLRB CATS data, 1975-2011
+    source: NLRB files posted to data.gov, archived on archive.org
     source_url: https://github.com/labordata/nlrb-cats
     description_html: |-
-      <p>This data is the publicly-releasable records for the Case Activity Tracking System that the National Labor Relations Board used from around 1999-2011</p>
+      <p>The NLRB's <strong>Case Activity Tracking System (CATS)</strong> — the agency's case-management database used from around 1999 through mid-2011, when it was replaced by the current online case system (see <a href="./nlrb">nlrb</a>). Predecessor system was <a href="./chips">CHIPS</a> (1963-2000); the two systems overlap from 1999 to 2000.</p>
+      <p>The schema is enormous — 280+ tables with consistent prefix conventions:</p>
+      <ul>
+        <li><strong>c_*</strong> — Unfair-labor-practice (C) case tables. The hub is <a href="./cats/c_case">c_case</a> (~330k cases) keyed by <code>c_case_number</code>; supporting tables cover allegations, participants, complaints, ALJ decisions, Board decisions, appeals, dismissals, settlements, compliance, injunctions (10(j) and 10(l)), bankruptcy, and procedural milestones at every stage.</li>
+        <li><strong>r_*</strong> — Representation-case tables. The hub is <a href="./cats/r_case">r_case</a> (~54k cases) keyed by <code>r_case_number</code>; supporting tables cover bargaining units, elections, tallies, certifications, hearings, board actions, and post-election proceedings.</li>
+        <li><strong>l_*</strong> — Lookup tables. About 200 of them, expanding every short coded value in the c_*/r_* tables (case types, role types, action codes, determinations, etc.).</li>
+        <li><strong>cl_*</strong> — Closed-Case Report files (denormalized closing reports).</li>
+      </ul>
+      <p>C-case data observed from 1975 onward (most cases 1999-2011 — older rows are legacy cases that remained open into CATS). R-case data observed from 1982 onward. Both end mid-2011.</p>
+      <p>Source data is the publicly-releasable archive that NLRB posted to data.gov, preserved via archive.org after the original posting was removed.</p>
+      <p><strong>Note on column documentation:</strong> Plain-English descriptions for well-known fields (case numbers, dates, vote counts, participant names, case-type codes) are reliable. Descriptions of internal NLRB-procedural / control-code fields (determination codes, motion-type codes, abeyance codes, etc.) are inferred from column names and general NLRB process knowledge, not from a codebook. For ground-truth definitions of opaque coded fields, consult the official CATS documentation if available or the corresponding lookup table.</p>
+    temporal_coverage: "1975/2011"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - NLRB
+      - CATS
+      - unfair labor practices
+      - representation elections
+      - decertification
+      - historical labor data
+      - data.gov
     tables:
+      c_case:
+        description: One row per unfair-labor-practice (C) case. ~330k cases. Hub of the C-case schema, keyed by c_case_number. Most rows are CA (charges against employer, ~248k), CB (charges against union, ~74k), or one of the less common CC/CD/CG/CP/CE subtypes.
+        columns:
+          c_case_number: NLRB case identifier in the format <region>-<type>-<sequence>, e.g. "01-CA-12345". Primary key.
+          status: Case status code. FK to l_c_status.
+          nlrb_office_id: NLRB regional office handling the case. FK to l_nlrb_office.
+          case_type: Two-letter case-type code (CA, CB, CC, CD, CE, CG, CP, UD, AC, WH). FK to l_c_case_type.
+          docket_num: Docket number within the region.
+          case_suffix_num: Sub-docket suffix (typically 0 for original).
+          case_name: Case name (typically the charged party).
+          date_filed: Date the charge was filed (ISO 8601, YYYY-MM-DD).
+          date_closed: Date the case was administratively closed.
+          disposition_due: Date by which disposition is due.
+          disposition_accomplished: Date disposition was accomplished.
+          charged_party_on_charge: Name of the party charged on the original filing.
+          charging_party_on_charge: Name of the party that filed the charge.
+          inquiry_id: NLRB inquiry identifier, when the case began as an inquiry.
+          employer_involved_on_charge: Employer named on the charge.
+          io_assist: Indicator that an investigative officer assisted.
+          naics_code: NAICS industry code. FK to l_naics_code.
+          num_8a3_discriminatees: Count of employees alleged to have been discriminated against under NLRA Section 8(a)(3).
+          num_8b2_discriminatees: Count of employees alleged to have been discriminated against under NLRA Section 8(b)(2).
+          num_employees: Number of employees at the establishment.
+          postal: Whether the establishment is a postal facility (postal-employee cases use slightly different procedures).
+          investigation_complete: Indicator that the investigation is complete.
+          disposition_date: Date of disposition.
+          dispute_loc_city: City where the dispute occurred.
+          dispute_loc_state: State.
+          dispute_loc_county: County. FK to l_county.
+          dispute_loc_zip: ZIP code.
+        units:
+          num_8a3_discriminatees: persons
+          num_8b2_discriminatees: persons
+          num_employees: persons
+      r_case:
+        description: One row per representation (R) case. ~54k cases. Hub of the R-case schema, keyed by r_case_number. Includes RC (certification, ~40k), RD (decertification, ~9k), RM (employer-filed, ~1.5k), UC (unit clarification, ~2k), UD (union deauthorization, ~1.3k), and AC (amendment of certification, ~163).
+        columns:
+          r_case_number: NLRB case identifier in the format <region>-<type>-<sequence>. Primary key.
+          case_type: Two-letter case-type code (RC, RD, RM, UC, UD, AC). FK to l_r_case_type.
+          status: Case status code. FK to l_r_status.
+          nlrb_office_id: NLRB regional office. FK to l_nlrb_office.
+          docket_num: Docket number within the region.
+          inquiry_id: NLRB inquiry identifier.
+          case_name: Case name (typically the employer).
+          date_filed: Date the petition was filed (ISO 8601, YYYY-MM-DD).
+          hearing_target_date: Target date for the pre-election hearing.
+          election_target_date: Target date for the election.
+          employer_on_petition: Name of the employer named on the petition.
+          union_involved_on_petition: Name of the union named on the petition.
+          intervenor_on_petition: Name of any intervening union.
+          self_certification: Indicator for a self-certification case.
+          post_elect_self_cert: Indicator for post-election self-certification.
+          naics_code: NAICS industry code. FK to l_naics_code.
+          num_employees_requested: Number of employees in the petitioner's requested unit.
+          description_requested: Free-text description of the unit being petitioned for.
+        units:
+          num_employees_requested: persons
+      c_participant:
+        description: Parties to each C-case — petitioners, charged parties, employers, unions, intervenors, individuals, and their legal representatives. ~1.3M rows. Linked to c_case via c_case_number.
+        columns:
+          c_case_number: Foreign key to c_case.c_case_number.
+          participant_id: Foreign key to l_organization.organization_id or similar — the participant's identifier in the organization master.
+          participant_group: Participant group classification. FK to l_participant_group.
+          participant_role: Role in the case. FK to l_c_part_role_type.
+          name_for_correspondence: Name as it should appear in correspondence.
+          name_prefix: Honorific (Mr., Ms., etc.). FK to l_name_prefix.
+          first_name: First name (individuals only).
+          mid_name: Middle name.
+          last_name: Last name.
+          name_suffix: Suffix (Jr., Sr., III, etc.). FK to l_name_suffix.
+          street_address_1: Street address line 1.
+          street_address_2: Street address line 2.
+          city: City.
+          state: State. FK to l_state.
+          zip: ZIP code.
+          phone_num: Primary phone number.
+          phone_ext: Phone extension.
+          cell_phone: Cell phone number.
+          fax_num: Fax number.
+          e_mail_address: Email address.
+          formal_name: Formal organization name.
+          parent_name: Parent organization name (for affiliated unions or subsidiary companies).
+          exclusive_service: Indicator for exclusive-service relationship.
+          afl_cio: Indicator that the union is AFL-CIO affiliated.
+          incumbent_union: Indicator that the union is an incumbent.
+          labor_org_code: Labor-organization code. FK to l_labor_org_code.
+          local_dist_id: Local or district identifier.
+          party_scope: Scope of the party (local, district, international, etc.). FK to l_party_scope.
+          parti_type: Participant type code. FK to l_parti_type.
+      c_allegation:
+        description: Allegations within each C-case — each row cites a specific NLRA section subdivision the charged party is alleged to have violated. ~600k rows.
+        columns:
+          c_case_number: Foreign key to c_case.c_case_number.
+          allegation_sequence: Sequence number of the allegation within the case.
+          nlra_section: NLRA section citation (e.g. "8(a)(1)", "8(b)(3)"). FK to l_allegation_type.
+          allegation_keyname: Short key identifying the type of allegation.
+      c_closing:
+        description: Case closure records for C-cases — one row per closing action (a case can have multiple closing entries for different actions in its lifecycle). ~327k rows.
+        columns:
+          c_case_number: Foreign key to c_case.c_case_number.
+          action_sequence: Sequence number of this closing action.
+          date_closed: Date the case closed.
+          close_method: Method of closing. FK to l_c_close_method.
+          close_timing: Timing-of-closure classification. FK to l_c_close_timing.
+          date_file_sent_archives: Date the case file was sent to NLRB archives.
+          date_file_to_records: Date the file was transferred to NLRB records management.
+          date_file_destroyed: Date the file was destroyed under records retention.
+          preclosing_letter: Indicator that a pre-closing letter was issued.
+          notice_of_closing_date: Date a notice of closing was issued.
+      r_election:
+        description: NLRB representation elections held under CATS. ~32k rows. Each row is one election event identified by election_id, with date, type (board-ordered, consent, stipulated, expedited), and mode (manual, mail, mixed).
+        columns:
+          election_id: Primary key for this election.
+          date_election: Date the election was held.
+          election_type: Election-type code. FK to l_r_case_elect_type.
+          election_mode: How the election was conducted (manual, mail, mixed). FK to l_r_elect_mode.
+          election_time: Time the election was conducted.
+          election_city: City where the election was held.
+          election_state: State where the election was held.
+          expedited_under_8b7: Indicator that the election was expedited under Section 8(b)(7).
+          globe_sonotone_election: Indicator for a Globe/Sonotone-type self-determination election.
+          ballots_impounded: Indicator that ballots were impounded.
+      r_election_tally:
+        description: Vote tallies for representation elections — one row per (case, unit, election, tally) combination. ~34k rows. Captures eligible voters, valid votes, votes against, challenged ballots, and outcome indicators.
+        columns:
+          r_case_number: Foreign key to r_case.r_case_number.
+          unit_id: Foreign key to r_bargaining_unit.unit_id.
+          election_id: Foreign key to r_election.election_id.
+          tally_id: Identifier of this tally within the election.
+          tally_date: Date of the tally.
+          tally_type: Tally-type code. FK to l_r_tally_type.
+          self_determination_tally: Indicator for self-determination tally (Globe/Sonotone elections).
+          num_employees_eligible: Number of voters eligible.
+          num_void_ballots: Number of void ballots.
+          num_votes_against: Votes against representation (no union).
+          num_valid_votes: Total valid votes counted.
+          num_challenges: Number of challenged ballots.
+          challenges_determinative: Indicator that challenges are determinative of the outcome.
+          runoff_required: Indicator that a runoff election is required.
+          majority_for: Indicator that the majority voted for representation.
+          num_for_inclusion: Votes for inclusion of the voter's classification in the unit (self-determination tallies).
+          num_against_inclusion: Votes against inclusion (self-determination tallies).
+          num_sustained_challenges: Number of challenges sustained after challenge resolution.
+        units:
+          num_employees_eligible: persons
+          num_void_ballots: ballots
+          num_votes_against: votes
+          num_valid_votes: votes
+          num_challenges: ballots
+          num_for_inclusion: votes
+          num_against_inclusion: votes
+          num_sustained_challenges: ballots
+      r_bargaining_unit:
+        description: Bargaining units involved in representation cases — each row is one unit per case (a single case can have multiple voting units in stratified or self-determination elections).
+        columns:
+          r_case_number: Foreign key to r_case.r_case_number.
+          unit_id: Unit identifier within the case.
+          bargaining_unit_code: Bargaining-unit type code. FK to l_r_bargain_unit_code.
+          bargaining_unit_scope: Bargaining-unit scope code. FK to l_r_bargain_unit_scope.
+          num_employees_determined: Number of employees in the unit as ultimately determined.
+          unit_city: City where the unit is located.
+          unit_state: State where the unit is located.
+          unit_county: County. FK to l_county.
+          description_determined: Free-text description of the unit as determined.
+        units:
+          num_employees_determined: persons
+      r_participant:
+        description: Parties to each R-case — petitioners, employers, unions, intervenors. ~236k rows. Same structure as c_participant but joined via r_case_number.
+        columns:
+          r_case_number: Foreign key to r_case.r_case_number.
+          participant_id: Foreign key to the organization master.
+          participant_role: Role in the case. FK to l_r_part_role_type.
+          participant_group: Participant group. FK to l_participant_group.
+          name_for_correspondence: Name as it should appear in correspondence.
+          name_prefix: Honorific.
+          first_name: First name.
+          mid_name: Middle name.
+          last_name: Last name.
+          name_suffix: Suffix.
+          street_address_1: Street address line 1.
+          street_address_2: Street address line 2.
+          city: City.
+          state: State. FK to l_state.
+          zip: ZIP code.
+          phone_num: Primary phone number.
+          phone_ext: Phone extension.
+          cell_phone: Cell phone number.
+          fax_num: Fax number.
+          e_mail_address: Email address.
+          formal_name: Formal organization name.
+          parent_name: Parent organization name.
+          exclusive_service: Exclusive-service indicator.
+          incumbent_union: Indicator that the union is an incumbent.
+          labor_org_code: Labor-organization code. FK to l_labor_org_code.
+          local_dist_id: Local or district identifier.
+          afl_cio: AFL-CIO affiliation indicator.
+          party_scope: Party scope. FK to l_party_scope.
+          parti_type: Participant type. FK to l_parti_type.
+      r_closed_case:
+        description: Case closure records for R-cases — one row per closing action per case.
+        columns:
+          r_case_number: Foreign key to r_case.r_case_number.
+          action_sequence: Sequence number of this closing action.
+          closing_date: Date the case closed.
+          closing_stage: Stage at which the case closed. FK to l_r_closing_stage.
+          closing_method: Method of closing. FK to l_r_closing_method.
+          date_file_archives: Date the file was sent to NLRB archives.
+          date_file_to_records: Date the file was transferred to records management.
+          date_file_destroyed: Date the file was destroyed under records retention.
+      c_complaint:
+        description: Formal complaint records for C-cases — issued when the NLRB Regional Director finds merit in a charge and a settlement isn't reached. ~43k complaints.
+      c_amendment:
+        description: Amendment records for C-cases — when a charge is formally amended (parties added, allegations modified, etc.). ~55k amendments.
+      c_case_group:
+        description: Case-group definitions for C-cases — when multiple cases are consolidated for hearing or decision.
+      c_case_case_group:
+        description: Junction table linking C-cases to their case-groups, with sequence and date-added/removed tracking.
+      c_alj_decision:
+        description: Administrative Law Judge decisions in C-cases. ~20k decisions. Tracks brief due dates, EOT (extension of time) requests, decision dates, and determinations.
+      c_alj_decision_bb:
+        description: ALJ-decision "Blue Book" entries — citations to NLRB precedent classifications.
+      c_alj_motion:
+        description: Motions filed before the ALJ in C-case proceedings.
+      c_board_decision:
+        description: NLRB Board decisions on C-cases (post-ALJ review). ~17k decisions.
+      c_board_dec_bb:
+        description: Board-decision Blue Book entries — citations.
+      c_board_other_motions:
+        description: Other motions before the Board in C-cases.
+      c_settlement:
+        description: Settlement records for C-cases — both informal and formal settlements. ~29k settlements.
+      c_dismissal:
+        description: Dismissal records for C-cases — when the NLRB declines to issue a complaint. ~110k dismissals.
+      c_appeal:
+        description: Appeal records for C-cases — appeals to the General Counsel's Office of Appeals. ~144k appeals.
+      c_enforcement:
+        description: Court-enforcement records for C-cases — NLRB applications to Circuit Courts of Appeals to enforce Board orders.
+      c_supreme_court:
+        description: Supreme Court records for C-cases.
+      c_contempt:
+        description: Contempt-of-court records for C-cases.
+      c_injunction_10j:
+        description: Section 10(j) injunction records — NLRB applications for temporary injunctions in C-cases. ~16k.
+      c_inj_10j_appeal:
+        description: Appeals of Section 10(j) injunction rulings.
+      c_injunction_10l:
+        description: Section 10(l) injunction records — mandatory injunction requests for certain 8(b)(4) and 8(e) cases.
+      c_compliance_goals:
+        description: Compliance goals tracked for C-cases — milestones in achieving remedies after a Board decision.
+      c_compliance_spec:
+        description: Backpay-compliance specification records.
+      c_regional_compliance:
+        description: Regional Office compliance records for C-cases.
+      c_regional_deter:
+        description: Regional Director determinations on C-cases.
+      c_hearing:
+        description: Hearing records for C-cases (ALJ hearings).
+      c_advice:
+        description: Cases sent to the General Counsel's Division of Advice for guidance on novel legal questions.
+      c_deferral:
+        description: Cases deferred to grievance/arbitration procedures under the Collyer or Spielberg doctrines.
+      c_motion_summ_judge:
+        description: Motions for summary judgment in C-cases.
+      c_motions_affect_cmp:
+        description: Motions affecting compliance proceedings.
+      c_alleg_action:
+        description: Actions taken on individual allegations. ~1.55M rows — the largest C-case table.
+      c_impact_category:
+        description: Impact-category classifications for C-cases (used for statistical impact analysis).
+      c_reopening:
+        description: Case-reopening records for C-cases.
+      c_transfer_history:
+        description: Records of cases being transferred between regional offices.
+      c_bankruptcy:
+        description: Bankruptcy filings affecting respondents in C-cases.
+      c_collection_activities:
+        description: Collection activities pursued to enforce backpay/remedy awards.
+      c_discovery:
+        description: Discovery proceedings in C-case-related litigation.
+      c_10k:
+        description: Section 10(k) jurisdictional-dispute records (CD cases).
+      c_r_block:
+        description: Cross-case blocking relationships between C-cases and R-cases.
+      c_sup_aljd_cmp:
+        description: Supplemental ALJ decisions on compliance.
+      c_sup_board_dec_cmp:
+        description: Supplemental Board decisions on compliance.
+      cl_c_closed_case_report:
+        description: Closed-Case Report — denormalized summary of each closed C-case for reporting purposes.
+      cl_c_closed_case_report_alleg:
+        description: Per-allegation rows in the closed-case report.
+      cl_c_withdrawal:
+        description: Withdrawal records (denormalized) for C-cases.
+      r_action:
+        description: Catch-all action log for R-cases — every action recorded against an R-case during its lifecycle. ~432k rows.
+      r_block:
+        description: Blocking records for R-cases (when an R-case is paused pending another case).
+      r_block_cases:
+        description: Junction table linking R-cases to the cases that block them.
+      r_case_group:
+        description: Case-group definitions for R-cases.
+      r_case_case_group:
+        description: Junction table linking R-cases to their case-groups.
+      r_challenge_issue:
+        description: Challenge issues raised against ballots in R-case elections.
+      r_challenge_tabulation:
+        description: Detailed tabulation of resolved challenges.
+      r_dismissal:
+        description: Dismissal records for R-cases.
+      r_withdrawal:
+        description: Withdrawal records for R-cases.
+      r_elect_agreement:
+        description: Election-agreement records — when parties stipulate to election terms.
+      r_elect_certification:
+        description: Certification records for elections — when the NLRB formally certifies an election result.
+      r_elect_scheduled:
+        description: Scheduled-election records.
+      r_elect_votes_for:
+        description: Per-choice vote counts in elections (one row per ballot option per election).
+      r_objection_issue:
+        description: Objections to election conduct or results.
+      r_part_variant:
+        description: Variant/alternative participant records for R-cases.
+      r_post_elect_board_act:
+        description: Post-election Board actions on R-cases.
+      r_post_elect_hearing:
+        description: Post-election hearings on R-cases.
+      r_post_elect_rd_act:
+        description: Post-election Regional Director actions.
+      r_pre_elect_board_act:
+        description: Pre-election Board actions.
+      r_pre_elect_hearing:
+        description: Pre-election hearings. ~56k.
+      r_pre_elect_rd_bb:
+        description: Pre-election Regional Director Blue Book citations.
+      r_pre_elect_rd_decision:
+        description: Pre-election Regional Director decisions on representation issues.
+      r_pre_elect_rd_issues:
+        description: Pre-election issues considered by the Regional Director.
+      r_impact_category:
+        description: Impact-category classifications for R-cases.
+      r_reopened_case:
+        description: Reopened-case records for R-cases.
+      r_transfer_history:
+        description: Records of R-cases being transferred between regions.
+      l_allegation_type:
+        description: Allegation-type lookup — NLRA section citations and short descriptions. 217 entries.
       l_blue_book_codes:
         label_column: description
+      l_blue_book_chapter:
+        label_column: description
+      l_blue_book_division:
+        label_column: description
+      l_blue_book_heading:
+        description: Blue Book heading lookup — NLRB precedent classification headings.
+      l_blue_book_section:
+        description: Blue Book section lookup — NLRB precedent classification sections.
       l_case_party:
         label_column: description
-      l_geographic_division: 
+      l_geographic_division:
         label_column: description
       l_geographic_region:
         label_column: description
@@ -353,6 +731,16 @@ databases:
         label_column: description
       l_naics_sector:
         label_column: description
+      l_naics_subsector:
+        description: NAICS subsector lookup (3-digit codes).
+      l_naics_industry_group:
+        description: NAICS industry-group lookup (4-digit codes).
+      l_naics_industry:
+        description: NAICS industry lookup (5-digit codes).
+      l_naics_us_industry:
+        description: NAICS US industry lookup (6-digit codes).
+      l_naics_qualifier:
+        description: NAICS qualifier lookup — modifiers applied to industry codes.
       l_nlrb_branch:
         label_column: description
       l_nlrb_district:
@@ -367,6 +755,8 @@ databases:
         label_column: description
       l_organization:
         label_column: formal_name
+      l_organization_name:
+        description: Organization name variants — alternative names for organizations (DBAs, predecessors, etc.). ~96k rows.
       l_parti_type:
         label_column: description
       l_participant_group:
@@ -375,6 +765,272 @@ databases:
         label_column: description
       l_party_type:
         label_column: description
+      l_county:
+        description: County lookup. 3,294 rows — every US county.
+      l_state:
+        description: State lookup.
+      l_court:
+        description: Court lookup — federal courts that hear NLRB appeals.
+      l_court_type:
+        description: Court-type classification lookup.
+      l_member_type:
+        description: NLRB member-type lookup.
+      l_name_prefix:
+        description: Name-prefix lookup (Mr., Ms., Dr., etc.).
+      l_name_suffix:
+        description: Name-suffix lookup (Jr., Sr., III, etc.).
+      l_supervisor_type:
+        description: Supervisor-type lookup.
+      l_method_filed_type:
+        description: Method-of-filing lookup (in-person, mail, fax, etc.).
+      l_note_type:
+        description: Case-note-type lookup.
+      l_notifications:
+        description: Notification-type lookup. ~2.5k rows.
+      l_brief_type:
+        description: Brief-type lookup.
+      l_motion_deter:
+        description: Generic motion-determination lookup.
+      l_eot_determination:
+        description: Extension-of-Time determination lookup.
+      l_impact_analysis_cat:
+        description: Impact-analysis category lookup.
+      l_compliance_type:
+        description: Compliance-type lookup.
+      l_hearing_record_form:
+        description: Hearing-record-form lookup.
+      l_injunction_brief_type:
+        description: Injunction-brief-type lookup.
+      l_injunction_motion_type:
+        description: Injunction-motion-type lookup.
+      l_scope:
+        description: Generic scope lookup.
+      l_c_case_type:
+        description: C-case case-type lookup (CA, CB, CC, CD, CE, CG, CP).
+      l_c_case_scope:
+        description: C-case scope lookup.
+      l_c_part_role_type:
+        description: C-case participant role lookup.
+      l_c_status:
+        description: C-case status lookup.
+      l_c_action_fields:
+        description: C-case action-field lookup. 264 rows describing every field that can be set in a c_alleg_action row.
+      l_c_method_of_disp:
+        description: Method-of-disposition lookup for C-cases.
+      l_c_close_method:
+        description: C-case closing-method lookup.
+      l_c_close_timing:
+        description: C-case closing-timing lookup.
+      l_c_close_determination:
+        description: C-case closing-determination lookup.
+      l_c_with_disposition:
+        description: Withdrawal-disposition lookup for C-cases.
+      l_c_with_scope:
+        description: Withdrawal-scope lookup for C-cases.
+      l_c_with_revocation:
+        description: Withdrawal-revocation lookup.
+      l_c_dismissal_revoke:
+        description: Dismissal-revocation lookup.
+      l_c_amendment_type:
+        description: Amendment-type lookup.
+      l_c_amendment_reason:
+        description: Amendment-reason lookup.
+      l_c_alleg_act_type:
+        description: Allegation-action-type lookup. 49 rows — types of actions taken on individual allegations.
+      l_c_complaint_reason:
+        description: Complaint-reason lookup.
+      l_c_settle_part:
+        description: Settlement-participation lookup.
+      l_c_settlement_bd:
+        description: Board-side settlement-determination lookup.
+      l_c_formal_settle_type:
+        description: Formal-settlement-type lookup.
+      l_c_fs_submitted:
+        description: Formal-settlement-submission lookup.
+      l_c_advice_type:
+        description: Advice-request type lookup.
+      l_c_advice_determination:
+        description: Advice determination lookup.
+      l_c_deferral_type:
+        description: Deferral-type lookup (Collyer, Spielberg, etc.).
+      l_c_spielberg_determ:
+        description: Spielberg-doctrine determination lookup.
+      l_c_overage_decision:
+        description: Overage-case decision lookup (cases past timeliness goals).
+      l_c_overage_reason:
+        description: Overage-case reason lookup.
+      l_c_alj_determination:
+        description: ALJ-determination lookup.
+      l_c_alj_mot_typ:
+        description: ALJ-motion-type lookup.
+      l_c_alj_cmp_deter:
+        description: ALJ compliance-motion-determination lookup.
+      l_c_board_determination:
+        description: Board-determination lookup.
+      l_c_board_motion_deter:
+        description: Board-motion-determination lookup.
+      l_c_board_motion_type:
+        description: Board-motion-type lookup.
+      l_c_board_recon_deter:
+        description: Board reconsideration-determination lookup.
+      l_c_bd_contempt:
+        description: Board contempt determination lookup.
+      l_c_bd_deter_certiorari:
+        description: Board determination on certiorari lookup.
+      l_c_appeal_action:
+        description: Appeal-action lookup.
+      l_c_appeal_deter:
+        description: Appeal-determination lookup.
+      l_c_appellate_court:
+        description: Appellate-court lookup.
+      l_c_appellate_enf_deter:
+        description: Appellate enforcement-determination lookup.
+      l_c_app_court_action:
+        description: Court of Appeals action lookup.
+      l_c_app_court_act_type:
+        description: Court of Appeals action-type lookup.
+      l_c_app_brief_pleading:
+        description: Appellate brief/pleading lookup.
+      l_c_enf_court_action:
+        description: Enforcement-court-action lookup.
+      l_c_enf_court_act_type:
+        description: Enforcement-court action-type lookup.
+      l_c_enforcement_settlement:
+        description: Enforcement-settlement lookup.
+      l_c_supreme_ct_deter:
+        description: Supreme Court determination lookup.
+      l_c_supreme_ct_pet_deter:
+        description: Supreme Court petition-determination lookup.
+      l_c_contempt_deter:
+        description: Contempt-determination lookup.
+      l_c_contempt_settlement:
+        description: Contempt-settlement lookup.
+      l_c_comp_motion_deter:
+        description: Compliance-motion-determination lookup.
+      l_c_comp_motion_forum:
+        description: Compliance-motion-forum lookup.
+      l_c_comp_motion_type:
+        description: Compliance-motion-type lookup.
+      l_c_compliance_reason:
+        description: Compliance-reason lookup.
+      l_c_goals:
+        description: Compliance-goal lookup.
+      l_c_goal_description:
+        description: Goal-description lookup.
+      l_c_cmp_letter_type:
+        description: Compliance letter-type lookup.
+      l_c_cmp_spec_sw_action:
+        description: Compliance-specification action lookup.
+      l_c_cmp_spec_sw_participation:
+        description: Compliance-specification participation lookup.
+      l_c_motion_summ_judge:
+        description: Motion-for-summary-judgment determination lookup.
+      l_c_som_determination:
+        description: Special-officer-motion determination lookup.
+      l_c_reopen_reason:
+        description: Reopening-reason lookup.
+      l_c_transfer_type:
+        description: Transfer-type lookup.
+      l_c_reason_transfer:
+        description: Reason-for-transfer lookup.
+      l_c_abeyance_code:
+        description: Abeyance-code lookup.
+      l_c_accordance_with:
+        description: 'Accordance-with lookup ("in accordance with" classification used in compliance records).'
+      l_c_case_group_type:
+        description: C-case case-group-type lookup.
+      l_c_case_note_topic:
+        description: C-case note-topic lookup. 253 entries.
+      l_c_proof_claim_cat:
+        description: Proof-of-claim category lookup (bankruptcy context).
+      l_c_discharge_bank_act:
+        description: Discharge in bankruptcy act lookup.
+      l_c_bank_pet_type:
+        description: Bankruptcy-petition-type lookup.
+      l_c_escrow_acc_loc:
+        description: Escrow-account-location lookup.
+      l_c_gc_recommendation:
+        description: General Counsel recommendation lookup.
+      l_c_heac_det_p_p:
+        description: Hearing-determination lookup (party-participation context).
+      l_c_hearing_type:
+        description: Hearing-type lookup.
+      l_c_inj_appellate_dec:
+        description: Injunction appellate-decision lookup.
+      l_c_inj_court_order_typ:
+        description: Injunction court-order-type lookup.
+      l_c_inj_evidence_type:
+        description: Injunction evidence-type lookup.
+      l_c_inj_rel_type:
+        description: Injunction relief-type lookup.
+      l_c_inj_relief_deter:
+        description: Injunction relief-determination lookup.
+      l_c_inj_relief_recipient:
+        description: Injunction relief-recipient lookup.
+      l_c_10j_advice_deter:
+        description: Section 10(j) advice-determination lookup.
+      l_c_10j_board_deter:
+        description: Section 10(j) Board determination lookup.
+      l_c_10j_brief_type:
+        description: Section 10(j) brief-type lookup.
+      l_c_10j_discovery_type:
+        description: Section 10(j) discovery-type lookup.
+      l_c_10j_final:
+        description: Section 10(j) final-determination lookup.
+      l_c_10j_judgement:
+        description: Section 10(j) judgement-type lookup.
+      l_c_10j_motion_determ:
+        description: Section 10(j) motion-determination lookup.
+      l_c_10j_motion_type:
+        description: Section 10(j) motion-type lookup.
+      l_c_10j_reason_cease:
+        description: Section 10(j) reason-to-cease lookup.
+      l_c_10j_reg_determ_code:
+        description: Section 10(j) regional determination code lookup.
+      l_c_10l_co_determ:
+        description: Section 10(l) court-order determination lookup.
+      l_c_10l_discovery_type:
+        description: Section 10(l) discovery-type lookup.
+      l_c_10l_final:
+        description: Section 10(l) final-determination lookup.
+      l_c_10l_motion_determ:
+        description: Section 10(l) motion-determination lookup.
+      l_c_10l_reason_cease:
+        description: Section 10(l) reason-to-cease lookup.
+      l_c_10l_reg_determ:
+        description: Section 10(l) regional-determination lookup.
+      l_c_p_p_deter_source:
+        description: Party-participation determination-source lookup.
+      l_c_posting_type:
+        description: Notice-posting-type lookup.
+      l_c_reg_det_agenda_typ:
+        description: Regional-determination agenda-type lookup.
+      l_c_reg_det_dec_level:
+        description: Regional-determination decision-level lookup.
+      l_c_reg_det_type:
+        description: Regional-determination type lookup.
+      l_c_timing_of_disp:
+        description: Timing-of-disposition lookup.
+      l_c_willingness_type:
+        description: Willingness-to-settle type lookup.
+      l_c_discovery_ct_deter:
+        description: Discovery-court determination lookup.
+      l_ccr_backpay_control:
+        description: Closed-Case Report backpay-control lookup.
+      l_ccr_bargain_status:
+        description: Closed-Case Report bargaining-status lookup.
+      l_ccr_charge_party_pos:
+        description: Closed-Case Report charging-party position lookup.
+      l_ccr_closing_stage:
+        description: Closed-Case Report closing-stage lookup.
+      l_ccr_closing_type:
+        description: Closed-Case Report closing-type lookup.
+      l_ccr_complaint:
+        description: Closed-Case Report complaint indicator lookup.
+      l_ccr_contempt_rec_type:
+        description: Closed-Case Report contempt-record-type lookup.
+      l_r_action_fields:
+        description: R-case action-field lookup. 88 rows.
       l_r_bargain_unit_code:
         label_column: description
       l_r_bargain_unit_scope:
@@ -391,12 +1047,14 @@ databases:
         label_column: description
       l_r_case_group_type:
         label_column: description
+      l_r_case_note_topic:
+        description: R-case note-topic lookup. 210 entries.
       l_r_case_type:
         label_column: description
       l_r_challenge_act_result:
         label_column: description
       l_r_challenge_act_type:
-        label_column: description        
+        label_column: description
       l_r_challenge_issue:
         label_column: description
       l_r_closing_method:
@@ -445,12 +1103,18 @@ databases:
         label_column: description
       l_r_target_description:
         label_column: description
+      l_r_targets:
+        description: R-case targets lookup.
       l_r_transfer_type:
         label_column: description
-      l_blue_book_division:
-        label_column: description
-      l_blue_book_chapter:
-        label_column: description
+      l_r_amendment_type:
+        description: R-case amendment-type lookup.
+      l_r_amendment_reason:
+        description: R-case amendment-reason lookup.
+      l_r_with_det:
+        description: R-case withdrawal-determination lookup.
+      l_amendment_type:
+        description: Generic amendment-type lookup (when used outside C/R-specific contexts).
   chips:
     title: NLRB CHIPS data, 1963-2000
     source: NLRB files archived with the National Archive
@@ -463,7 +1127,7 @@ databases:
         <li><strong>R-cases</strong> (representation petitions) — keyed by <code>case_number</code> in <a href="./chips/r_master">r_master</a>, with election outcomes in <a href="./chips/rc_elect">rc_elect</a> (75,894 elections) and union-deauthorization elections in <a href="./chips/ud_elect">ud_elect</a> (1,427 cases). The R-cases run 1969 through 2000.</li>
       </ul>
       <p>The data is sourced from NLRB files preserved by the National Archives. Sean Brailey transcribed the county table and other lookup tables from the official <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook (PDF)</a>, which remains the authoritative reference for the many short-coded fields (case-type codes, transaction codes, disposition stages, union-type codes, etc.). Code-expansion lookup tables are prefixed <code>l_</code>.</p>
-      <p><strong>Note on column documentation:</strong> Plain-English descriptions of well-known fields (case numbers, dates, vote counts, union names, case-type codes) are reliable. Descriptions of internal NLRB-procedural fields (<code>method_disposition</code>, <code>formal_action_control</code>, <code>solic_stages_investig</code>, <code>card_control</code>, <code>chips_amended_code</code>, <code>action_777</code>, <code>patric_union</code>, and similar machine-control / stage / control-code fields) are inferred from column names and general NLRB process knowledge, not from the codebook itself — the scanned codebook PDF doesn't OCR cleanly. For ground-truth definitions of opaque coded fields, consult the codebook PDF directly.</p>
+      <p><strong>Note on column documentation:</strong> Plain-English descriptions of well-known fields (case numbers, dates, vote counts, union names, case-type codes) are reliable. Descriptions of internal NLRB-procedural fields (<code>method_disposition</code>, <code>formal_action_control</code>, <code>solic_stages_investig</code>, <code>card_control</code>, <code>chips_amended_code</code>, <code>action_777</code>, <code>patric_union</code>, and similar machine-control / stage / control-code fields) are inferred from column names and general NLRB process knowledge</p>
     temporal_coverage: "1963/2000"
     source_organization:
       "@type": GovernmentOrganization
