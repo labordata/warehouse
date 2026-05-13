@@ -163,9 +163,45 @@ databases:
   voluntary_recognitions:
     title: Voluntary Union Recognitions Known to the NLRB
     description_html: |-
-      <p>Private employers, under the jurisidiction of the NLRB, may voluntarily recognize unions for purposes of collective bargaining pursuant to Section 9 of the National Labor Relations Act. When that happens, the employer notifies the NLRB using <a href="https://www.nlrb.gov/sites/default/files/attachments/pages/node-195/5581_7-20.pdf">Form NLRB-5581</a>.</p> <p>This data is gathered from NLRB about these voluntary recognitions through public records requests.</p>
+      <p>Voluntary recognitions of unions by private-sector employers, as reported to the National Labor Relations Board. Under Section 9 of the National Labor Relations Act, employers may voluntarily recognize a union for collective bargaining without an election; when they do, they notify the NLRB using <a href="https://www.nlrb.gov/sites/default/files/attachments/pages/node-195/5581_7-20.pdf">Form NLRB-5581</a> and the agency posts a public notice during which other parties may challenge the recognition.</p>
+      <p>Each row is a single recognition: the employer, the union, the bargaining unit (description and headcount), the NLRB regional office, and the relevant procedural dates (recognition, notice, posting, and any subsequent representation-case petition). The data is obtained from the NLRB via Freedom of Information Act requests and updated periodically; the earliest entries are from 2002.</p>
     source: NLRB, Public Records Requests
     source_url: https://github.com/labordata/nlrb-voluntary-recognitions
+    temporal_coverage: "2002/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - voluntary recognition
+      - card check
+      - union recognition
+      - NLRA Section 9
+      - NLRB
+      - bargaining units
+    tables:
+      voluntary_recognitions:
+        description: One row per voluntary recognition reported to the NLRB on Form NLRB-5581. Includes the recognition event, the procedural notice/posting window, and a reference to any representation-case petition filed in response.
+        columns:
+          VR Case Number: NLRB-assigned identifier for the voluntary-recognition filing. Format is <region>-VR-<sequence>, e.g. "14-VR-017".
+          Regional Office: NLRB regional office that received the Form NLRB-5581.
+          Unit City: City where the bargaining unit is located. Often blank in earlier rows.
+          Unit State: Two-letter US Postal Service abbreviation for the state of the bargaining unit. Often blank in earlier rows.
+          Date VR Request Received: Date the NLRB received the voluntary-recognition request from the employer (ISO 8601, YYYY-MM-DD).
+          Employer: Name of the employer extending recognition.
+          Union: Full name of the union receiving recognition, typically including affiliates (e.g. "United Steelworkers", "St. Louis Newspaper Guild, Local 36047, TNG-CWA, AFL-CIO, CLC").
+          Unit Description: Free-text description of the bargaining unit, generally listing job classifications included and excluded.
+          Number of Employees: Headcount of the bargaining unit as reported on Form NLRB-5581. Often blank.
+          Date of Voluntary Recogition: Date the employer formally recognized the union (ISO 8601, YYYY-MM-DD). Note the misspelling — preserved from the NLRB source data.
+          Date VR Notice Sent: Date the NLRB sent the voluntary-recognition notice.
+          Date Notice Posted: Date the NLRB notice was posted at the worksite, opening the window for challenges.
+          Date Posting Closes: End of the posting window. After this date the recognition is final unless a representation-case petition has been filed.
+          Date R Case Petition Filed (if any): Date a representation-case (election) petition was filed challenging the voluntary recognition, when applicable. Most rows are blank.
+          R Case Number: NLRB case number for the representation case challenging the recognition, when applicable. Format <region>-RC-<sequence>.
+          Notes: Free-text notes from the NLRB record.
+          Case Filed Date: Date the NLRB administratively opened the case file.
+        units:
+          Number of Employees: persons
   work_stoppages:
     title: Work Stoppages Known to the FMCS
     description_html: |-
