@@ -43,12 +43,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Checkout datasette-schema-org
-        uses: actions/checkout@v3
-        with:
-          repository: fgregg/datasette-schema-org
-          path: datasette-schema-org
-
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/lib/android /opt/ghc
@@ -96,7 +90,7 @@ jobs:
             --install=datasette-hashed-urls \
             --install=datasette-block-robots \
             --install=datasette-pretty-traces \
-            --install=./datasette-schema-org \
+            --install=https://github.com/fgregg/datasette-schema-org/archive/refs/heads/main.zip \
             --version-note=$GITHUB_RUN_NUMBER
           docker tag $IMAGE:$GITHUB_RUN_NUMBER $IMAGE:latest
 
