@@ -9,7 +9,7 @@ plugins:
     creator:
       "@type": Person
       name: Forest Gregg
-      url: https://mastodon.social/@fgregg
+      url: https://bsky.app/profile/bunkum.us
     keywords:
       - labor
       - labor unions
