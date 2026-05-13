@@ -19,11 +19,66 @@ databases:
       </ul>
   f7:
     title: Collective Bargaining Notice (F-7) Data since 1997
-    description: Daily refreshed data on bargaining notices from the Federal Mediation and Conciliation Service website. Data is updated nightly at about 10:00 pm Eastern, though the FMCS ony updates their data monthly.
+    description: Notices to Mediation Agencies (Form F-7) filed with the Federal Mediation and Conciliation Service. Under Section 8(d) of the National Labor Relations Act, parties to an expiring private-sector collective-bargaining agreement must notify FMCS at least 30 days before expiration (60 days for healthcare establishments). Each row is one notice — an advance signal of bargaining activity.
     source: Federal Mediation and Conciliation Service, scraped
     source_url: https://github.com/labordata/fmcs-f7
     description_html: |-
-      <p>Daily refreshed data on <a href="https://www.fmcs.gov/resources/documents-and-data/#tab-d3d7f5344cef9bab4d3">bargaining notices from fmcs.gov</a>. Data is updated nightly at about 10:00 pm Eastern, though the FMCS ony updates their data monthly.</p>
+      <p>Notices to Mediation Agencies (<a href="https://www.fmcs.gov/resources/documents-and-data/#tab-d3d7f5344cef9bab4d3">Form F-7</a>) filed with the Federal Mediation and Conciliation Service. Under <a href="https://www.law.cornell.edu/uscode/text/29/158">Section 8(d) of the National Labor Relations Act</a>, parties to an expiring private-sector collective-bargaining agreement must notify FMCS at least 30 days before the contract ends (60 days for healthcare establishments); newly-formed bargaining relationships also file an Initial Contract notice. Each row is one notice — naming the employer, the union, the bargaining unit's affected location and size, the industry (NAICS), and the type of notice (Renegotiation, Reopener, Initial Contract, etc.).</p>
+      <p>Data scraped nightly from the FMCS website. FMCS itself only refreshes its data monthly, so a 1–4 week lag is expected. Some legacy rows have unreliable date fields — see column descriptions.</p>
+    temporal_coverage: "1997/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: Federal Mediation and Conciliation Service
+      url: https://www.fmcs.gov/
+    keywords:
+      - collective bargaining
+      - bargaining notices
+      - FMCS
+      - F-7
+      - NLRA Section 8(d)
+      - contract expiration
+    tables:
+      f7:
+        description: One row per F-7 notice filed with FMCS since 1997. Most rows are Renegotiation (advance notice of an existing contract's expiration); smaller shares are Reopener, Initial Contract, and other categories. Notices have been filed by either the employer or the union, indicated in notice_submitted_by.
+        columns:
+          id: Surrogate primary key assigned during scraping; not meaningful outside this database.
+          notice_date: Notice date as reported by FMCS. Note that many legacy rows carry the sentinel value 1899-12-29 (Excel/SAS epoch zero) when the source value is missing.
+          initiated_date: Date the F-7 notice was created in the FMCS system (ISO 8601, YYYY-MM-DD). More reliable than notice_date for time-series analysis.
+          employer: Employer name as reported on the notice.
+          employer_street: Employer street address.
+          employer_city: Employer city.
+          employer_state: Employer state (two-letter US postal abbreviation or full name; format varies).
+          employer_zip: Employer ZIP code. Stored as text; some rows include a trailing ".0" from the source spreadsheet.
+          employer_representative: Name of the employer's designated contact for bargaining.
+          employer_representative_phone: Phone number for the employer representative.
+          employer_representative_title: Job title of the employer representative.
+          employer_representative_email: Email address of the employer representative.
+          union_name: Full name of the union, typically including parent affiliation and local number.
+          union_street: Union mailing address.
+          union_city: Union city.
+          union_state: Union state.
+          union_zip: Union ZIP code.
+          union_representative: Name of the union's designated contact for bargaining.
+          union_representative_phone: Phone number for the union representative.
+          union_representative_title: Job title of the union representative (e.g. "Business Manager", "President").
+          union_representative_email: Email address of the union representative.
+          affected_location_city: City where the bargaining-unit workers are employed (may differ from employer's headquarters city).
+          affected_location_state: State where the bargaining-unit workers are employed.
+          affected_location_zip: ZIP code where the bargaining-unit workers are employed.
+          expiration_date: Expiration date of the contract being renegotiated. Format is inconsistent in the source — most rows are ISO dates, but some carry Excel serial numbers or HH:MM:SS strings from upstream spreadsheet exports.
+          naics: NAICS industry code for the employer (2- to 6-digit, depending on what FMCS captured).
+          industry: Human-readable industry name corresponding to the NAICS code.
+          bargaining_unit_size: Number of workers in the bargaining unit (the group covered by the collective-bargaining agreement).
+          establishment_size: Total number of employees at the establishment (typically larger than bargaining_unit_size).
+          notice_submitted_by: Who filed the notice — typically "F-7 from Employer" or "F-7 from Union".
+          category: Type of notice. Common values are "Renegotiation" (advance notice of an existing contract's expiration), "Reopener" (mid-term reopening provision triggered), "Initial Contract" (newly-formed bargaining relationship), and "I & I" (Information & Intervention). Less common categories include "Unspecified", "Employment Mediation", "Regulatory Negotiation", "Facilitate a Meeting", and "Dispute Systems Design".
+          healthcare_related: Boolean flag (0 or 1) indicating whether the employer is a healthcare establishment subject to the 60-day NLRA Section 8(d)(A) notice requirement.
+          location_negotiation_city: City where bargaining will take place, when supplied.
+          location_negotiation_state: State where bargaining will take place, when supplied.
+          location_negotiation_zip: ZIP code where bargaining will take place, when supplied.
+        units:
+          bargaining_unit_size: persons
+          establishment_size: persons
   nlrb_rc_elections_1961_1998:
     title: Results of NLRB union-representation elections, 1965-1998
     description: This file was built from an old database of union elections maintained by the AFL-CIO in Washington, DC. It contains election results for all petitions filed with the NLRB between 1965 and 1998 that went to elections. That is to say, it does NOT contain data on organizing drives where petitions were filed but later withdrawn or dismissed.
