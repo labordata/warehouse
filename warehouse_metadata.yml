@@ -338,7 +338,6 @@ databases:
     source_url: https://github.com/labordata/nlrb-cats
     description_html: |-
       <p>The NLRB's <strong>Case Activity Tracking System (CATS)</strong> — the agency's case-management database used from around 1999 through mid-2011, when it was replaced by the current online case system (see <a href="./nlrb">nlrb</a>). Predecessor system was <a href="./chips">CHIPS</a> (1963-2000); the two systems overlap from 1999 to 2000.</p>
-      <p>The schema is enormous — 280+ tables with consistent prefix conventions:</p>
       <ul>
         <li><strong>c_*</strong> — Unfair-labor-practice (C) case tables. The hub is <a href="./cats/c_case">c_case</a> (~330k cases) keyed by <code>c_case_number</code>; supporting tables cover allegations, participants, complaints, ALJ decisions, Board decisions, appeals, dismissals, settlements, compliance, injunctions (10(j) and 10(l)), bankruptcy, and procedural milestones at every stage.</li>
         <li><strong>r_*</strong> — Representation-case tables. The hub is <a href="./cats/r_case">r_case</a> (~54k cases) keyed by <code>r_case_number</code>; supporting tables cover bargaining units, elections, tallies, certifications, hearings, board actions, and post-election proceedings.</li>
