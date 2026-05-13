@@ -1,0 +1,64 @@
+plugins:
+  datasette-block-robots:
+    literal: |-
+      User-agent: *
+      Disallow: /*?
+
+      Sitemap: https://labordata.bunkum.us/sitemap.xml
+  schema-org:
+    creator:
+      "@type": Person
+      name: Forest Gregg
+      url: https://mastodon.social/@fgregg
+    keywords:
+      - labor
+      - labor unions
+      - United States
+    defaults:
+      spatialCoverage: United States
+      isAccessibleForFree: true
+      inLanguage: en
+
+databases:
+  nlrb:
+    queries:
+      new_rc_cases:
+        title: New petitions for representation elections
+        sql: |-
+          select
+            case_number as atom_id,
+            name as atom_title,
+            datetime(created_at, 'utc') || 'Z' as atom_updated,
+            url as atom_link,
+            '<p>Case Number: <a href="' || url || '">' || case_number || '</a></p><p>Filed on: ' || date_filed || '</p><p>' || number_of_voters_on_petition_or_charge || ' workers at ' || name || ' petitioned for an representation election in ' || city || ', ' || state || '.</p>' as atom_content_html
+          from
+            filing
+          where
+            case_type = 'RC'
+          order by
+            created_at desc,
+            date_filed desc
+          limit
+            100
+  lm20:
+    queries:
+      new_lm20_filings:
+        title: New LM20 Filings
+        sql: |-
+          select
+            distinct rptID as atom_id,
+            employer.empLabOrg || ' vs ' || specific_subject_labor_orgs as atom_title,
+            filing_url as atom_link,
+            datetime(receiveDate, 'utc') || 'Z' as atom_updated,
+            '<p>' || employer.empLabOrg || ' (' || employer.city || ', ' || employer.state || ') hired ' || coalesce(contact.organization, contact.name) || ' to meet with ' || specific_subject_employees || ' to help convince workers not to organize with ' || specific_subject_labor_orgs || '</p>' as atom_content_html
+          from
+            filing
+            inner join employer using (rptId)
+            inner join specific_activity using (rptId)
+            inner join contact using (rptId)
+          where
+            contact_type = 'name_and_mailing_address'
+            and atom_title is not null
+            and atom_content_html is not null
+          order by
+            receiveDate desc;
