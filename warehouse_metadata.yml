@@ -116,7 +116,7 @@ databases:
           unit_size: Number of workers in the voting unit at the time of the election.
           created_at: Scrape timestamp.
       election_mode:
-        description: Detailed election-mode records as published by the NLRB. Partially overlaps with filing/election but adds mode-specific timing fields (when ballots were mailed, when they were counted) and per-ballot-choice vote totals. Approximately 7,000 rows — only present for elections where the NLRB published the detailed mode breakdown.
+        description: Detailed election-mode records sourced from a separate FOIA request to the NLRB (not from the public case scrape that populates the rest of this database). Adds mode-specific timing fields (when ballots were mailed, when they were counted) and per-ballot-choice vote totals beyond what the public website exposes. Approximately 7,000 rows — coverage is limited to the period covered by the FOIA release.
         columns:
           election_id: Foreign key to election.election_id.
           case_number: Foreign key to filing.case_number.
