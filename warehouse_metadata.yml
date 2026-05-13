@@ -173,6 +173,11 @@ databases:
       <p>The FMCS stopped publishing this data at the end of 2020 and removed the archival files from its website. This database is built from the <a href="https://web.archive.org/web/20210105232710/https://www.fmcs.gov/resources/documents-and-data/">Internet Archive's copy of the FMCS pages</a>, with the date and numeric fields standardized.</p>
     source: FMCS website, archived by the Internet Archive
     source_url: https://github.com/labordata/fmcs-work-stoppage
+    temporal_coverage: "1984/2020"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: Federal Mediation and Conciliation Service
+      url: https://www.fmcs.gov/
     keywords:
       - work stoppages
       - strikes

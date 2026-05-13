@@ -18,6 +18,7 @@ plugins:
       spatialCoverage: United States
       isAccessibleForFree: true
       inLanguage: en
+      license: https://creativecommons.org/publicdomain/mark/1.0/
 
 databases:
   nlrb:
