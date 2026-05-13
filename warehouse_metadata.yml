@@ -556,12 +556,206 @@ databases:
   lm20:
     title: Filings for Activity of Labor Relations Consultants (Anti-union consultants)
     description_html: |-
-      <p>Labor relation consultants hired by employers to oppose a union drive are required to file reports about their activities to the Department of Labor. These forms are called LM20 and LM21.</p><p>This data is gathered nightly from the Office of Labor-Management Standards's Online Public Disclosure Room</p>
+      <p>Reports filed with the Department of Labor by "persuaders" — labor-relations consultants whom employers hire to dissuade workers from joining or supporting a union. Under <a href="https://www.law.cornell.edu/uscode/text/29/433">Section 203 of the Labor-Management Reporting and Disclosure Act</a>, persuaders must file two forms with the DOL Office of Labor-Management Standards:</p>
+      <ul>
+        <li><a href="https://www.dol.gov/agencies/olms/sites/dolgov/files/migrated/regs/compliance/forms-instructions/LM-20.pdf">LM-20 (Agreement and Activities Report)</a> — within 30 days after entering into an agreement to perform persuader activities. Names the employer that hired them, the agreement terms, the people who will do the work, and the specific activities planned.</li>
+        <li><a href="https://www.dol.gov/agencies/olms/sites/dolgov/files/migrated/regs/compliance/forms-instructions/LM-21.pdf">LM-21 (Receipts and Disbursements Report)</a> — annually, reporting the persuader's receipts from clients and how the money was spent.</li>
+      </ul>
+      <p>The data is scraped nightly from the OLMS <a href="https://olms.dol-esa.gov/olpdr/">Online Public Disclosure Room</a>. Filings are organized around a central <a href="./lm20/filing">filing</a> table keyed by <code>rptId</code>; related tables describe the employer that hired the persuader, the people performing the work, the specific activities described, and (for LM-21s) the persuader's financials.</p>
     source: OLMS website, scraped
     source_url: https://github.com/labordata/lm20
+    temporal_coverage: "2001/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Office of Labor-Management Standards
+      url: https://www.dol.gov/agencies/olms
+    keywords:
+      - persuaders
+      - LM-20
+      - LM-21
+      - anti-union consultants
+      - union avoidance
+      - labor relations consultants
+      - LMRDA Section 203
+      - OLMS
     tables:
       filer:
         label_column: companyName
+        description: One row per filing entity (the persuader firm or individual). 778 rows. Identified by OLMS's surrogate filer id (srNum).
+        columns:
+          srNum: OLMS surrogate filer ID. Primary key.
+          companyName: Persuader's filing name.
+          companyCity: City of the filer's reported address.
+          companyState: State of the filer's reported address.
+          srFilerId: OLMS filer-system identifier (string form).
+      filing:
+        description: One row per LM-20 or LM-21 filing. About 10,346 LM-20s and 1,257 LM-21s. Keyed by rptId.
+        columns:
+          rptId: OLMS report ID. Primary key.
+          formFiled: "Form type — \"LM-20\" or \"LM-21\"."
+          srNum: Foreign key to filer.srNum (the persuader who filed).
+          srFilerId: OLMS filer-system identifier (denormalized from filer).
+          empLabOrg: Employer or labor organization named on the filing (denormalized from employer).
+          address1: Filer's mailing address line 1.
+          address2: Filer's mailing address line 2.
+          city: Filer's city.
+          state: Filer's state.
+          zip: Filer's ZIP code.
+          amended: "Whether the filing is an amendment to a prior report (\"Yes\"/\"No\")."
+          amendment: Sequence number of the amendment, when applicable.
+          originalRptId: rptId of the original filing that this report amends, when applicable.
+          beginDate: For LM-21, start of the reporting period (the persuader's fiscal year start).
+          endDate: For LM-21, end of the reporting period.
+          yrCovered: Year covered by the report.
+          receiveDate: Date OLMS received the filing (ISO 8601, YYYY-MM-DD).
+          registerDate: Date OLMS registered the filing in its system.
+          paperOrElect: "Whether the filing was submitted on paper or electronically (\"Paper\"/\"Electronic\")."
+          repOrgsCnt: Number of reporting organizations on the filing.
+          filing_url: URL to the filing on the OLMS public disclosure site.
+          file_path: Local path to the cached file in the scraper's storage layout.
+          file_checksum: Checksum of the cached file (for change detection).
+          file_status: Scraper status indicator for the file fetch.
+      contact:
+        description: Contact persons named in filings — the filer's representatives. Two contact_type values are used; see column docs.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          contact_type: "Role of the contact — \"name_and_mailing_address\" (primary contact for the filing) or \"any_other_name_or_address_necessary_to_verify_report\" (alternate address)."
+          name: Contact person's name.
+          title: Contact person's title.
+          organization: Organization the contact is associated with.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number, when applicable.
+          city: City.
+          state: State.
+          zip_code: ZIP code.
+          ein: Employer Identification Number, when reported.
+      employer:
+        description: Employers that hired the persuader. Each LM-20 names the employer that contracted for persuader services; sometimes more than one employer per filing (~13k rows across ~10k LM-20 filings).
+        columns:
+          rptId: Foreign key to filing.rptId.
+          empLabOrg: Employer name.
+          empTrdName: Employer trade name (DBA), when different from the legal name.
+          city: Employer's city.
+          state: Employer's state.
+          termDate: Date the agreement with the persuader was terminated, when applicable.
+          amount: Amount paid to the persuader under this agreement.
+      lm20:
+        description: LM-20-specific fields — the persuader agreement details. One row per LM-20 filing (3,337 rows). Keyed by rptId.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          amended: Amendment flag (numeric).
+          date_fiscal_year_ends: End date of the persuader's fiscal year.
+          date_entered_into: Date the agreement with the employer was entered into.
+          direct: Description of direct persuader activities planned.
+          indirect: Description of indirect persuader activities planned.
+          written_agreement: "Whether there is a written agreement (\"Yes\"/\"No\")."
+          notes: Free-text notes from the filing.
+          type_of_person: "Persuader's legal form — \"Corporation C\", \"Individual\", \"Partnership\", or \"Other\"."
+          name: Persuader name as listed on the LM-20.
+          organization: Persuader's organization.
+          ein: Employer Identification Number.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          zip_code: ZIP code.
+      lm21:
+        description: LM-21-specific fields — the annual receipts and disbursements report (Schedule lines + summary totals). 379 rows. Column names preserve the verbatim formatting from the source export, including some leading-space and abbreviated column names.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          period_begin: Beginning of the reporting period.
+          period_through: End of the reporting period.
+          fees_for_professional_services: Item 8 — Fees for professional services.
+          loans_made: Item 9 — Loans made.
+          publicity: Item 10 — Publicity expenses.
+          other_disbursements: Item 11 — Other disbursements.
+          officer_and_administrative_expenses: Item 12 — Officer and administrative expenses.
+          total_disbursements_to_officers_and_employees: Item 13 — Total disbursements to officers and employees.
+          "total_disbursements_(sum_of_items_8-13)": Total disbursements summed across items 8–13.
+          total_disbursements: Grand total of all disbursements reported.
+          " Employer Name": Employer client name. (Column name has a leading space, preserved from the source export.)
+          " Trade Name, If any": Employer trade name. (Stored as INTEGER affinity but typically holds text; quirk of the source schema.)
+          Amount: Amount received from the client.
+          Purpose: Purpose of the receipt or disbursement.
+          Name: Officer or employee name (Schedule 13 disbursement listing).
+          Title: Officer or employee title.
+          Organization: Organization name.
+          City: City.
+          Street: Street.
+          "P.O. B, B, Room N, if any": P.O. box, building, or room number. (Column name truncated in the source export.)
+          ZIP code: ZIP code.
+      performer:
+        description: Individuals or organizations who will perform the persuader activities described on the LM-20. Linked back to a specific_activity via specific_activity_id when the form ties performers to specific listed activities.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          specific_activity_id: Foreign key to specific_activity.id, linking this performer to one of the listed activities.
+          performer_order: Sequential order of the performer as listed on the form.
+          name: Performer's name.
+          title: Performer's title.
+          organization: Performer's organization.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          zip: ZIP code.
+          ein: Employer Identification Number, when reported.
+      specific_activity:
+        description: Specific persuader activities described on LM-20s. Each activity row has its own id and groups performers, the target workforce, and the affected union(s).
+        columns:
+          id: Primary key for the activity.
+          rptId: Foreign key to filing.rptId.
+          activity_order: Sequence number of this activity within the filing.
+          specific_nature_of_activity: Description of the persuader activity (e.g. captive-audience meetings, one-on-one supervisor training, mailings).
+          specific_period_of_performance: Time window during which the activity is to be performed.
+          specific_extent_of_performance: Extent or volume of the activity (e.g. number of meetings, duration).
+          specific_subject_employees: The workers the activity is directed at.
+          specific_subject_labor_orgs: The unions the activity is directed against.
+      receipts:
+        description: Receipts (income) reported on LM-21 filings, listing what each client paid the persuader.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          receipt_number: Sequential number of the receipt entry on the filing.
+          employer: Client employer that made the payment.
+          trade_name: Client trade name (DBA), when different.
+          amount: Dollar amount received.
+          type_of_payment: "Form of payment (e.g. \"Cash\", \"Check\")."
+          "non-cash_payment": Description of any non-cash payment.
+          termination_date: Date the agreement with this client was terminated, when applicable.
+          name: Contact name at the client.
+          title: Contact title.
+          street: Street address.
+          mailing_address: Mailing address (sometimes captured as integer in the source).
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          zip_code: ZIP code.
+      signatures:
+        description: Signature blocks on each filing — typically two signers per filing (president and treasurer).
+        columns:
+          rptId: Foreign key to filing.rptId.
+          signature_number: Sequence number (1, 2) of the signature block.
+          signed: Name of the signer.
+          title: Signer's title.
+          date: Date signed (ISO 8601, YYYY-MM-DD).
+          telephone: Phone number indicator (numeric form).
+          telephone_number: Phone number as a string.
+      attachment:
+        description: Supplementary files attached to filings.
+        columns:
+          attachment_id: Primary key.
+          rptId: Foreign key to filing.rptId.
+          filename: Filename of the attachment.
+          file_description: Free-text description of the attachment.
+          file_urls: URL(s) to download the attachment from OLMS.
+      individual_disbursements:
+        description: Individual disbursement records from LM-21 Schedule 13 — payments to specific officers and employees of the persuader firm during the reporting period.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          disbursement_order: Sequence number within the filing.
+          name: Officer or employee name.
+          salary: Salary component of the disbursement.
+          expense: Expense-reimbursement component.
+          total: Total disbursement to the named person.
   lm10:
     title: Filings for Employers who hire Labor Relation Consultants or Pay Labor Officials
     description_html: |-
