@@ -59,6 +59,8 @@ def extra_template_vars(template, database, table, view_name, request, datasette
             jsonld["isBasedOn"] = isbasedon
 
         plugin_config = datasette.plugin_config("schema-org") or {}
+        for k, v in (plugin_config.get("defaults") or {}).items():
+            jsonld.setdefault(k, v)
         if plugin_config.get("creator"):
             jsonld["creator"] = plugin_config["creator"]
         if plugin_config.get("license"):

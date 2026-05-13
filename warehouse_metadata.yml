@@ -255,3 +255,7 @@ plugins:
             - labor
             - labor unions
             - United States
+        defaults:
+            spatialCoverage: United States
+            isAccessibleForFree: true
+            inLanguage: en
