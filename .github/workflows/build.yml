@@ -46,7 +46,7 @@ jobs:
       - name: Checkout datasette-schema-org
         uses: actions/checkout@v3
         with:
-          repository: labordata/datasette-schema-org
+          repository: fgregg/datasette-schema-org
           path: datasette-schema-org
 
       - name: Free disk space
