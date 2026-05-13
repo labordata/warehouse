@@ -164,10 +164,10 @@ databases:
     title: Voluntary Union Recognitions Known to the NLRB
     description_html: |-
       <p>Voluntary recognitions of unions by private-sector employers, as reported to the National Labor Relations Board. Under Section 9 of the National Labor Relations Act, employers may voluntarily recognize a union for collective bargaining without an election; when they do, they notify the NLRB using <a href="https://www.nlrb.gov/sites/default/files/attachments/pages/node-195/5581_7-20.pdf">Form NLRB-5581</a> and the agency posts a public notice during which other parties may challenge the recognition.</p>
-      <p>Each row is a single recognition: the employer, the union, the bargaining unit (description and headcount), the NLRB regional office, and the relevant procedural dates (recognition, notice, posting, and any subsequent representation-case petition). The data is obtained from the NLRB via Freedom of Information Act requests and updated periodically; the earliest entries are from 2002.</p>
+      <p>Each row is a single recognition: the employer, the union, the bargaining unit (description and headcount), the NLRB regional office, and the relevant procedural dates (recognition, notice, posting, and any subsequent representation-case petition). The data was obtained from the NLRB via Freedom of Information Act requests and covers 2002 through 2024.</p>
     source: NLRB, Public Records Requests
     source_url: https://github.com/labordata/nlrb-voluntary-recognitions
-    temporal_coverage: "2002/.."
+    temporal_coverage: "2002/2024"
     source_organization:
       "@type": GovernmentOrganization
       name: National Labor Relations Board
