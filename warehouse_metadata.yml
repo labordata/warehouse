@@ -944,10 +944,79 @@ databases:
       <p><a href="https://en.wikipedia.org/wiki/Henry_Farber">Henry Farber</a> got the earliest files on 9-track tape from the NLRB and then updated the data with subsequent FOIA requests. Farber and his co-authors used these data in "Accounting for the Decline of Unions in the Private Sector, 1973-1998" (2001), <a href="https://dataspace.princeton.edu/handle/88435/dsp01j098zb111">"Ronald Reagan and the Politics of Declining Union Organization</a> (2002), and <a href="https://www.nber.org/papers/w19908">"Union Organizing Decisions in a Deteriorating Environment: The Composition of Representation Elections and the Decline in Turnout"</a> (2014).</p>    
   whisard:
     title: Wage and Hour Compliance Action Data
-    desciption_html: |-
-      <p>The Wage and Hourly Division of the Department of Labor <a href="https://enforcedata.dol.gov/views/data_summary.php">publishes data on their investigations and enforcement actions</a>. We check to see if the data is updated daily, but the divison only updates the data quarterly</p>
+    description_html: |-
+      <p>The DOL Wage and Hour Division's "WHISARD" (Wage-Hour Investigative Support and Reporting Database) — every closed WHD investigation. Each case names the employer, the location and industry, and the workers affected; the matched <a href="./whisard/violations">violations</a> table lists each statute violated with counts, back wages owed, and civil money penalties.</p>
+      <p>WHD enforces a wide range of federal labor laws: the Fair Labor Standards Act (minimum wage, overtime, child labor, recordkeeping); the Family and Medical Leave Act; the Davis-Bacon Act and Service Contract Act (prevailing-wage rules on federal contracts); the Migrant and Seasonal Agricultural Worker Protection Act; H-1B, H-2A, and H-2B visa worker protections; the Employee Polygraph Protection Act; and others. The <code>type</code> column on the violations table identifies which statute was violated.</p>
+      <p>The data is scraped from the <a href="https://enforcedata.dol.gov/views/data_summary.php">DOL Enforcement Data Catalog</a>. WHD refreshes their dataset roughly quarterly; the scraper checks for updates daily and re-imports when WHD publishes a new snapshot.</p>
     source: Department of Labor Enforcement Data Catalog, scraped
     source_url: https://github.com/labordata/whd-compliance
+    temporal_coverage: "1985/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Wage and Hour Division
+      url: https://www.dol.gov/agencies/whd
+    keywords:
+      - wage theft
+      - back wages
+      - FLSA
+      - minimum wage
+      - overtime
+      - prevailing wage
+      - Davis-Bacon
+      - WHD
+      - labor enforcement
+      - civil money penalties
+    tables:
+      cases:
+        description: One row per closed WHD investigation. ~365,000 cases since 1985. Each row identifies the employer (trade and legal name, address, NAICS industry), the count of violations found, the civil money penalty assessed, back wages agreed to be paid (and the number of employees due those back wages), and the investigation date range. Note that a small number of rows have nonsense dates (year 0200 or 3021) reflecting upstream data-entry errors.
+        columns:
+          case_id: WHD case identifier. Primary key.
+          trade_nm: Employer's trade name (DBA).
+          legal_name: Employer's legal entity name.
+          street_addr_1_txt: Street address of the cited establishment.
+          cty_nm: City of the establishment.
+          st_cd: Two-letter US Postal Service state abbreviation.
+          zip_cd: ZIP code of the establishment.
+          naic_cd: 6-digit NAICS code for the employer's industry.
+          naics_code_description: Human-readable industry description corresponding to the NAICS code.
+          case_violtn_cnt: Total count of violations cited in this case (sum across all statutes).
+          cmp_assd: Civil money penalty assessed against the employer, in dollars.
+          ee_violtd_cnt: Count of employees who were the subject of violations.
+          bw_atp_amt: Back wages "agreed to pay" — the amount of unpaid wages WHD calculated and the employer agreed to remit, in dollars.
+          ee_atp_cnt: Count of employees due back wages under the agreed-to-pay amount.
+          findings_start_date: Beginning of the investigation period covered by the findings.
+          findings_end_date: End of the investigation period.
+          flsa_repeat_violator: "FLSA repeat-violator flag — \"R\" (repeat violator), \"W\" (willful violator), \"RW\" (both), or \"N/A\" (neither)."
+          load_dt: Timestamp when this row was loaded into the scraper's database.
+        units:
+          case_violtn_cnt: violations
+          ee_violtd_cnt: persons
+          cmp_assd: dollars
+          bw_atp_amt: dollars
+          ee_atp_cnt: persons
+      violations:
+        description: One row per violation type per case — the per-statute breakdown of each investigation's findings. About 542,000 rows. The type column identifies the specific federal labor law violated; the most common are FLSA (general Fair Labor Standards Act), flsa_ot (overtime specifically), flsa_mw (minimum wage), fmla (Family and Medical Leave Act), and dbra (Davis-Bacon Act).
+        columns:
+          id: Primary key.
+          case_id: Foreign key to cases.case_id.
+          type: "Statute violated — \"flsa\" (Fair Labor Standards Act, general), \"flsa_ot\" (FLSA overtime), \"flsa_mw\" (FLSA minimum wage), \"flsa_cl\" (FLSA child labor), \"flsa_smw14\" (FLSA student/learner Section 14 minimum wage), \"fmla\" (Family and Medical Leave Act), \"dbra\" (Davis-Bacon Act, prevailing wage on federal construction), \"sca\" (Service Contract Act, prevailing wage on federal service contracts), \"cwhssa\" (Contract Work Hours and Safety Standards Act), \"mspa\" (Migrant and Seasonal Agricultural Worker Protection Act), \"h1b\" / \"h2a\" / \"h2b\" (visa program violations), \"osha\" (OSHA-related findings), or \"eppa\" (Employee Polygraph Protection Act)."
+          violations: Number of violations cited under this statute for this case.
+          back_wages: Back wages owed under this statute, in dollars.
+          employees: Number of employees affected under this statute.
+          civil_money_penalty: Civil money penalty assessed under this statute, in dollars.
+        units:
+          violations: violations
+          back_wages: dollars
+          employees: persons
+          civil_money_penalty: dollars
+      flsa_details:
+        description: Placeholder table for additional FLSA-violation detail. Currently empty in the snapshot — the upstream WHD export doesn't always populate this. The schema is included for forward-compatibility with future WHD releases.
+        columns:
+          violation_id: Foreign key to violations.id.
+          type: Sub-classification of the FLSA violation.
+          back_wages: Back wages owed under this detail row, in dollars.
+        units:
+          back_wages: dollars
   lm20:
     title: Filings for Activity of Labor Relations Consultants (Anti-union consultants)
     description_html: |-
