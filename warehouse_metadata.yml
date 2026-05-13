@@ -9,14 +9,177 @@ databases:
     source: National Labor Relations Board website, scraped
     source_url: https://github.com/labordata/nlrb-data
     description_html: |-
-      <p>This is a database of representation certification election and unfair labor practice cases since 2010. It is updated nightly.</p>
-
+      <p>National Labor Relations Board case data from the NLRB's current online case management system. Covers union-representation cases (R petitions — RC certification, RD decertification, RM employer-filed) and unfair-labor-practice cases (C charges — CA against employers, CB against unions, and several less-common subtypes), plus unit-clarification, deauthorization, and related case types.</p>
+      <p>The data is organized around a central <a href="./nlrb/filing">filing</a> table (one row per case) with related tables for <a href="./nlrb/participant">participants</a>, <a href="./nlrb/allegation">allegations</a>, <a href="./nlrb/sought_unit">bargaining units sought</a>, <a href="./nlrb/voting_unit">units that voted</a>, <a href="./nlrb/election">elections</a>, <a href="./nlrb/election_result">election results</a>, <a href="./nlrb/tally">tallies</a>, <a href="./nlrb/docket">docket events</a>, and <a href="./nlrb/document">case documents</a>. All linked by <code>case_number</code>.</p>
       <h2>Data Limitations</h2>
-
       <ul>
-          <li>The data starts around 2010. See <a href="./cats">cats</a> for data from the previous system</li>
-          <li>The update process starts by downloading a CSV of all the cases within a specified time period from the nlrb.gov website. However, repeatingly requesting the same information from nlrb.gov results in spreadsheets with slightly different contents. We might be a bit out of date if the last CSV we downloaded missed a recent case.</li>
+        <li>The NLRB's online case system covers cases from roughly 2010 onward. A handful of older legacy cases that remained open into that era also appear. See <a href="./cats">cats</a> for the 1999–2011 predecessor system.</li>
+        <li>The update process downloads a CSV of all cases within a specified time period from nlrb.gov. Repeated requests for the same period return spreadsheets with slightly different contents, so an occasional recent case can be missing or temporarily out of date.</li>
+        <li>The <a href="./nlrb/participant">participant</a> table has known data-quality issues — some rows have street-address text in the <code>subtype</code> column from upstream-data confusion. Filter carefully when analyzing party types.</li>
       </ul>
+    temporal_coverage: "2010/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - NLRB
+      - union elections
+      - representation elections
+      - unfair labor practices
+      - ULP charges
+      - decertification
+      - certification
+      - bargaining units
+      - labor disputes
+    tables:
+      filing:
+        description: One row per NLRB case, identified by case_number. The hub of the schema — all other tables reference filing via case_number. Most common case types are CA (~337k, charges against employers), CB (~103k, charges against unions), RC (~42k, certification petitions), and RD (~9k, decertification petitions); smaller categories include RM, CC, CD, CE, CG, CP, UC, UD, AC, and WH.
+        columns:
+          case_number: NLRB case identifier. Format is <region>-<type>-<sequence>, e.g. "01-RC-123456". Primary key.
+          name: Case name (typically the employer or charged party).
+          case_type: Two-letter case-type code. R-series are representation cases (RC, RD, RM); C-series are unfair-labor-practice charges (CA, CB, CC, CD, CE, CG, CP); others include UC (unit clarification), UD (union-shop deauthorization), AC (amendment of certification), and WH (workers under WH-prefixed administrative cases).
+          url: Public URL of the case on nlrb.gov.
+          city: City of the establishment or unit involved.
+          state: Two-letter US Postal Service state abbreviation.
+          date_filed: Date the petition or charge was filed (ISO 8601, YYYY-MM-DD).
+          region_assigned: NLRB regional office handling the case (two-digit region code, sometimes with a sub-region letter).
+          status: Case status — "Closed", "Open", "Open - Blocked" (paused pending another case), or "Inactive".
+          date_closed: Date the case was administratively closed (blank for open cases).
+          reason_closed: Standard NLRB closing disposition (e.g. "Certification of Representative", "Withdrawal Non-adjusted", "Dismissal Adjusted", "Administrative Closing").
+          number_of_eligible_voters: For election cases, the number of voters eligible to participate in the election.
+          number_of_voters_on_petition_or_charge: For petitions and charges, the number of workers identified on the filing.
+          certified_representative: Name of the certified union, when the case ended in certification.
+          created_at: Timestamp when this row was first scraped into the database.
+          updated_at: Timestamp when this row was last updated by the scraper.
+          last_checked_at: Timestamp of the most recent scrape check against nlrb.gov.
+      docket:
+        description: One row per docket-system event for a case — every filing, ruling, order, or document logged on the case's NLRB docket. Approximately 2 million rows.
+        columns:
+          case_number: Foreign key to filing.case_number.
+          date: Date of the docket event (ISO 8601, YYYY-MM-DD).
+          document: Name or short description of the document or event.
+          actor: Party that performed the action or filed the document.
+          url: URL to the document on nlrb.gov, when available.
+          created_at: Timestamp when this row was first scraped.
+      filing_group:
+        description: Groups consolidated cases. When the NLRB combines multiple related cases for handling, this table records the relationship — each row pairs a case_number with its root_case_number (the primary case in the group).
+        columns:
+          root_case_number: The primary case in a group of consolidated cases.
+          case_number: A case in the group. Foreign key to filing.case_number; primary key in this table (each case belongs to at most one group).
+          created_at: Scrape timestamp.
+          updated_at: Last-update timestamp.
+      participant:
+        description: Parties to each case — petitioners, charged parties, employers, unions, intervenors, and their legal representatives. Approximately 1.9 million rows; many cases have multiple participants. Note that the subtype column is partially polluted by upstream data quality issues (some rows contain street addresses where a subtype code is expected).
+        columns:
+          case_number: Foreign key to filing.case_number.
+          participant: Name of the party (organization or individual).
+          type: Role in the case — "Petitioner", "Employer", "Intervenor", "Union Involved", "Charging Party", "Involved Party", "Charged Party", "Charged Party / Respondent", or "Not Specified".
+          subtype: Party subtype — "Union", "Employer", "Union as an Employer", "Individual", "Legal Representative", "Additional Service", "Notification", or "Not Specified". Subject to upstream data-quality issues; some rows contain address text instead of a valid subtype.
+          address: Mailing address of the participant.
+          address_1: Address line 1, when split.
+          address_2: Address line 2, when split.
+          city: City.
+          state: Two-letter US Postal Service state abbreviation.
+          zip: ZIP code.
+          phone_number: Phone number, when available.
+          created_at: Scrape timestamp.
+      allegation:
+        description: One row per allegation listed in an unfair-labor-practice charge. C-series cases (CA, CB, etc.) typically include one or more allegations citing specific NLRA section violations (e.g. "8(a)(1) — Coercive Statements", "8(a)(3) — Discharge"). Approximately 720k rows.
+        columns:
+          case_number: Foreign key to filing.case_number.
+          allegation: Text of the allegation as recorded by the NLRB, typically citing an NLRA section subdivision.
+          created_at: Scrape timestamp.
+      sought_unit:
+        description: Bargaining units described in a representation petition — the unit the petitioner wants the NLRB to recognize. Unit-sought descriptions may differ from the unit that actually voted (see voting_unit), since the parties or the NLRB may modify the unit during pre-election proceedings.
+        columns:
+          case_number: Foreign key to filing.case_number.
+          unit_sought: Free-text description of the bargaining unit being petitioned for, generally listing job classifications included and excluded.
+          created_at: Scrape timestamp.
+      voting_unit:
+        description: Bargaining units that actually voted in an NLRB representation election. Each voting_unit gets a synthetic voting_unit_id and may be linked to one or more elections.
+        columns:
+          voting_unit_id: Synthetic auto-increment identifier for this voting unit.
+          case_number: Foreign key to filing.case_number.
+          unit_id: Original NLRB unit identifier for the voting unit within the case.
+          description: Free-text description of the bargaining unit that voted.
+          created_at: Scrape timestamp.
+      election:
+        description: One row per NLRB election event. An election is identified by case_number + voting_unit_id + date + ballot_type + tally_type — a single case can produce more than one election (e.g. a runoff or a re-run after objections).
+        columns:
+          election_id: Synthetic auto-increment identifier for this election.
+          case_number: Foreign key to filing.case_number.
+          voting_unit_id: Foreign key to voting_unit.voting_unit_id.
+          date: Date the election was held (ISO 8601, YYYY-MM-DD).
+          tally_type: NLRB tally-type designation (e.g. initial, re-run, runoff).
+          ballot_type: Whether ballots were manual, mail, mixed, or another mode.
+          unit_size: Number of workers in the voting unit at the time of the election.
+          created_at: Scrape timestamp.
+      election_mode:
+        description: Detailed election-mode records as published by the NLRB. Partially overlaps with filing/election but adds mode-specific timing fields (when ballots were mailed, when they were counted) and per-ballot-choice vote totals. Approximately 7,000 rows — only present for elections where the NLRB published the detailed mode breakdown.
+        columns:
+          election_id: Foreign key to election.election_id.
+          case_number: Foreign key to filing.case_number.
+          name: Case name, denormalized from filing.
+          city: City, denormalized.
+          state: State, denormalized.
+          status: Case status, denormalized.
+          date_filed: Petition filing date, denormalized.
+          date_closed: Case closure date, denormalized.
+          reason_closed: Closing disposition, denormalized.
+          election_mode: How the election was conducted (manual, mail, mixed, etc.).
+          date_ballot_mailed: For mail-ballot elections, the date ballots were mailed to voters.
+          date_ballot_counted: Date the ballots were counted.
+          date_election_scheduled: Originally-scheduled election date.
+          date_tally_scheduled: Originally-scheduled tally date.
+          date_tallied: Date the votes were actually tallied.
+          tally_type: NLRB tally-type designation.
+          ballot_type: Ballot type.
+          unit_id: Original NLRB unit identifier.
+          ballots_impounded: Whether ballots were impounded (yes/no text).
+          number_of_eligible_voters: Eligible voters in the election.
+          number_of_void_ballots: Ballots marked void.
+          labor_organization_1_name: Name of the first union on the ballot.
+          votes_for_labor_organization_1: Votes received by the first union.
+          labor_organization_2_name: Name of the second union on the ballot (multi-union elections).
+          votes_for_labor_organization_2: Votes received by the second union.
+          labor_organization_3_name: Name of the third union on the ballot.
+          votes_for_labor_organization_3: Votes received by the third union.
+          votes_cast_against_labor_org: Votes against representation ("no union").
+          number_of_valid_votes_counted: Total valid votes counted.
+          number_of_challenged_ballots: Challenged ballots (resolved post-election).
+          challenges_are_determinative: Whether the challenged ballots are determinative of the outcome (yes/no).
+          runoff_required: Whether a runoff election is required (yes/no).
+          union_to_certify: Name of the union to be certified, if any.
+          unit_involved_in_petition: Description of the unit involved.
+          bargaining_unit_determined: Description of the unit ultimately determined.
+      election_result:
+        description: Summary results for each NLRB election. One row per election, linked by election_id. The per-choice vote breakdown is in tally.
+        columns:
+          election_id: Primary key. Foreign key to election.election_id.
+          total_ballots_counted: Total ballots counted in the election.
+          void_ballots: Number of void ballots.
+          challenged_ballots: Number of challenged ballots.
+          challenges_are_determinative: Whether the challenged ballots could change the outcome (yes/no).
+          runoff_required: Whether a runoff election is required (yes/no).
+          union_to_certify: Name of the union to be certified, if the election produced certification.
+          created_at: Scrape timestamp.
+      tally:
+        description: Per-ballot-option vote count for each election — one row per option per election. Options include each union on the ballot and "No union". Approximately 68,000 rows across ~33,000 elections.
+        columns:
+          election_id: Foreign key to election.election_id.
+          option: Ballot option name — typically a union name, or "No union" for the no-representation choice.
+          votes: Number of votes the option received.
+          created_at: Scrape timestamp.
+        units:
+          votes: votes
+      document:
+        description: Documents attached to NLRB cases — orders, decisions, hearing transcripts, etc. The current data captures roughly 8,000 documents across cases; coverage is incomplete relative to docket events.
+        columns:
+          case_number: Foreign key to filing.case_number.
+          document: Name or short description of the document.
+          url: URL to the document on nlrb.gov.
+          created_at: Scrape timestamp.
   f7:
     title: Collective Bargaining Notice (F-7) Data since 1997
     description: Notices to Mediation Agencies (Form F-7) filed with the Federal Mediation and Conciliation Service. Under Section 8(d) of the National Labor Relations Act, parties to an expiring private-sector collective-bargaining agreement must notify FMCS at least 30 days before expiration (60 days for healthcare establishments). Each row is one notice — an advance signal of bargaining activity.
