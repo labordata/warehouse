@@ -82,8 +82,9 @@ jobs:
           datasette package *.db \
             -t $IMAGE:$GITHUB_RUN_NUMBER \
             -m warehouse_metadata.yml \
+            -c datasette.yml \
             --plugins-dir=plugins/ \
-            --extra-options="-c datasette.yml --crossdb --setting sql_time_limit_ms 100000 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1 --setting max_csv_mb 1000 --setting force_https_urls on" \
+            --extra-options="--crossdb --setting sql_time_limit_ms 100000 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1 --setting max_csv_mb 1000 --setting force_https_urls on" \
             --install=datasette-atom==0.10a0 \
             --install=datasette-rure \
             --install=pysqlite3-binary \
