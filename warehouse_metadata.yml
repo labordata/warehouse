@@ -169,9 +169,36 @@ databases:
   work_stoppages:
     title: Work Stoppages Known to the FMCS
     description_html: |-
-      <p>The Federal Mediation and Concilliation Service previously published data on 14,318 work stoppages that their staff tracked in their case management system.</p> <p>The FMCS stopped publishing this data at the end of 2020, and removed the archival data from their website. This databases uses data taken from the Internet Archive's copy of the FMCS website.</p>
+      <p>Strikes, lockouts, and other work stoppages in the United States that the Federal Mediation and Conciliation Service tracked in its case management system. Each row is a single stoppage with the employer, the union and local involved, the bargaining unit, location, industry (NAICS), number of workers idled, start and end dates, and duration in days.</p>
+      <p>The FMCS stopped publishing this data at the end of 2020 and removed the archival files from its website. This database is built from the <a href="https://web.archive.org/web/20210105232710/https://www.fmcs.gov/resources/documents-and-data/">Internet Archive's copy of the FMCS pages</a>, with the date and numeric fields standardized.</p>
     source: FMCS website, archived by the Internet Archive
     source_url: https://github.com/labordata/fmcs-work-stoppage
+    keywords:
+      - work stoppages
+      - strikes
+      - lockouts
+      - labor disputes
+      - FMCS
+      - collective bargaining
+    tables:
+      work_stoppages:
+        description: One row per work stoppage. Earliest stoppages are from 1984; the series ends in 2020 when FMCS discontinued publication. Most rows are strikes; a smaller share are lockouts and other stoppages tracked by FMCS field staff.
+        columns:
+          Employer: Name of the establishment where the work stoppage occurred.
+          Union: Short name or abbreviation of the union involved (for example, "NABET", "GCIU", "UFCW").
+          Union Local: Local number of the union (an integer string).
+          Case Number: FMCS case identifier for the stoppage. Format varies across years.
+          BU: Bargaining-unit identifier assigned by FMCS, when known.
+          NAICS: 6-digit North American Industry Classification System code for the employer's industry.
+          Industry: Human-readable industry sector corresponding to the NAICS code (e.g. "Manufacturing", "Construction", "Information").
+          "City, State": Location of the work stoppage as a single string in the form "City, ST" (city name followed by the two-letter US Postal Service state abbreviation).
+          "# Idled": Number of workers idled by the stoppage, as reported to or estimated by FMCS.
+          Start Date: First day of the stoppage (ISO 8601, YYYY-MM-DD).
+          End Date: Last day of the stoppage, inclusive (ISO 8601, YYYY-MM-DD).
+          Duration: Length of the stoppage in days, typically computed from Start Date and End Date.
+        units:
+          "# Idled": persons
+          Duration: days
   farber:
     title: 1972-1991 NLRB election data due to Henry Farber
     description_html: |-
