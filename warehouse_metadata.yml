@@ -457,12 +457,407 @@ databases:
     description_html: |-
       <p>The county table was transcribe by Sean Brailey from the <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook</a>.</p>
     source_url: https://github.com/labordata/CHIPS
-  odpr:
-    title: OLMS Online Public Disclosure Room Database, Annual LM Data
+  opdr:
+    title: OLMS Online Public Disclosure Room — Annual LM-2/LM-3/LM-4 Data
     description_html: |-
-      <p>Daily refreshed mirror of the <a href="https://olmsapps.dol.gov/olpdr/?_ga=2.153682620.544456734.1620145813-42444416.1608177889#Union%20Reports/Yearly%20Data%20Download">Office of Labor-Management Standards Online Public Disclosure Room Database, Annual LM Data</a>.</p>
-    source: OLMS website, scraped
-    source_url: https://github.com/labordata/odpr
+      <p>Mirror of the <a href="https://olmsapps.dol.gov/olpdr/">DOL Office of Labor-Management Standards Online Public Disclosure Room</a>, covering the annual financial reports that unions file under <a href="https://www.law.cornell.edu/uscode/text/29/431">Section 201 of the Labor-Management Reporting and Disclosure Act</a> — LM-2 (large unions, ≥$250k receipts), LM-3 (medium), and LM-4 (small).</p>
+      <p>Every union with private-sector or some public-sector members must file annually, reporting:</p>
+      <ul>
+        <li>Assets and liabilities (cash, investments, receivables, fixed assets, accounts payable, loans payable)</li>
+        <li>Receipts (dues, fees, investment income, loans) and disbursements (officer/employee compensation, benefits, political activity, contributions, overhead, administrative expenses)</li>
+        <li>Membership counts and dues rates</li>
+        <li>Detailed itemized receipts and disbursements above OLMS thresholds — the largest tables here</li>
+      </ul>
+      <p>The schema is organized around the <a href="./opdr/lm_data">lm_data</a> table (one row per filing, keyed by <code>rpt_id</code>). Most other tables follow the convention <code>ar_&lt;category&gt;_&lt;subcategory&gt;</code> — "ar" for "annual report". Categorical fields foreign-key to <a href="./opdr/ar_erds_codes">ar_erds_codes</a>, a lookup table that expands the OLMS code numbers (account types, disbursement types, fiscal-year-end months, etc.).</p>
+      <p>Roughly 600,000 filings cover 1999 through the present; the largest tables are <a href="./opdr/ar_disbursements_emp_off">ar_disbursements_emp_off</a> (~4.9M officer/employee compensation rows) and <a href="./opdr/ar_disbursements_genrl">ar_disbursements_genrl</a> (~3.1M general disbursement rows).</p>
+    source: OLMS Online Public Disclosure Room
+    source_url: https://github.com/labordata/opdr
+    temporal_coverage: "1999/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Office of Labor-Management Standards
+      url: https://www.dol.gov/agencies/olms
+    keywords:
+      - LM-2
+      - LM-3
+      - LM-4
+      - union financial reports
+      - LMRDA Section 201
+      - OLMS
+      - union disbursements
+      - union officer compensation
+      - dues and receipts
+    tables:
+      lm_data:
+        description: One row per union annual financial report. The hub of the schema — all other tables reference lm_data via rpt_id. ~604,000 filings spanning 1999 to present. Includes union identification, the reporting period, summary totals (assets/liabilities/receipts/disbursements), and various yes/no indicators about filing characteristics.
+        columns:
+          rpt_id: OLMS report ID. Primary key.
+          union_name: Reporting union's name as it appears on the filing.
+          aff_abbr: Affiliate/parent organization abbreviation (e.g. "AFL-CIO", "SEIU").
+          f_num: OLMS file number identifying the union.
+          unit_name: Local or sub-unit name within the union.
+          fye: Fiscal-year-end month (1–12). Foreign key to ar_erds_codes (code_type = "FYE_CODE").
+          est_date: Date the union was established.
+          term_date: Date the union terminated, if applicable.
+          pd_covered_from: Start of the period covered by this filing (ISO 8601, YYYY-MM-DD).
+          pd_covered_to: End of the period covered by this filing.
+          register_date: Date OLMS registered the filing.
+          amended: Whether this filing is an amendment.
+          shortage: Whether the filing notes a financial shortage.
+          maximum_bond: Maximum amount of the fidelity bond carried by the union.
+          ttl_assets: Total assets reported (dollars).
+          ttl_liabilities: Total liabilities reported (dollars).
+          ttl_receipts: Total receipts reported (dollars).
+          ttl_disbursements: Total disbursements reported (dollars).
+          members: Total membership count reported.
+          constitution_bylaw: Whether the union has a constitution and bylaws on file.
+          terminate: Whether the union is being terminated.
+          subsidiary: Whether the union has a subsidiary organization.
+          desiq_pre: Designation prefix for the local (e.g. "Local", "Branch"). [Source typo of "desig_pre" preserved.]
+          desig_num: Designation number (the local's number).
+          desig_suf: Designation suffix.
+          desig_name: Designation name.
+          hardship: Whether the union claimed financial hardship.
+          has_trust: Whether the union has trust funds.
+          pac_funds: Whether the union has political action committee funds.
+          outside_audit: Whether the financials were audited by an outside auditor.
+          has_property_change: Whether there was a change in property.
+          assets_pledged: Whether assets are pledged.
+          contingent: Whether there are contingent liabilities.
+          next_election: Date of the next scheduled officer election.
+          has_liquidated_liabilities: Whether liquidated liabilities are reported.
+          has_extended_loan_credit: Whether the union extended loan credit.
+          has_liquidated_receivables: Whether liquidated receivables are reported.
+          has_subsidiary: Whether the union has a subsidiary organization (duplicate of subsidiary; OLMS form has two related fields).
+          num_attachments: Number of attachments to the filing.
+          yr_covered: Calendar year that the reporting period falls within (typically equals the year of pd_covered_to).
+          amendment: Amendment sequence number (0 for the original filing, 1 for the first amendment, etc.).
+          receive_date: Date OLMS received the filing (timestamp with time component).
+          adr_id: Address record ID within OLMS.
+          address_type: Address-type code (FK to ar_erds_codes); in this snapshot all rows are 201 = mailing address.
+          mail_firstname: First name on the union's mailing address.
+          mail_lastname: Last name on the union's mailing address.
+          build_num: Building number portion of the union's mailing address.
+          street_adr: Street address (street name and number combined or just street name when build_num is set separately).
+          city: City of the union's mailing address.
+          state: Two-letter US Postal Service state abbreviation.
+          zip: ZIP code of the union's mailing address.
+          voice: Phone number of the union.
+          mod_date: Timestamp of the last modification to this filing's OLMS record.
+          mod_id: Numeric modification ID assigned by OLMS.
+          record_kept: "Where the union's records are kept (\"T\" — at the union's address, \"F\" — at another address; blank when unspecified)."
+          form_type: "Form variant filed — \"LM-2\" (large unions, ≥$250k receipts), \"LM-3\" (medium), \"LM-4\" (small), or \"LM-5\" (terminal report filed when the union dissolves)."
+        units:
+          maximum_bond: dollars
+          ttl_assets: dollars
+          ttl_liabilities: dollars
+          ttl_receipts: dollars
+          ttl_disbursements: dollars
+          members: persons
+      ar_erds_codes:
+        description: Code lookup table. 93 rows. Other ar_ tables foreign-key here for categorical fields. Distinct code_type values include FYE_CODE (12 months), ASSET_CODE (5), DISBURSEMENT_CODE (7), EMP_OFF_CODE (4 officer/employee types), TAX_CODE (26 withholding categories), INVESTMENT_CODE (6), and more.
+        columns:
+          code: Numeric code. Primary key.
+          code_type: Code category (e.g. "DISBURSEMENT_CODE", "FYE_CODE", "EMP_OFF_CODE").
+          name: Short abbreviation for the code value.
+          code_description: Human-readable description.
+      ar_payer_payee:
+        description: Master list of payers and payees referenced from itemized receipts and disbursements. ~2.2M rows. Each row is one named counterparty per filing — typically a vendor, contractor, employer (for dues check-off), or recipient organization. Referenced by ar_disbursements_genrl, ar_receipts_other, etc., via payer_payee_id.
+        columns:
+          payer_payee_id: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          name: Counterparty name.
+          payer_payee_type: Code distinguishing payer from payee. FK to ar_erds_codes (PAYER_PAYEE_CODE).
+          rcpt_disb_type: Code for the kind of receipt or disbursement this counterparty is associated with. FK to ar_erds_codes.
+          type_or_class: Free-text classification of the counterparty.
+          itemized: Itemized amount (dollars) associated with this counterparty.
+          non_itemized: Non-itemized amount (under OLMS reporting threshold).
+          total: Total amount (itemized + non_itemized).
+          street: Street address.
+          po_box: P.O. box.
+          city: City.
+          state: State.
+          zip: ZIP code.
+        units:
+          itemized: dollars
+          non_itemized: dollars
+          total: dollars
+      ar_assets_total:
+        description: Summary balance-sheet asset totals at the start and end of the reporting period. One row per filing.
+        columns:
+          rpt_id: Foreign key to lm_data.rpt_id.
+          cash_start: Cash on hand at period start.
+          cash_end: Cash on hand at period end.
+          accounts_receivable_start: Accounts receivable at period start.
+          accounts_receivable_end: Accounts receivable at period end.
+          investments_start: Investments at period start.
+          investments_end: Investments at period end.
+          fixed_assets_start: Fixed assets (real estate, equipment) at period start.
+          fixed_assets_end: Fixed assets at period end.
+          treasury_securities_start: U.S. Treasury securities at period start.
+          treasury_securities_end: U.S. Treasury securities at period end.
+          other_assets_start: Other assets at period start.
+          other_assets_end: Other assets at period end.
+          loans_receivable_start: Loans receivable at period start.
+          loans_receivable_end: Loans receivable at period end.
+          total_start: Total assets at period start.
+          market_sec_total_cost: Total cost basis of marketable securities.
+          market_sec_total_book_value: Total book value of marketable securities.
+          other_inv_total_cost: Total cost basis of other investments.
+          other_inv_total_book_value: Total book value of other investments.
+      ar_assets_other:
+        description: Itemized "other assets" detail. One row per other-asset entry per filing.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the other asset.
+          book_value: Book value (dollars).
+      ar_assets_accts_rcvbl:
+        description: Accounts receivable detail — receivables by debtor name, including aging (past due 90/180 days) and write-offs.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          name: Debtor name.
+          acct_type: Account type code. FK to ar_erds_codes (ACCT_CODE).
+          past_due_90: Amount past due 90 days.
+          past_due_180: Amount past due 180 days.
+          liquidated: Amount liquidated during the period.
+          total: Total receivable balance.
+      ar_assets_fixed:
+        description: Fixed-asset detail — real estate, vehicles, equipment owned by the union. Each row is one asset with cost basis, depreciation, and book value.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          asset_type: Asset category code. FK to ar_erds_codes (ASSET_CODE).
+          description: Description of the fixed asset.
+          cost_basis: Original cost (dollars).
+          depreciation: Accumulated depreciation (dollars).
+          book_value: Net book value (cost basis minus depreciation).
+          value: Current market value (dollars), when reported.
+      ar_assets_investments:
+        description: Investment-asset detail — securities and other investments held by the union.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          inv_type: Investment category code. FK to ar_erds_codes (INVESTMENT_CODE).
+          name: Name of the investment.
+          amount: Amount invested (dollars).
+      ar_assets_loans_rcvbl:
+        description: Loans receivable detail — loans the union has made, by debtor.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          loan_type: Loan-type code. FK to ar_erds_codes (LOAN_CODE).
+          name: Debtor name.
+          purpose: Purpose of the loan.
+          security: Security/collateral for the loan.
+          terms: Loan terms (interest rate, maturity).
+          outstanding_start_amt: Balance outstanding at period start.
+          outstanding_end_amt: Balance outstanding at period end.
+      ar_liabilities_total:
+        description: Summary balance-sheet liability totals at start and end of the reporting period.
+        columns:
+          rpt_id: Foreign key to lm_data.rpt_id.
+          accounts_payable_start: Accounts payable at period start.
+          accounts_payable_end: Accounts payable at period end.
+          loans_payable_start: Loans payable at period start.
+          loans_payable_end: Loans payable at period end.
+          mortgage_payable_start: Mortgages payable at period start.
+          mortgage_payable_end: Mortgages payable at period end.
+          other_liabilities_start: Other liabilities at period start.
+          other_liabilities_end: Other liabilities at period end.
+          total_start: Total liabilities at period start.
+      ar_liabilities_other:
+        description: Itemized "other liabilities" detail.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the liability.
+          amount: Amount (dollars).
+      ar_liabilities_loans_paybl:
+        description: Loans payable detail — loans the union owes, by source.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          source: Lender name.
+          loans_owed_start: Balance owed at period start.
+          loans_obtained: New loans obtained during the period.
+          cash_repayment: Cash repayments made during the period.
+          non_cash_repayment: Non-cash repayments (write-offs, conversions).
+          loans_owed_end: Balance owed at period end.
+      ar_liabilities_accts_paybl:
+        description: Accounts payable detail — by creditor name, including aging.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          acct_type: Account type code. FK to ar_erds_codes (ACCT_CODE).
+          name: Creditor name.
+          total: Total amount payable.
+          past_due_90: Amount past due 90 days.
+          past_due_180: Amount past due 180 days.
+          liquidated: Amount liquidated during the period.
+      ar_receipts_total:
+        description: Summary receipts (income) totals by category for the reporting period.
+        columns:
+          rpt_id: Foreign key to lm_data.rpt_id.
+          dues: Membership dues received.
+          fees: Initiation and other fees.
+          tax: Per-capita tax received from affiliates.
+          investments: Investment income.
+          interest: Interest income.
+          dividends: Dividend income.
+          rents: Rental income.
+          loans_made: Loan principal received (from loans the union previously made).
+          loans_obtained: New loans obtained.
+          supplies: Income from sale of supplies.
+          members: Receipts from members (other than dues).
+          affiliates: Receipts from affiliated unions.
+          other_receipts: Other receipts category.
+          inv_sale_reinvestments: Proceeds from investment sales and reinvestments.
+          all_other_receipts: Catch-all for other receipts.
+      ar_receipts_other:
+        description: Itemized non-dues receipts detail. Each row is one receipt over OLMS reporting thresholds.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          payer_payee_id: Foreign key to ar_payer_payee.payer_payee_id.
+          receipt_type: Receipt-type code. FK to ar_erds_codes (RECEIPT_CODE).
+          purpose: Purpose of the receipt.
+          date: Date received (ISO 8601, YYYY-MM-DD).
+          amount: Amount received (dollars).
+      ar_receipts_inv_fa_sales:
+        description: Receipts from investment and fixed-asset sales — line-item detail.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the asset sold.
+          cost: Original cost of the asset.
+          book_value: Book value at time of sale.
+          gross_sales_price: Gross sales price.
+          amount_recd: Amount actually received.
+      ar_disbursements_total:
+        description: Summary disbursement (spending) totals by category for the reporting period.
+        columns:
+          rpt_id: Foreign key to lm_data.rpt_id.
+          representational: Representational activity (collective bargaining, contract administration).
+          political: Political activity disbursements.
+          contributions: Contributions, gifts, and grants.
+          general_overhead: General overhead expenses.
+          union_administration: Union administration costs.
+          to_officers: Total disbursements to officers.
+          to_employees: Total disbursements to employees.
+          benefits: Benefit-plan contributions.
+          per_capita_tax: Per-capita taxes paid to affiliates.
+          strike_benefits: Strike benefits paid to members.
+          supplies: Supplies for resale to members.
+          fees: Professional and other fees paid.
+          administration: Administrative expenses.
+          direct_taxes: Direct taxes paid (other than payroll tax withholding).
+          withheld: Taxes and dues withheld but not yet disbursed.
+          withheld_not_disbursed: Withholdings not yet disbursed at period end.
+          officer_deductions: Deductions from officer salaries.
+          employee_deductions: Deductions from employee salaries.
+          members: Disbursements to members.
+          affiliates: Disbursements to affiliated unions.
+          investments: Investment purchases.
+          inv_purch_reinvestments: Investment purchases from reinvestment.
+          loans_made: New loans made during the period.
+          loans_payment: Repayments of loans the union owed.
+          less_total_disbursed: Adjustment for total disbursed.
+          other_disbursements: Other disbursements category.
+          all_other_rep_activities: Representational subcategory catch-all.
+          all_other_pol_activities: Political subcategory catch-all.
+          all_other_contributions: Contributions subcategory catch-all.
+          all_other_gen_overhead: General-overhead subcategory catch-all.
+          all_other_union_admin: Union-admin subcategory catch-all.
+          off_admin_expense: Officer/administrative expense.
+          edu_pub_expense: Educational and publicity expense.
+          pro_fees: Professional fees.
+      ar_disbursements_emp_off:
+        description: Officer and employee compensation detail — Schedule 11 (officers) and Schedule 12 (employees) on the LM-2 form. The largest table in the database at ~4.9M rows. One row per officer or employee per filing, with salary, allowances, official-business expenses, "other" disbursements, and a percentage breakdown of how their time was allocated across representational/political/contribution/general-overhead/administration activities.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          emp_off_type: Type of person (officer vs employee, etc.). FK to ar_erds_codes (EMP_OFF_CODE).
+          first_name: First name.
+          middle_name: Middle name.
+          last_name: Last name.
+          title: Job title.
+          status_other_payer: Status of any other-payer (if the person was also paid by another employer during the period).
+          gross_salary: Gross salary (dollars).
+          allowances: Allowances paid (dollars).
+          official_business: Official-business expenses paid (dollars).
+          other_not_rptd: Other disbursements not reported elsewhere.
+          total: Total disbursements to this person.
+          rep_pct: Percentage of time allocated to representational activities.
+          pol_pct: Percentage allocated to political activities.
+          cont_pct: Percentage allocated to contributions, gifts, and grants.
+          gen_ovrhd_pct: Percentage allocated to general overhead.
+          admin_pct: Percentage allocated to union administration.
+          item_num: Sequence number of the person within the filing.
+        units:
+          gross_salary: dollars
+          allowances: dollars
+          official_business: dollars
+          other_not_rptd: dollars
+          total: dollars
+          rep_pct: percent
+          pol_pct: percent
+          cont_pct: percent
+          gen_ovrhd_pct: percent
+          admin_pct: percent
+      ar_disbursements_genrl:
+        description: General disbursement detail — Schedules 14–19 on the LM-2 form (representational activities, political activities, contributions, general overhead, union administration, and benefits-related disbursements). ~3.1M rows. Each row is one disbursement above OLMS itemization thresholds, with payee, purpose, date, and amount.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          disbursement_type: Disbursement-type code (which schedule the disbursement falls under). FK to ar_erds_codes (DISBURSEMENT_CODE).
+          payer_payee_id: Foreign key to ar_payer_payee.payer_payee_id (the payee).
+          purpose: Purpose of the disbursement.
+          date: Date of the disbursement (ISO 8601, YYYY-MM-DD).
+          amount: Amount paid (dollars).
+        units:
+          amount: dollars
+      ar_disbursements_benefits:
+        description: Benefit plan contributions detail — disbursements to pension funds, health plans, and other employee-benefit funds.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the benefit plan or contribution.
+          paid_to: Name of the recipient organization.
+          amount: Amount paid (dollars).
+        units:
+          amount: dollars
+      ar_disbursements_inv_purchases:
+        description: Investment purchase detail — securities and other investments acquired during the reporting period.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the investment.
+          cost: Cost (dollars).
+          book_value: Book value at acquisition.
+          cash_paid: Cash actually paid (may differ from cost if other consideration was given).
+      ar_membership:
+        description: Membership counts by category (e.g. active, retired, agency-fee payers, life members). Each row is one membership category for one filing.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          membership_type: Membership category code. FK to ar_erds_codes (MEMBERSHIP_CODE).
+          category: Free-text category name.
+          number: Member count for this category.
+          voting_eligibility: Whether members in this category are eligible to vote in union elections.
+        units:
+          number: persons
+      ar_rates_dues_fees:
+        description: Dues and fee schedules — what the union charges members, broken out by rate type (regular dues, initiation fees, agency fees, working dues, etc.).
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          rate_type: Rate-category code. FK to ar_erds_codes (RATE_CODE).
+          amount: Rate amount (typically dollars per unit; stored as text because the source mixes flat dollar amounts and percent expressions).
+          unit: Unit of the rate (e.g. "per month", "per year", "per hour").
+          minimum: Minimum rate, when the rate has a range.
+          maximum: Maximum rate, when the rate has a range.
   voluntary_recognitions:
     title: Voluntary Union Recognitions Known to the NLRB
     description_html: |-
