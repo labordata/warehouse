@@ -9,38 +9,719 @@ databases:
     source: National Labor Relations Board website, scraped
     source_url: https://github.com/labordata/nlrb-data
     description_html: |-
-      <p>This is a database of representation certification election and unfair labor practice cases since 2010. It is updated nightly.</p>
-
+      <p>National Labor Relations Board case data from the NLRB's current online case management system. Covers union-representation cases (R petitions — RC certification, RD decertification, RM employer-filed) and unfair-labor-practice cases (C charges — CA against employers, CB against unions, and several less-common subtypes), plus unit-clarification, deauthorization, and related case types.</p>
+      <p>The data is organized around a central <a href="./nlrb/filing">filing</a> table (one row per case) with related tables for <a href="./nlrb/participant">participants</a>, <a href="./nlrb/allegation">allegations</a>, <a href="./nlrb/sought_unit">bargaining units sought</a>, <a href="./nlrb/voting_unit">units that voted</a>, <a href="./nlrb/election">elections</a>, <a href="./nlrb/election_result">election results</a>, <a href="./nlrb/tally">tallies</a>, <a href="./nlrb/docket">docket events</a>, and <a href="./nlrb/document">case documents</a>. All linked by <code>case_number</code>.</p>
       <h2>Data Limitations</h2>
-
       <ul>
-          <li>The data starts around 2010. See <a href="./cats">cats</a> for data from the previous system</li>
-          <li>The update process starts by downloading a CSV of all the cases within a specified time period from the nlrb.gov website. However, repeatingly requesting the same information from nlrb.gov results in spreadsheets with slightly different contents. We might be a bit out of date if the last CSV we downloaded missed a recent case.</li>
+        <li>The NLRB's online case system covers cases from roughly 2010 onward. A handful of older legacy cases that remained open into that era also appear. See <a href="./cats">cats</a> for the 1999–2011 predecessor system.</li>
+        <li>The update process downloads a CSV of all cases within a specified time period from nlrb.gov. Repeated requests for the same period return spreadsheets with slightly different contents, so an occasional recent case can be missing or temporarily out of date.</li>
+        <li>The <a href="./nlrb/participant">participant</a> table has known data-quality issues — some rows have street-address text in the <code>subtype</code> column from upstream-data confusion. Filter carefully when analyzing party types.</li>
       </ul>
+    temporal_coverage: "2010/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - NLRB
+      - union elections
+      - representation elections
+      - unfair labor practices
+      - ULP charges
+      - decertification
+      - certification
+      - bargaining units
+      - labor disputes
+    tables:
+      filing:
+        description: One row per NLRB case, identified by case_number. The hub of the schema — all other tables reference filing via case_number. Most common case types are CA (~337k, charges against employers), CB (~103k, charges against unions), RC (~42k, certification petitions), and RD (~9k, decertification petitions); smaller categories include RM, CC, CD, CE, CG, CP, UC, UD, AC, and WH.
+        columns:
+          case_number: NLRB case identifier. Format is <region>-<type>-<sequence>, e.g. "01-RC-123456". Primary key.
+          name: Case name (typically the employer or charged party).
+          case_type: Two-letter case-type code. R-series are representation cases (RC, RD, RM); C-series are unfair-labor-practice charges (CA, CB, CC, CD, CE, CG, CP); others include UC (unit clarification), UD (union-shop deauthorization), AC (amendment of certification), and WH (workers under WH-prefixed administrative cases).
+          url: Public URL of the case on nlrb.gov.
+          city: City of the establishment or unit involved.
+          state: Two-letter US Postal Service state abbreviation.
+          date_filed: Date the petition or charge was filed (ISO 8601, YYYY-MM-DD).
+          region_assigned: NLRB regional office handling the case (two-digit region code, sometimes with a sub-region letter).
+          status: Case status — "Closed", "Open", "Open - Blocked" (paused pending another case), or "Inactive".
+          date_closed: Date the case was administratively closed (blank for open cases).
+          reason_closed: Standard NLRB closing disposition (e.g. "Certification of Representative", "Withdrawal Non-adjusted", "Dismissal Adjusted", "Administrative Closing").
+          number_of_eligible_voters: For election cases, the number of voters eligible to participate in the election.
+          number_of_voters_on_petition_or_charge: For petitions and charges, the number of workers identified on the filing.
+          certified_representative: Name of the certified union, when the case ended in certification.
+          created_at: Timestamp when this row was first scraped into the database.
+          updated_at: Timestamp when this row was last updated by the scraper.
+          last_checked_at: Timestamp of the most recent scrape check against nlrb.gov.
+      docket:
+        description: One row per docket-system event for a case — every filing, ruling, order, or document logged on the case's NLRB docket. Approximately 2 million rows.
+        columns:
+          case_number: Foreign key to filing.case_number.
+          date: Date of the docket event (ISO 8601, YYYY-MM-DD).
+          document: Name or short description of the document or event.
+          actor: Party that performed the action or filed the document.
+          url: URL to the document on nlrb.gov, when available.
+          created_at: Timestamp when this row was first scraped.
+      filing_group:
+        description: Groups consolidated cases. When the NLRB combines multiple related cases for handling, this table records the relationship — each row pairs a case_number with its root_case_number (the primary case in the group).
+        columns:
+          root_case_number: The primary case in a group of consolidated cases.
+          case_number: A case in the group. Foreign key to filing.case_number; primary key in this table (each case belongs to at most one group).
+          created_at: Scrape timestamp.
+          updated_at: Last-update timestamp.
+      participant:
+        description: Parties to each case — petitioners, charged parties, employers, unions, intervenors, and their legal representatives. Approximately 1.9 million rows; many cases have multiple participants. Note that the subtype column is partially polluted by upstream data quality issues (some rows contain street addresses where a subtype code is expected).
+        columns:
+          case_number: Foreign key to filing.case_number.
+          participant: Name of the party (organization or individual).
+          type: Role in the case — "Petitioner", "Employer", "Intervenor", "Union Involved", "Charging Party", "Involved Party", "Charged Party", "Charged Party / Respondent", or "Not Specified".
+          subtype: Party subtype — "Union", "Employer", "Union as an Employer", "Individual", "Legal Representative", "Additional Service", "Notification", or "Not Specified". Subject to upstream data-quality issues; some rows contain address text instead of a valid subtype.
+          address: Mailing address of the participant.
+          address_1: Address line 1, when split.
+          address_2: Address line 2, when split.
+          city: City.
+          state: Two-letter US Postal Service state abbreviation.
+          zip: ZIP code.
+          phone_number: Phone number, when available.
+          created_at: Scrape timestamp.
+      allegation:
+        description: One row per allegation listed in an unfair-labor-practice charge. C-series cases (CA, CB, etc.) typically include one or more allegations citing specific NLRA section violations (e.g. "8(a)(1) — Coercive Statements", "8(a)(3) — Discharge"). Approximately 720k rows.
+        columns:
+          case_number: Foreign key to filing.case_number.
+          allegation: Text of the allegation as recorded by the NLRB, typically citing an NLRA section subdivision.
+          created_at: Scrape timestamp.
+      sought_unit:
+        description: Bargaining units described in a representation petition — the unit the petitioner wants the NLRB to recognize. Unit-sought descriptions may differ from the unit that actually voted (see voting_unit), since the parties or the NLRB may modify the unit during pre-election proceedings.
+        columns:
+          case_number: Foreign key to filing.case_number.
+          unit_sought: Free-text description of the bargaining unit being petitioned for, generally listing job classifications included and excluded.
+          created_at: Scrape timestamp.
+      voting_unit:
+        description: Bargaining units that actually voted in an NLRB representation election. Each voting_unit gets a synthetic voting_unit_id and may be linked to one or more elections.
+        columns:
+          voting_unit_id: Synthetic auto-increment identifier for this voting unit.
+          case_number: Foreign key to filing.case_number.
+          unit_id: Original NLRB unit identifier for the voting unit within the case.
+          description: Free-text description of the bargaining unit that voted.
+          created_at: Scrape timestamp.
+      election:
+        description: One row per NLRB election event. An election is identified by case_number + voting_unit_id + date + ballot_type + tally_type — a single case can produce more than one election (e.g. a runoff or a re-run after objections).
+        columns:
+          election_id: Synthetic auto-increment identifier for this election.
+          case_number: Foreign key to filing.case_number.
+          voting_unit_id: Foreign key to voting_unit.voting_unit_id.
+          date: Date the election was held (ISO 8601, YYYY-MM-DD).
+          tally_type: NLRB tally-type designation (e.g. initial, re-run, runoff).
+          ballot_type: Whether ballots were manual, mail, mixed, or another mode.
+          unit_size: Number of workers in the voting unit at the time of the election.
+          created_at: Scrape timestamp.
+      election_mode:
+        description: Detailed election-mode records sourced from a separate FOIA request to the NLRB (not from the public case scrape that populates the rest of this database). Adds mode-specific timing fields (when ballots were mailed, when they were counted) and per-ballot-choice vote totals beyond what the public website exposes. Approximately 7,000 rows — coverage is limited to the period covered by the FOIA release.
+        columns:
+          election_id: Foreign key to election.election_id.
+          case_number: Foreign key to filing.case_number.
+          name: Case name, denormalized from filing.
+          city: City, denormalized.
+          state: State, denormalized.
+          status: Case status, denormalized.
+          date_filed: Petition filing date, denormalized.
+          date_closed: Case closure date, denormalized.
+          reason_closed: Closing disposition, denormalized.
+          election_mode: How the election was conducted (manual, mail, mixed, etc.).
+          date_ballot_mailed: For mail-ballot elections, the date ballots were mailed to voters.
+          date_ballot_counted: Date the ballots were counted.
+          date_election_scheduled: Originally-scheduled election date.
+          date_tally_scheduled: Originally-scheduled tally date.
+          date_tallied: Date the votes were actually tallied.
+          tally_type: NLRB tally-type designation.
+          ballot_type: Ballot type.
+          unit_id: Original NLRB unit identifier.
+          ballots_impounded: Whether ballots were impounded (yes/no text).
+          number_of_eligible_voters: Eligible voters in the election.
+          number_of_void_ballots: Ballots marked void.
+          labor_organization_1_name: Name of the first union on the ballot.
+          votes_for_labor_organization_1: Votes received by the first union.
+          labor_organization_2_name: Name of the second union on the ballot (multi-union elections).
+          votes_for_labor_organization_2: Votes received by the second union.
+          labor_organization_3_name: Name of the third union on the ballot.
+          votes_for_labor_organization_3: Votes received by the third union.
+          votes_cast_against_labor_org: Votes against representation ("no union").
+          number_of_valid_votes_counted: Total valid votes counted.
+          number_of_challenged_ballots: Challenged ballots (resolved post-election).
+          challenges_are_determinative: Whether the challenged ballots are determinative of the outcome (yes/no).
+          runoff_required: Whether a runoff election is required (yes/no).
+          union_to_certify: Name of the union to be certified, if any.
+          unit_involved_in_petition: Description of the unit involved.
+          bargaining_unit_determined: Description of the unit ultimately determined.
+      election_result:
+        description: Summary results for each NLRB election. One row per election, linked by election_id. The per-choice vote breakdown is in tally.
+        columns:
+          election_id: Primary key. Foreign key to election.election_id.
+          total_ballots_counted: Total ballots counted in the election.
+          void_ballots: Number of void ballots.
+          challenged_ballots: Number of challenged ballots.
+          challenges_are_determinative: Whether the challenged ballots could change the outcome (yes/no).
+          runoff_required: Whether a runoff election is required (yes/no).
+          union_to_certify: Name of the union to be certified, if the election produced certification.
+          created_at: Scrape timestamp.
+      tally:
+        description: Per-ballot-option vote count for each election — one row per option per election. Options include each union on the ballot and "No union". Approximately 68,000 rows across ~33,000 elections.
+        columns:
+          election_id: Foreign key to election.election_id.
+          option: Ballot option name — typically a union name, or "No union" for the no-representation choice.
+          votes: Number of votes the option received.
+          created_at: Scrape timestamp.
+        units:
+          votes: votes
+      document:
+        description: Documents attached to NLRB cases — orders, decisions, hearing transcripts, etc. The current data captures roughly 8,000 documents across cases; coverage is incomplete relative to docket events.
+        columns:
+          case_number: Foreign key to filing.case_number.
+          document: Name or short description of the document.
+          url: URL to the document on nlrb.gov.
+          created_at: Scrape timestamp.
   f7:
     title: Collective Bargaining Notice (F-7) Data since 1997
-    description: Daily refreshed data on bargaining notices from the Federal Mediation and Conciliation Service website. Data is updated nightly at about 10:00 pm Eastern, though the FMCS ony updates their data monthly.
+    description: Notices to Mediation Agencies (Form F-7) filed with the Federal Mediation and Conciliation Service. Under Section 8(d) of the National Labor Relations Act, parties to an expiring private-sector collective-bargaining agreement must notify FMCS at least 30 days before expiration (60 days for healthcare establishments). Each row is one notice — an advance signal of bargaining activity.
     source: Federal Mediation and Conciliation Service, scraped
     source_url: https://github.com/labordata/fmcs-f7
     description_html: |-
-      <p>Daily refreshed data on <a href="https://www.fmcs.gov/resources/documents-and-data/#tab-d3d7f5344cef9bab4d3">bargaining notices from fmcs.gov</a>. Data is updated nightly at about 10:00 pm Eastern, though the FMCS ony updates their data monthly.</p>
+      <p>Notices to Mediation Agencies (<a href="https://www.fmcs.gov/resources/documents-and-data/#tab-d3d7f5344cef9bab4d3">Form F-7</a>) filed with the Federal Mediation and Conciliation Service. Under <a href="https://www.law.cornell.edu/uscode/text/29/158">Section 8(d) of the National Labor Relations Act</a>, parties to an expiring private-sector collective-bargaining agreement must notify FMCS at least 30 days before the contract ends (60 days for healthcare establishments); newly-formed bargaining relationships also file an Initial Contract notice. Each row is one notice — naming the employer, the union, the bargaining unit's affected location and size, the industry (NAICS), and the type of notice (Renegotiation, Reopener, Initial Contract, etc.).</p>
+      <p>Data scraped nightly from the FMCS website. FMCS itself only refreshes its data monthly, so a 1–4 week lag is expected. Some legacy rows have unreliable date fields — see column descriptions.</p>
+    temporal_coverage: "1997/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: Federal Mediation and Conciliation Service
+      url: https://www.fmcs.gov/
+    keywords:
+      - collective bargaining
+      - bargaining notices
+      - FMCS
+      - F-7
+      - NLRA Section 8(d)
+      - contract expiration
+    tables:
+      f7:
+        description: One row per F-7 notice filed with FMCS since 1997. Most rows are Renegotiation (advance notice of an existing contract's expiration); smaller shares are Reopener, Initial Contract, and other categories. Notices have been filed by either the employer or the union, indicated in notice_submitted_by.
+        columns:
+          id: Surrogate primary key assigned during scraping; not meaningful outside this database.
+          notice_date: Notice date as reported by FMCS. Note that many legacy rows carry the sentinel value 1899-12-29 (Excel/SAS epoch zero) when the source value is missing.
+          initiated_date: Date the F-7 notice was created in the FMCS system (ISO 8601, YYYY-MM-DD). More reliable than notice_date for time-series analysis.
+          employer: Employer name as reported on the notice.
+          employer_street: Employer street address.
+          employer_city: Employer city.
+          employer_state: Employer state (two-letter US postal abbreviation or full name; format varies).
+          employer_zip: Employer ZIP code. Stored as text; some rows include a trailing ".0" from the source spreadsheet.
+          employer_representative: Name of the employer's designated contact for bargaining.
+          employer_representative_phone: Phone number for the employer representative.
+          employer_representative_title: Job title of the employer representative.
+          employer_representative_email: Email address of the employer representative.
+          union_name: Full name of the union, typically including parent affiliation and local number.
+          union_street: Union mailing address.
+          union_city: Union city.
+          union_state: Union state.
+          union_zip: Union ZIP code.
+          union_representative: Name of the union's designated contact for bargaining.
+          union_representative_phone: Phone number for the union representative.
+          union_representative_title: Job title of the union representative (e.g. "Business Manager", "President").
+          union_representative_email: Email address of the union representative.
+          affected_location_city: City where the bargaining-unit workers are employed (may differ from employer's headquarters city).
+          affected_location_state: State where the bargaining-unit workers are employed.
+          affected_location_zip: ZIP code where the bargaining-unit workers are employed.
+          expiration_date: Expiration date of the contract being renegotiated. Format is inconsistent in the source — most rows are ISO dates, but some carry Excel serial numbers or HH:MM:SS strings from upstream spreadsheet exports.
+          naics: NAICS industry code for the employer (2- to 6-digit, depending on what FMCS captured).
+          industry: Human-readable industry name corresponding to the NAICS code.
+          bargaining_unit_size: Number of workers in the bargaining unit (the group covered by the collective-bargaining agreement).
+          establishment_size: Total number of employees at the establishment (typically larger than bargaining_unit_size).
+          notice_submitted_by: Who filed the notice — typically "F-7 from Employer" or "F-7 from Union".
+          category: Type of notice. Common values are "Renegotiation" (advance notice of an existing contract's expiration), "Reopener" (mid-term reopening provision triggered), and "Initial Contract" (newly-formed bargaining relationship). Less common categories include "I & I" (an FMCS internal service-type code, expansion not publicly documented), "Unspecified", "Employment Mediation", "Regulatory Negotiation", "Facilitate a Meeting", and "Dispute Systems Design".
+          healthcare_related: Boolean flag (0 or 1) indicating whether the employer is a healthcare establishment subject to the 60-day NLRA Section 8(d)(A) notice requirement.
+          location_negotiation_city: City where bargaining will take place, when supplied.
+          location_negotiation_state: State where bargaining will take place, when supplied.
+          location_negotiation_zip: ZIP code where bargaining will take place, when supplied.
+        units:
+          bargaining_unit_size: persons
+          establishment_size: persons
   nlrb_rc_elections_1961_1998:
     title: Results of NLRB union-representation elections, 1965-1998
-    description: This file was built from an old database of union elections maintained by the AFL-CIO in Washington, DC. It contains election results for all petitions filed with the NLRB between 1965 and 1998 that went to elections. That is to say, it does NOT contain data on organizing drives where petitions were filed but later withdrawn or dismissed.
+    description: Historical record of NLRB representation elections from 1965 to 1998, drawn from an internal AFL-CIO database. Each row is one election that was actually held (the dataset does NOT include organizing drives where petitions were withdrawn or dismissed before a vote). Includes the petitioning union, the employer, the bargaining unit, vote totals, and the election outcome.
+    description_html: |-
+      <p>Election-by-election results for NLRB union-representation cases (RC, RD, and RM petitions) from the mid-1960s through 1998. The data was originally maintained by the AFL-CIO in Washington, DC, then compiled and cleaned by <a href="https://www.gsb.stanford.edu/faculty-research/faculty/john-paul-ferguson">JP Ferguson</a> (now at McGill University) for use in academic research on union organizing.</p>
+      <p>Each row is one election that was actually held. Note that the data does NOT include organizing drives where petitions were filed but later withdrawn or dismissed before reaching a vote — for those, a much larger universe of records is needed (see <a href="./cats">cats</a> for the 1999–2011 successor system).</p>
+      <p>Many internal NLRB code fields are preserved as-is from the source database; their mappings are not fully documented in the upstream cleaning scripts. The most analytically useful columns are the employer/union names, the vote totals (<code>fst_votes</code>, <code>votes_no</code>, <code>valid_for</code>, <code>valid_cast</code>), the bargaining-unit category, the election date, and <code>won</code>.</p>
     source: JP Ferguson
     source_url: https://github.com/jpfergongithub/nlrb_old_rcases
+    temporal_coverage: "1959/1999"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - NLRB
+      - union elections
+      - representation elections
+      - decertification elections
+      - union organizing
+      - certification elections
+      - historical labor data
+    tables:
+      nlrb_representation_1961_1998:
+        description: One row per NLRB representation election held between roughly 1959 and 1999. 224,822 rows. About 87% are RC (certification) petitions, 9% RD (decertification), and 4% RM (employer-filed). Roughly half of elections were won by the petitioning union and half were lost.
+        columns:
+          nlrb_id: NLRB case identifier.
+          region: NLRB regional office, as an integer code (1 through ~32).
+          r_type: Petition type — "RC" (representation certification, petitioned by a union seeking recognition), "RD" (decertification, petitioned by workers seeking to remove an existing union), or "RM" (representation by employer, petitioned by an employer presented with a recognition demand).
+          docket: Docket number within the regional office.
+          sic: 3-digit Standard Industrial Classification code (the pre-NAICS industry coding system).
+          unit: Bargaining-unit category. Standard values are "Production", "Clerical", "Craft", "Drivers", "Guard", "Professional", "Departmental", and "Other".
+          elect_size: Size of the bargaining unit (number of workers).
+          elect_type: NLRB election type code — "R" (stipulated election), "C" (consent election), "E" (expedited), plus less-common "B" and "S" codes whose meanings are not documented in the upstream source.
+          elig_voter: Number of eligible voters in the election.
+          fst_votes: Votes received by the first union on the ballot.
+          fst_union: Name of the first union on the ballot (typically the petitioning union for RC cases).
+          sec_votes: Votes received by the second union, in multi-union elections.
+          sec_union: Name of the second union on the ballot.
+          thr_votes: Votes received by the third union, in three-way elections.
+          thr_union: Name of the third union on the ballot.
+          votes_no: Votes against representation ("no union").
+          challenged: Number of ballots challenged at the polls (challenges resolved after the election).
+          elect_contr: Indicator that the election was contested. Coded numerically; mapping not documented.
+          objection_filed_date: Date an objection to the election was filed, when applicable.
+          obj_party: Numeric code (0–8) for the party that filed the objection. Mapping not documented in upstream source.
+          day_obj_el: Two-character internal NLRB code related to the objection filing. Mapping not documented.
+          ruling_obj: Numeric code for the ruling on the objection. Mapping not documented.
+          day_dec_el: Two-character internal NLRB code related to the decision. Mapping not documented.
+          req_review: Indicator for whether a request for review was filed. Stored as a float.
+          elect_ctrl: NLRB internal control code; mapping not documented.
+          hrngctrl: Hearing control code; mapping not documented.
+          day_el_clo: Two-character internal code related to election closing. Mapping not documented.
+          stg_closin: Single-character code for the stage at which the case closed. Mapping not documented.
+          meth_disp: Method of disposition (numeric code). Mapping not documented.
+          participant: Single-character participant code (A, B, C, D, E, G, H, K). Mapping not documented.
+          incumb_un: Indicator (0/1) for whether an incumbent union was on the ballot (always 1 for RD petitions).
+          recordctrl: Record control code; mapping not documented.
+          t_dt_filed: Filing date as it appeared in the source database, before cleaning.
+          filed_date: Filing date in cleaned ISO 8601 form (YYYY-MM-DD).
+          company: Employer name.
+          address: Employer street address.
+          pet_union: Name of the petitioning union (for RC and RM cases).
+          valid_for: Total valid votes cast in favor of representation (sum across union choices on the ballot).
+          valid_cast: Total valid votes cast.
+          t_dt_elect: Election date as it appeared in the source database, before cleaning.
+          election_date: Election date in cleaned ISO 8601 form (YYYY-MM-DD).
+          won: Election outcome for the petitioning union — "Won" or "Lost".
+          recodemth: Recoding method used during data preparation (0, 1, or 2). Mapping not documented.
+          state: Two-letter US Postal Service state abbreviation.
+          gsacty: GSA city code (numeric).
+          local: Union local number.
+          local_name: Local union name, when supplied.
+          mailballot: Whether the election was conducted by mail ballot — "Yes" or "No".
+          t_dt_closed: Case closure date as it appeared in the source database, before cleaning.
+          closed_date: Case closure date in cleaned ISO 8601 form.
+          zip: ZIP code of the employer or election location.
+          problem: Data-quality problem flag (all rows are 0 in the current data).
+          city_name: City name (typically prefixed with the state abbreviation in the source data).
+          county_name: County name.
+        units:
+          elect_size: persons
+          elig_voter: persons
+          fst_votes: votes
+          sec_votes: votes
+          thr_votes: votes
+          votes_no: votes
+          challenged: ballots
+          valid_for: votes
+          valid_cast: votes
   cats:
     title: NLRB cases, 1999-2011
-    source: NLRB files posted to data.gov, archived on archive.org 
+    source: NLRB files posted to data.gov, archived on archive.org
     source_url: https://github.com/labordata/nlrb-cats
     description_html: |-
-      <p>This data is the publicly-releasable records for the Case Activity Tracking System that the National Labor Relations Board used from around 1999-2011</p>
+      <p>The NLRB's <strong>Case Activity Tracking System (CATS)</strong> — the agency's case-management database used from around 1999 through mid-2011, when it was replaced by the current online case system (see <a href="./nlrb">nlrb</a>). Predecessor system was <a href="./chips">CHIPS</a> (1963-2000); the two systems overlap from 1999 to 2000.</p>
+      <p>The schema is enormous — 280+ tables with consistent prefix conventions:</p>
+      <ul>
+        <li><strong>c_*</strong> — Unfair-labor-practice (C) case tables. The hub is <a href="./cats/c_case">c_case</a> (~330k cases) keyed by <code>c_case_number</code>; supporting tables cover allegations, participants, complaints, ALJ decisions, Board decisions, appeals, dismissals, settlements, compliance, injunctions (10(j) and 10(l)), bankruptcy, and procedural milestones at every stage.</li>
+        <li><strong>r_*</strong> — Representation-case tables. The hub is <a href="./cats/r_case">r_case</a> (~54k cases) keyed by <code>r_case_number</code>; supporting tables cover bargaining units, elections, tallies, certifications, hearings, board actions, and post-election proceedings.</li>
+        <li><strong>l_*</strong> — Lookup tables. About 200 of them, expanding every short coded value in the c_*/r_* tables (case types, role types, action codes, determinations, etc.).</li>
+        <li><strong>cl_*</strong> — Closed-Case Report files (denormalized closing reports).</li>
+      </ul>
+      <p>A small number of legacy rows with file dates from the mid-1970s or 1980s appear in the C-case and R-case tables — these are pre-CATS cases that remained open into the CATS era. The bulk of the data covers 1999 through mid-2011.</p>
+      <p>Source data is the publicly-releasable archive that NLRB posted to data.gov, preserved via archive.org after the original posting was removed.</p>
+      <p><strong>Note on column documentation:</strong> Plain-English descriptions for well-known fields (case numbers, dates, vote counts, participant names, case-type codes) are reliable. Descriptions of internal NLRB-procedural / control-code fields (determination codes, motion-type codes, abeyance codes, etc.) are inferred from column names and general NLRB process knowledge, not from a codebook. For ground-truth definitions of opaque coded fields, consult the official CATS documentation if available or the corresponding lookup table.</p>
+    temporal_coverage: "1999/2011"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - NLRB
+      - CATS
+      - unfair labor practices
+      - representation elections
+      - decertification
+      - historical labor data
+      - data.gov
     tables:
+      c_case:
+        description: One row per unfair-labor-practice (C) case. ~330k cases. Hub of the C-case schema, keyed by c_case_number. Most rows are CA (charges against employer, ~248k), CB (charges against union, ~74k), or one of the less common CC/CD/CG/CP/CE subtypes.
+        columns:
+          c_case_number: NLRB case identifier in the format <region>-<type>-<sequence>, e.g. "01-CA-12345". Primary key.
+          status: Case status code. FK to l_c_status.
+          nlrb_office_id: NLRB regional office handling the case. FK to l_nlrb_office.
+          case_type: Two-letter case-type code (CA, CB, CC, CD, CE, CG, CP, UD, AC, WH). FK to l_c_case_type.
+          docket_num: Docket number within the region.
+          case_suffix_num: Sub-docket suffix (typically 0 for original).
+          case_name: Case name (typically the charged party).
+          date_filed: Date the charge was filed (ISO 8601, YYYY-MM-DD).
+          date_closed: Date the case was administratively closed.
+          disposition_due: Date by which disposition is due.
+          disposition_accomplished: Date disposition was accomplished.
+          charged_party_on_charge: Name of the party charged on the original filing.
+          charging_party_on_charge: Name of the party that filed the charge.
+          inquiry_id: NLRB inquiry identifier, when the case began as an inquiry.
+          employer_involved_on_charge: Employer named on the charge.
+          io_assist: Indicator that an investigative officer assisted.
+          naics_code: NAICS industry code. FK to l_naics_code.
+          num_8a3_discriminatees: Count of employees alleged to have been discriminated against under NLRA Section 8(a)(3).
+          num_8b2_discriminatees: Count of employees alleged to have been discriminated against under NLRA Section 8(b)(2).
+          num_employees: Number of employees at the establishment.
+          postal: Whether the establishment is a postal facility (postal-employee cases use slightly different procedures).
+          investigation_complete: Indicator that the investigation is complete.
+          disposition_date: Date of disposition.
+          dispute_loc_city: City where the dispute occurred.
+          dispute_loc_state: State.
+          dispute_loc_county: County. FK to l_county.
+          dispute_loc_zip: ZIP code.
+        units:
+          num_8a3_discriminatees: persons
+          num_8b2_discriminatees: persons
+          num_employees: persons
+      r_case:
+        description: One row per representation (R) case. ~54k cases. Hub of the R-case schema, keyed by r_case_number. Includes RC (certification, ~40k), RD (decertification, ~9k), RM (employer-filed, ~1.5k), UC (unit clarification, ~2k), UD (union deauthorization, ~1.3k), and AC (amendment of certification, ~163).
+        columns:
+          r_case_number: NLRB case identifier in the format <region>-<type>-<sequence>. Primary key.
+          case_type: Two-letter case-type code (RC, RD, RM, UC, UD, AC). FK to l_r_case_type.
+          status: Case status code. FK to l_r_status.
+          nlrb_office_id: NLRB regional office. FK to l_nlrb_office.
+          docket_num: Docket number within the region.
+          inquiry_id: NLRB inquiry identifier.
+          case_name: Case name (typically the employer).
+          date_filed: Date the petition was filed (ISO 8601, YYYY-MM-DD).
+          hearing_target_date: Target date for the pre-election hearing.
+          election_target_date: Target date for the election.
+          employer_on_petition: Name of the employer named on the petition.
+          union_involved_on_petition: Name of the union named on the petition.
+          intervenor_on_petition: Name of any intervening union.
+          self_certification: Indicator for a self-certification case.
+          post_elect_self_cert: Indicator for post-election self-certification.
+          naics_code: NAICS industry code. FK to l_naics_code.
+          num_employees_requested: Number of employees in the petitioner's requested unit.
+          description_requested: Free-text description of the unit being petitioned for.
+        units:
+          num_employees_requested: persons
+      c_participant:
+        description: Parties to each C-case — petitioners, charged parties, employers, unions, intervenors, individuals, and their legal representatives. ~1.3M rows. Linked to c_case via c_case_number.
+        columns:
+          c_case_number: Foreign key to c_case.c_case_number.
+          participant_id: Foreign key to l_organization.organization_id or similar — the participant's identifier in the organization master.
+          participant_group: Participant group classification. FK to l_participant_group.
+          participant_role: Role in the case. FK to l_c_part_role_type.
+          name_for_correspondence: Name as it should appear in correspondence.
+          name_prefix: Honorific (Mr., Ms., etc.). FK to l_name_prefix.
+          first_name: First name (individuals only).
+          mid_name: Middle name.
+          last_name: Last name.
+          name_suffix: Suffix (Jr., Sr., III, etc.). FK to l_name_suffix.
+          street_address_1: Street address line 1.
+          street_address_2: Street address line 2.
+          city: City.
+          state: State. FK to l_state.
+          zip: ZIP code.
+          phone_num: Primary phone number.
+          phone_ext: Phone extension.
+          cell_phone: Cell phone number.
+          fax_num: Fax number.
+          e_mail_address: Email address.
+          formal_name: Formal organization name.
+          parent_name: Parent organization name (for affiliated unions or subsidiary companies).
+          exclusive_service: Indicator for exclusive-service relationship.
+          afl_cio: Indicator that the union is AFL-CIO affiliated.
+          incumbent_union: Indicator that the union is an incumbent.
+          labor_org_code: Labor-organization code. FK to l_labor_org_code.
+          local_dist_id: Local or district identifier.
+          party_scope: Scope of the party (local, district, international, etc.). FK to l_party_scope.
+          parti_type: Participant type code. FK to l_parti_type.
+      c_allegation:
+        description: Allegations within each C-case — each row cites a specific NLRA section subdivision the charged party is alleged to have violated. ~600k rows.
+        columns:
+          c_case_number: Foreign key to c_case.c_case_number.
+          allegation_sequence: Sequence number of the allegation within the case.
+          nlra_section: NLRA section citation (e.g. "8(a)(1)", "8(b)(3)"). FK to l_allegation_type.
+          allegation_keyname: Short key identifying the type of allegation.
+      c_closing:
+        description: Case closure records for C-cases — one row per closing action (a case can have multiple closing entries for different actions in its lifecycle). ~327k rows.
+        columns:
+          c_case_number: Foreign key to c_case.c_case_number.
+          action_sequence: Sequence number of this closing action.
+          date_closed: Date the case closed.
+          close_method: Method of closing. FK to l_c_close_method.
+          close_timing: Timing-of-closure classification. FK to l_c_close_timing.
+          date_file_sent_archives: Date the case file was sent to NLRB archives.
+          date_file_to_records: Date the file was transferred to NLRB records management.
+          date_file_destroyed: Date the file was destroyed under records retention.
+          preclosing_letter: Indicator that a pre-closing letter was issued.
+          notice_of_closing_date: Date a notice of closing was issued.
+      r_election:
+        description: NLRB representation elections held under CATS. ~32k rows. Each row is one election event identified by election_id, with date, type (board-ordered, consent, stipulated, expedited), and mode (manual, mail, mixed).
+        columns:
+          election_id: Primary key for this election.
+          date_election: Date the election was held.
+          election_type: Election-type code. FK to l_r_case_elect_type.
+          election_mode: How the election was conducted (manual, mail, mixed). FK to l_r_elect_mode.
+          election_time: Time the election was conducted.
+          election_city: City where the election was held.
+          election_state: State where the election was held.
+          expedited_under_8b7: Indicator that the election was expedited under Section 8(b)(7).
+          globe_sonotone_election: Indicator for a Globe/Sonotone-type self-determination election.
+          ballots_impounded: Indicator that ballots were impounded.
+      r_election_tally:
+        description: Vote tallies for representation elections — one row per (case, unit, election, tally) combination. ~34k rows. Captures eligible voters, valid votes, votes against, challenged ballots, and outcome indicators.
+        columns:
+          r_case_number: Foreign key to r_case.r_case_number.
+          unit_id: Foreign key to r_bargaining_unit.unit_id.
+          election_id: Foreign key to r_election.election_id.
+          tally_id: Identifier of this tally within the election.
+          tally_date: Date of the tally.
+          tally_type: Tally-type code. FK to l_r_tally_type.
+          self_determination_tally: Indicator for self-determination tally (Globe/Sonotone elections).
+          num_employees_eligible: Number of voters eligible.
+          num_void_ballots: Number of void ballots.
+          num_votes_against: Votes against representation (no union).
+          num_valid_votes: Total valid votes counted.
+          num_challenges: Number of challenged ballots.
+          challenges_determinative: Indicator that challenges are determinative of the outcome.
+          runoff_required: Indicator that a runoff election is required.
+          majority_for: Indicator that the majority voted for representation.
+          num_for_inclusion: Votes for inclusion of the voter's classification in the unit (self-determination tallies).
+          num_against_inclusion: Votes against inclusion (self-determination tallies).
+          num_sustained_challenges: Number of challenges sustained after challenge resolution.
+        units:
+          num_employees_eligible: persons
+          num_void_ballots: ballots
+          num_votes_against: votes
+          num_valid_votes: votes
+          num_challenges: ballots
+          num_for_inclusion: votes
+          num_against_inclusion: votes
+          num_sustained_challenges: ballots
+      r_bargaining_unit:
+        description: Bargaining units involved in representation cases — each row is one unit per case (a single case can have multiple voting units in stratified or self-determination elections).
+        columns:
+          r_case_number: Foreign key to r_case.r_case_number.
+          unit_id: Unit identifier within the case.
+          bargaining_unit_code: Bargaining-unit type code. FK to l_r_bargain_unit_code.
+          bargaining_unit_scope: Bargaining-unit scope code. FK to l_r_bargain_unit_scope.
+          num_employees_determined: Number of employees in the unit as ultimately determined.
+          unit_city: City where the unit is located.
+          unit_state: State where the unit is located.
+          unit_county: County. FK to l_county.
+          description_determined: Free-text description of the unit as determined.
+        units:
+          num_employees_determined: persons
+      r_participant:
+        description: Parties to each R-case — petitioners, employers, unions, intervenors. ~236k rows. Same structure as c_participant but joined via r_case_number.
+        columns:
+          r_case_number: Foreign key to r_case.r_case_number.
+          participant_id: Foreign key to the organization master.
+          participant_role: Role in the case. FK to l_r_part_role_type.
+          participant_group: Participant group. FK to l_participant_group.
+          name_for_correspondence: Name as it should appear in correspondence.
+          name_prefix: Honorific.
+          first_name: First name.
+          mid_name: Middle name.
+          last_name: Last name.
+          name_suffix: Suffix.
+          street_address_1: Street address line 1.
+          street_address_2: Street address line 2.
+          city: City.
+          state: State. FK to l_state.
+          zip: ZIP code.
+          phone_num: Primary phone number.
+          phone_ext: Phone extension.
+          cell_phone: Cell phone number.
+          fax_num: Fax number.
+          e_mail_address: Email address.
+          formal_name: Formal organization name.
+          parent_name: Parent organization name.
+          exclusive_service: Exclusive-service indicator.
+          incumbent_union: Indicator that the union is an incumbent.
+          labor_org_code: Labor-organization code. FK to l_labor_org_code.
+          local_dist_id: Local or district identifier.
+          afl_cio: AFL-CIO affiliation indicator.
+          party_scope: Party scope. FK to l_party_scope.
+          parti_type: Participant type. FK to l_parti_type.
+      r_closed_case:
+        description: Case closure records for R-cases — one row per closing action per case.
+        columns:
+          r_case_number: Foreign key to r_case.r_case_number.
+          action_sequence: Sequence number of this closing action.
+          closing_date: Date the case closed.
+          closing_stage: Stage at which the case closed. FK to l_r_closing_stage.
+          closing_method: Method of closing. FK to l_r_closing_method.
+          date_file_archives: Date the file was sent to NLRB archives.
+          date_file_to_records: Date the file was transferred to records management.
+          date_file_destroyed: Date the file was destroyed under records retention.
+      c_complaint:
+        description: Formal complaint records for C-cases — issued when the NLRB Regional Director finds merit in a charge and a settlement isn't reached. ~43k complaints.
+      c_amendment:
+        description: Amendment records for C-cases — when a charge is formally amended (parties added, allegations modified, etc.). ~55k amendments.
+      c_case_group:
+        description: Case-group definitions for C-cases — when multiple cases are consolidated for hearing or decision.
+      c_case_case_group:
+        description: Junction table linking C-cases to their case-groups, with sequence and date-added/removed tracking.
+      c_alj_decision:
+        description: Administrative Law Judge decisions in C-cases. ~20k decisions. Tracks brief due dates, EOT (extension of time) requests, decision dates, and determinations.
+      c_alj_decision_bb:
+        description: ALJ-decision "Blue Book" entries — citations to NLRB precedent classifications.
+      c_alj_motion:
+        description: Motions filed before the ALJ in C-case proceedings.
+      c_board_decision:
+        description: NLRB Board decisions on C-cases (post-ALJ review). ~17k decisions.
+      c_board_dec_bb:
+        description: Board-decision Blue Book entries — citations.
+      c_board_other_motions:
+        description: Other motions before the Board in C-cases.
+      c_settlement:
+        description: Settlement records for C-cases — both informal and formal settlements. ~29k settlements.
+      c_dismissal:
+        description: Dismissal records for C-cases — when the NLRB declines to issue a complaint. ~110k dismissals.
+      c_appeal:
+        description: Appeal records for C-cases — appeals to the General Counsel's Office of Appeals. ~144k appeals.
+      c_enforcement:
+        description: Court-enforcement records for C-cases — NLRB applications to Circuit Courts of Appeals to enforce Board orders.
+      c_supreme_court:
+        description: Supreme Court records for C-cases.
+      c_contempt:
+        description: Contempt-of-court records for C-cases.
+      c_injunction_10j:
+        description: Section 10(j) injunction records — NLRB applications for temporary injunctions in C-cases. ~16k.
+      c_inj_10j_appeal:
+        description: Appeals of Section 10(j) injunction rulings.
+      c_injunction_10l:
+        description: Section 10(l) injunction records — mandatory injunction requests for certain 8(b)(4) and 8(e) cases.
+      c_compliance_goals:
+        description: Compliance goals tracked for C-cases — milestones in achieving remedies after a Board decision.
+      c_compliance_spec:
+        description: Backpay-compliance specification records.
+      c_regional_compliance:
+        description: Regional Office compliance records for C-cases.
+      c_regional_deter:
+        description: Regional Director determinations on C-cases.
+      c_hearing:
+        description: Hearing records for C-cases (ALJ hearings).
+      c_advice:
+        description: Cases sent to the General Counsel's Division of Advice for guidance on novel legal questions.
+      c_deferral:
+        description: Cases deferred to grievance/arbitration procedures under the Collyer or Spielberg doctrines.
+      c_motion_summ_judge:
+        description: Motions for summary judgment in C-cases.
+      c_motions_affect_cmp:
+        description: Motions affecting compliance proceedings.
+      c_alleg_action:
+        description: Actions taken on individual allegations. ~1.55M rows — the largest C-case table.
+      c_impact_category:
+        description: Impact-category classifications for C-cases (used for statistical impact analysis).
+      c_reopening:
+        description: Case-reopening records for C-cases.
+      c_transfer_history:
+        description: Records of cases being transferred between regional offices.
+      c_bankruptcy:
+        description: Bankruptcy filings affecting respondents in C-cases.
+      c_collection_activities:
+        description: Collection activities pursued to enforce backpay/remedy awards.
+      c_discovery:
+        description: Discovery proceedings in C-case-related litigation.
+      c_10k:
+        description: Section 10(k) jurisdictional-dispute records (CD cases).
+      c_r_block:
+        description: Cross-case blocking relationships between C-cases and R-cases.
+      c_sup_aljd_cmp:
+        description: Supplemental ALJ decisions on compliance.
+      c_sup_board_dec_cmp:
+        description: Supplemental Board decisions on compliance.
+      cl_c_closed_case_report:
+        description: Closed-Case Report — denormalized summary of each closed C-case for reporting purposes.
+      cl_c_closed_case_report_alleg:
+        description: Per-allegation rows in the closed-case report.
+      cl_c_withdrawal:
+        description: Withdrawal records (denormalized) for C-cases.
+      r_action:
+        description: Catch-all action log for R-cases — every action recorded against an R-case during its lifecycle. ~432k rows.
+      r_block:
+        description: Blocking records for R-cases (when an R-case is paused pending another case).
+      r_block_cases:
+        description: Junction table linking R-cases to the cases that block them.
+      r_case_group:
+        description: Case-group definitions for R-cases.
+      r_case_case_group:
+        description: Junction table linking R-cases to their case-groups.
+      r_challenge_issue:
+        description: Challenge issues raised against ballots in R-case elections.
+      r_challenge_tabulation:
+        description: Detailed tabulation of resolved challenges.
+      r_dismissal:
+        description: Dismissal records for R-cases.
+      r_withdrawal:
+        description: Withdrawal records for R-cases.
+      r_elect_agreement:
+        description: Election-agreement records — when parties stipulate to election terms.
+      r_elect_certification:
+        description: Certification records for elections — when the NLRB formally certifies an election result.
+      r_elect_scheduled:
+        description: Scheduled-election records.
+      r_elect_votes_for:
+        description: Per-choice vote counts in elections (one row per ballot option per election).
+      r_objection_issue:
+        description: Objections to election conduct or results.
+      r_part_variant:
+        description: Variant/alternative participant records for R-cases.
+      r_post_elect_board_act:
+        description: Post-election Board actions on R-cases.
+      r_post_elect_hearing:
+        description: Post-election hearings on R-cases.
+      r_post_elect_rd_act:
+        description: Post-election Regional Director actions.
+      r_pre_elect_board_act:
+        description: Pre-election Board actions.
+      r_pre_elect_hearing:
+        description: Pre-election hearings. ~56k.
+      r_pre_elect_rd_bb:
+        description: Pre-election Regional Director Blue Book citations.
+      r_pre_elect_rd_decision:
+        description: Pre-election Regional Director decisions on representation issues.
+      r_pre_elect_rd_issues:
+        description: Pre-election issues considered by the Regional Director.
+      r_impact_category:
+        description: Impact-category classifications for R-cases.
+      r_reopened_case:
+        description: Reopened-case records for R-cases.
+      r_transfer_history:
+        description: Records of R-cases being transferred between regions.
+      l_allegation_type:
+        description: Allegation-type lookup — NLRA section citations and short descriptions. 217 entries.
       l_blue_book_codes:
         label_column: description
+      l_blue_book_chapter:
+        label_column: description
+      l_blue_book_division:
+        label_column: description
+      l_blue_book_heading:
+        description: Blue Book heading lookup — NLRB precedent classification headings.
+      l_blue_book_section:
+        description: Blue Book section lookup — NLRB precedent classification sections.
       l_case_party:
         label_column: description
-      l_geographic_division: 
+      l_geographic_division:
         label_column: description
       l_geographic_region:
         label_column: description
@@ -50,6 +731,16 @@ databases:
         label_column: description
       l_naics_sector:
         label_column: description
+      l_naics_subsector:
+        description: NAICS subsector lookup (3-digit codes).
+      l_naics_industry_group:
+        description: NAICS industry-group lookup (4-digit codes).
+      l_naics_industry:
+        description: NAICS industry lookup (5-digit codes).
+      l_naics_us_industry:
+        description: NAICS US industry lookup (6-digit codes).
+      l_naics_qualifier:
+        description: NAICS qualifier lookup — modifiers applied to industry codes.
       l_nlrb_branch:
         label_column: description
       l_nlrb_district:
@@ -64,6 +755,8 @@ databases:
         label_column: description
       l_organization:
         label_column: formal_name
+      l_organization_name:
+        description: Organization name variants — alternative names for organizations (DBAs, predecessors, etc.). ~96k rows.
       l_parti_type:
         label_column: description
       l_participant_group:
@@ -72,6 +765,272 @@ databases:
         label_column: description
       l_party_type:
         label_column: description
+      l_county:
+        description: County lookup. 3,294 rows — every US county.
+      l_state:
+        description: State lookup.
+      l_court:
+        description: Court lookup — federal courts that hear NLRB appeals.
+      l_court_type:
+        description: Court-type classification lookup.
+      l_member_type:
+        description: NLRB member-type lookup.
+      l_name_prefix:
+        description: Name-prefix lookup (Mr., Ms., Dr., etc.).
+      l_name_suffix:
+        description: Name-suffix lookup (Jr., Sr., III, etc.).
+      l_supervisor_type:
+        description: Supervisor-type lookup.
+      l_method_filed_type:
+        description: Method-of-filing lookup (in-person, mail, fax, etc.).
+      l_note_type:
+        description: Case-note-type lookup.
+      l_notifications:
+        description: Notification-type lookup. ~2.5k rows.
+      l_brief_type:
+        description: Brief-type lookup.
+      l_motion_deter:
+        description: Generic motion-determination lookup.
+      l_eot_determination:
+        description: Extension-of-Time determination lookup.
+      l_impact_analysis_cat:
+        description: Impact-analysis category lookup.
+      l_compliance_type:
+        description: Compliance-type lookup.
+      l_hearing_record_form:
+        description: Hearing-record-form lookup.
+      l_injunction_brief_type:
+        description: Injunction-brief-type lookup.
+      l_injunction_motion_type:
+        description: Injunction-motion-type lookup.
+      l_scope:
+        description: Generic scope lookup.
+      l_c_case_type:
+        description: C-case case-type lookup (CA, CB, CC, CD, CE, CG, CP).
+      l_c_case_scope:
+        description: C-case scope lookup.
+      l_c_part_role_type:
+        description: C-case participant role lookup.
+      l_c_status:
+        description: C-case status lookup.
+      l_c_action_fields:
+        description: C-case action-field lookup. 264 rows describing every field that can be set in a c_alleg_action row.
+      l_c_method_of_disp:
+        description: Method-of-disposition lookup for C-cases.
+      l_c_close_method:
+        description: C-case closing-method lookup.
+      l_c_close_timing:
+        description: C-case closing-timing lookup.
+      l_c_close_determination:
+        description: C-case closing-determination lookup.
+      l_c_with_disposition:
+        description: Withdrawal-disposition lookup for C-cases.
+      l_c_with_scope:
+        description: Withdrawal-scope lookup for C-cases.
+      l_c_with_revocation:
+        description: Withdrawal-revocation lookup.
+      l_c_dismissal_revoke:
+        description: Dismissal-revocation lookup.
+      l_c_amendment_type:
+        description: Amendment-type lookup.
+      l_c_amendment_reason:
+        description: Amendment-reason lookup.
+      l_c_alleg_act_type:
+        description: Allegation-action-type lookup. 49 rows — types of actions taken on individual allegations.
+      l_c_complaint_reason:
+        description: Complaint-reason lookup.
+      l_c_settle_part:
+        description: Settlement-participation lookup.
+      l_c_settlement_bd:
+        description: Board-side settlement-determination lookup.
+      l_c_formal_settle_type:
+        description: Formal-settlement-type lookup.
+      l_c_fs_submitted:
+        description: Formal-settlement-submission lookup.
+      l_c_advice_type:
+        description: Advice-request type lookup.
+      l_c_advice_determination:
+        description: Advice determination lookup.
+      l_c_deferral_type:
+        description: Deferral-type lookup (Collyer, Spielberg, etc.).
+      l_c_spielberg_determ:
+        description: Spielberg-doctrine determination lookup.
+      l_c_overage_decision:
+        description: Overage-case decision lookup (cases past timeliness goals).
+      l_c_overage_reason:
+        description: Overage-case reason lookup.
+      l_c_alj_determination:
+        description: ALJ-determination lookup.
+      l_c_alj_mot_typ:
+        description: ALJ-motion-type lookup.
+      l_c_alj_cmp_deter:
+        description: ALJ compliance-motion-determination lookup.
+      l_c_board_determination:
+        description: Board-determination lookup.
+      l_c_board_motion_deter:
+        description: Board-motion-determination lookup.
+      l_c_board_motion_type:
+        description: Board-motion-type lookup.
+      l_c_board_recon_deter:
+        description: Board reconsideration-determination lookup.
+      l_c_bd_contempt:
+        description: Board contempt determination lookup.
+      l_c_bd_deter_certiorari:
+        description: Board determination on certiorari lookup.
+      l_c_appeal_action:
+        description: Appeal-action lookup.
+      l_c_appeal_deter:
+        description: Appeal-determination lookup.
+      l_c_appellate_court:
+        description: Appellate-court lookup.
+      l_c_appellate_enf_deter:
+        description: Appellate enforcement-determination lookup.
+      l_c_app_court_action:
+        description: Court of Appeals action lookup.
+      l_c_app_court_act_type:
+        description: Court of Appeals action-type lookup.
+      l_c_app_brief_pleading:
+        description: Appellate brief/pleading lookup.
+      l_c_enf_court_action:
+        description: Enforcement-court-action lookup.
+      l_c_enf_court_act_type:
+        description: Enforcement-court action-type lookup.
+      l_c_enforcement_settlement:
+        description: Enforcement-settlement lookup.
+      l_c_supreme_ct_deter:
+        description: Supreme Court determination lookup.
+      l_c_supreme_ct_pet_deter:
+        description: Supreme Court petition-determination lookup.
+      l_c_contempt_deter:
+        description: Contempt-determination lookup.
+      l_c_contempt_settlement:
+        description: Contempt-settlement lookup.
+      l_c_comp_motion_deter:
+        description: Compliance-motion-determination lookup.
+      l_c_comp_motion_forum:
+        description: Compliance-motion-forum lookup.
+      l_c_comp_motion_type:
+        description: Compliance-motion-type lookup.
+      l_c_compliance_reason:
+        description: Compliance-reason lookup.
+      l_c_goals:
+        description: Compliance-goal lookup.
+      l_c_goal_description:
+        description: Goal-description lookup.
+      l_c_cmp_letter_type:
+        description: Compliance letter-type lookup.
+      l_c_cmp_spec_sw_action:
+        description: Compliance-specification action lookup.
+      l_c_cmp_spec_sw_participation:
+        description: Compliance-specification participation lookup.
+      l_c_motion_summ_judge:
+        description: Motion-for-summary-judgment determination lookup.
+      l_c_som_determination:
+        description: Special-officer-motion determination lookup.
+      l_c_reopen_reason:
+        description: Reopening-reason lookup.
+      l_c_transfer_type:
+        description: Transfer-type lookup.
+      l_c_reason_transfer:
+        description: Reason-for-transfer lookup.
+      l_c_abeyance_code:
+        description: Abeyance-code lookup.
+      l_c_accordance_with:
+        description: 'Accordance-with lookup ("in accordance with" classification used in compliance records).'
+      l_c_case_group_type:
+        description: C-case case-group-type lookup.
+      l_c_case_note_topic:
+        description: C-case note-topic lookup. 253 entries.
+      l_c_proof_claim_cat:
+        description: Proof-of-claim category lookup (bankruptcy context).
+      l_c_discharge_bank_act:
+        description: Discharge in bankruptcy act lookup.
+      l_c_bank_pet_type:
+        description: Bankruptcy-petition-type lookup.
+      l_c_escrow_acc_loc:
+        description: Escrow-account-location lookup.
+      l_c_gc_recommendation:
+        description: General Counsel recommendation lookup.
+      l_c_heac_det_p_p:
+        description: Hearing-determination lookup (party-participation context).
+      l_c_hearing_type:
+        description: Hearing-type lookup.
+      l_c_inj_appellate_dec:
+        description: Injunction appellate-decision lookup.
+      l_c_inj_court_order_typ:
+        description: Injunction court-order-type lookup.
+      l_c_inj_evidence_type:
+        description: Injunction evidence-type lookup.
+      l_c_inj_rel_type:
+        description: Injunction relief-type lookup.
+      l_c_inj_relief_deter:
+        description: Injunction relief-determination lookup.
+      l_c_inj_relief_recipient:
+        description: Injunction relief-recipient lookup.
+      l_c_10j_advice_deter:
+        description: Section 10(j) advice-determination lookup.
+      l_c_10j_board_deter:
+        description: Section 10(j) Board determination lookup.
+      l_c_10j_brief_type:
+        description: Section 10(j) brief-type lookup.
+      l_c_10j_discovery_type:
+        description: Section 10(j) discovery-type lookup.
+      l_c_10j_final:
+        description: Section 10(j) final-determination lookup.
+      l_c_10j_judgement:
+        description: Section 10(j) judgement-type lookup.
+      l_c_10j_motion_determ:
+        description: Section 10(j) motion-determination lookup.
+      l_c_10j_motion_type:
+        description: Section 10(j) motion-type lookup.
+      l_c_10j_reason_cease:
+        description: Section 10(j) reason-to-cease lookup.
+      l_c_10j_reg_determ_code:
+        description: Section 10(j) regional determination code lookup.
+      l_c_10l_co_determ:
+        description: Section 10(l) court-order determination lookup.
+      l_c_10l_discovery_type:
+        description: Section 10(l) discovery-type lookup.
+      l_c_10l_final:
+        description: Section 10(l) final-determination lookup.
+      l_c_10l_motion_determ:
+        description: Section 10(l) motion-determination lookup.
+      l_c_10l_reason_cease:
+        description: Section 10(l) reason-to-cease lookup.
+      l_c_10l_reg_determ:
+        description: Section 10(l) regional-determination lookup.
+      l_c_p_p_deter_source:
+        description: Party-participation determination-source lookup.
+      l_c_posting_type:
+        description: Notice-posting-type lookup.
+      l_c_reg_det_agenda_typ:
+        description: Regional-determination agenda-type lookup.
+      l_c_reg_det_dec_level:
+        description: Regional-determination decision-level lookup.
+      l_c_reg_det_type:
+        description: Regional-determination type lookup.
+      l_c_timing_of_disp:
+        description: Timing-of-disposition lookup.
+      l_c_willingness_type:
+        description: Willingness-to-settle type lookup.
+      l_c_discovery_ct_deter:
+        description: Discovery-court determination lookup.
+      l_ccr_backpay_control:
+        description: Closed-Case Report backpay-control lookup.
+      l_ccr_bargain_status:
+        description: Closed-Case Report bargaining-status lookup.
+      l_ccr_charge_party_pos:
+        description: Closed-Case Report charging-party position lookup.
+      l_ccr_closing_stage:
+        description: Closed-Case Report closing-stage lookup.
+      l_ccr_closing_type:
+        description: Closed-Case Report closing-type lookup.
+      l_ccr_complaint:
+        description: Closed-Case Report complaint indicator lookup.
+      l_ccr_contempt_rec_type:
+        description: Closed-Case Report contempt-record-type lookup.
+      l_r_action_fields:
+        description: R-case action-field lookup. 88 rows.
       l_r_bargain_unit_code:
         label_column: description
       l_r_bargain_unit_scope:
@@ -88,12 +1047,14 @@ databases:
         label_column: description
       l_r_case_group_type:
         label_column: description
+      l_r_case_note_topic:
+        description: R-case note-topic lookup. 210 entries.
       l_r_case_type:
         label_column: description
       l_r_challenge_act_result:
         label_column: description
       l_r_challenge_act_type:
-        label_column: description        
+        label_column: description
       l_r_challenge_issue:
         label_column: description
       l_r_closing_method:
@@ -142,58 +1103,1654 @@ databases:
         label_column: description
       l_r_target_description:
         label_column: description
+      l_r_targets:
+        description: R-case targets lookup.
       l_r_transfer_type:
         label_column: description
-      l_blue_book_division:
-        label_column: description
-      l_blue_book_chapter:
-        label_column: description
+      l_r_amendment_type:
+        description: R-case amendment-type lookup.
+      l_r_amendment_reason:
+        description: R-case amendment-reason lookup.
+      l_r_with_det:
+        description: R-case withdrawal-determination lookup.
+      l_amendment_type:
+        description: Generic amendment-type lookup (when used outside C/R-specific contexts).
   chips:
-    title: NLRB cases, 1984-2000
+    title: NLRB CHIPS data, 1963-2000
     source: NLRB files archived with the National Archive
-    description_html: |-
-      <p>The county table was transcribe by Sean Brailey from the <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook</a>.</p>
     source_url: https://github.com/labordata/CHIPS
-  odpr:
-    title: OLMS Online Public Disclosure Room Database, Annual LM Data
     description_html: |-
-      <p>Daily refreshed mirror of the <a href="https://olmsapps.dol.gov/olpdr/?_ga=2.153682620.544456734.1620145813-42444416.1608177889#Union%20Reports/Yearly%20Data%20Download">Office of Labor-Management Standards Online Public Disclosure Room Database, Annual LM Data</a>.</p>
-    source: OLMS website, scraped
-    source_url: https://github.com/labordata/odpr
+      <p>The NLRB's <strong>Case Handling Information Processing System (CHIPS)</strong> — the agency's case-management database from the 1960s through 2000, when it was replaced by what became the <a href="./cats">cats</a> system (1999-2011) and then by the current online case system (2010+ , see <a href="./nlrb">nlrb</a>).</p>
+      <p>Covers two case families:</p>
+      <ul>
+        <li><strong>C-cases</strong> (unfair labor practice charges) — keyed by <code>case_number</code> in <a href="./chips/c_master">c_master</a>, with names and addresses in <a href="./chips/c_names">c_names</a> / <a href="./chips/c_address">c_address</a> and procedural milestones in <a href="./chips/c_formal1">c_formal1</a> through <a href="./chips/c_formal4">c_formal4</a>. The CHIPS C-cases run 1963 through 2000.</li>
+        <li><strong>R-cases</strong> (representation petitions) — keyed by <code>case_number</code> in <a href="./chips/r_master">r_master</a>, with election outcomes in <a href="./chips/rc_elect">rc_elect</a> (75,894 elections) and union-deauthorization elections in <a href="./chips/ud_elect">ud_elect</a> (1,427 cases). The R-cases run 1969 through 2000.</li>
+      </ul>
+      <p>The data is sourced from NLRB files preserved by the National Archives. Sean Brailey transcribed the county table and other lookup tables from the official <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook (PDF)</a>, which remains the authoritative reference for the many short-coded fields (case-type codes, transaction codes, disposition stages, union-type codes, etc.). Code-expansion lookup tables are prefixed <code>l_</code>.</p>
+      <p><strong>Note on column documentation:</strong> Plain-English descriptions of well-known fields (case numbers, dates, vote counts, union names, case-type codes) are reliable. Descriptions of internal NLRB-procedural fields (<code>method_disposition</code>, <code>formal_action_control</code>, <code>solic_stages_investig</code>, <code>card_control</code>, <code>chips_amended_code</code>, <code>action_777</code>, <code>patric_union</code>, and similar machine-control / stage / control-code fields) are inferred from column names and general NLRB process knowledge</p>
+    temporal_coverage: "1963/2000"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - NLRB
+      - CHIPS
+      - unfair labor practices
+      - representation elections
+      - decertification
+      - historical labor data
+      - National Archives
+    tables:
+      c_master:
+        description: One row per unfair-labor-practice (C) case. 516,355 rows spanning 1963-2000. Hub of the C-case schema, keyed by case_number; other c_* tables foreign-key here. Charges include CA (against employer), CB (against union), CC (secondary), CD (jurisdictional), CG (union duty-of-fair-representation), and CP (picketing).
+        columns:
+          case_number: Composite NLRB case identifier (region-type-docket-suffix combined). Primary key.
+          region: NLRB regional office (1-32).
+          ctype: Case-type code. FK to l_case_types.
+          docket: Docket number within the region.
+          suffix: Sub-docket suffix (typically 0 for original, higher for consolidations).
+          file_date: Date the charge was filed (ISO 8601, YYYY-MM-DD).
+          close_date: Date the case was administratively closed.
+          date_last_action: Date of the most recent recorded action.
+          county: County code where the alleged conduct occurred. FK to l_county.
+          state: State code. FK to l_state_codes.
+          industry: SIC industry code or descriptive industry text.
+          complainant: Charging party (the union or worker filing the charge). FK to l_union_codes_and_names when the complainant is a coded union.
+          joint_complainant: Second complainant code, when more than one party joined the charge.
+          respondent: Charged party (the employer or union being accused).
+          joint_respondent: Second respondent, when more than one party was charged.
+          number_employed: Number of employees at the establishment.
+          allegations: Allegation code(s) — see allegations table for the code/text mapping.
+          number_discrim: Number of employees alleged to have been discriminated against.
+          situation: Procedural situation code.
+          number_of_charges: Count of charges within this case file.
+          type_charge: Free-text or coded charge type.
+          number_allegations: Count of allegations across charges.
+          status: Case status indicator.
+          formal_action_control: Control code for formal-action stage.
+          machine_control: Internal CHIPS control code.
+          proceeding_control: Control code for the proceeding state.
+          fact_advice: Indicator for whether advice was sought from the General Counsel's Office.
+          type_refusal: Type of refusal-to-bargain, when applicable (mostly relevant to 8(a)(5) cases).
+          fact_appeal: Indicator for whether an appeal was filed.
+          code_date_ro_disp: Code for the date of the Regional Office disposition.
+          date_ro_disp: Date the Regional Office issued its disposition.
+          method_disposition: Method of disposition code.
+          collyer_deferral: Whether the case was deferred under the Collyer doctrine (arbitration deferral).
+          date_collyer_began: Date Collyer deferral began.
+          date_collyer_end: Date Collyer deferral ended.
+          code_date_closed: Code for the closing date.
+          stage_close: Stage at which the case closed.
+          method_close: Method of closing. FK to l_c_case_closing.
+          reason_remedy_close: Reason or remedy at closing.
+          status_barg_close: Bargaining-status indicator at closing.
+          solic_stages_investig: Solicitor's stages of investigation indicator.
+          contact_witness: Witness-contact indicator.
+          date_re_advice_received: Date a response to advice was received.
+          date_action_on_advice: Date action was taken on advice.
+          date_appeal_received: Date an appeal was received.
+          date_action_on_appeal: Date action was taken on the appeal.
+          hearing_held_code: Code indicating whether a hearing was held.
+          decision_made_code: Code indicating whether a decision was made.
+          chips_close_flag: CHIPS-internal close flag.
+          chips_close_date: CHIPS-internal close date.
+          related_case: Related case-number reference.
+          chips_amended_code: CHIPS-internal amendment code.
+          formal_setl: Indicator for formal settlement.
+          filed_calendar_year: Calendar year the charge was filed.
+          closed_calendar_year: Calendar year the case closed.
+          filed_fiscal_year: Federal fiscal year filed (October-September).
+          closed_fiscal_year: Federal fiscal year closed.
+          key_case_number: Lead case number when consolidated.
+          sub_key_case_number: Sub-case number when consolidated.
+          transferred_case_number: Case number to which the file was transferred, when applicable.
+      r_master:
+        description: One row per representation (R) case. 111,291 rows spanning 1969-2000. Hub of the R-case schema. Includes petitions for certification (RC), decertification (RD), and employer-filed (RM); also UD (union deauthorization) and UC (unit clarification) cases.
+        columns:
+          case_number: Composite NLRB case identifier. Primary key.
+          region: NLRB regional office. FK to regions.region_num.
+          ctype: Case-type code. FK to l_case_types.
+          docket: Docket number within region.
+          file_date: Date the petition was filed (ISO 8601, YYYY-MM-DD).
+          close_date: Date the case closed.
+          date_last_action: Date of the most recent recorded action.
+          industry: Industry code or descriptive text.
+          state: State code. FK to l_state_codes.
+          county: County code. FK to l_county.
+          petitioner_type: Type of petitioning party (individual, union, employer).
+          petitioner: Petitioner identifier. FK to l_union_codes_and_names when the petitioner is a coded union.
+          joint_petitioner: Second petitioner, when more than one filed.
+          local_number: Local-union number of the petitioner.
+          recogn_union_type: Type of currently-recognized union, when applicable (relevant to RD/RM cases).
+          recogn_union: Code for the recognized union. FK to l_union_codes_and_names.
+          joint_recogn_union: Second recognized union.
+          unit: Bargaining-unit type code. FK to l_unit_codes.
+          number_emp: Number of employees in the bargaining unit.
+          proposed_no_emp: Proposed number of employees in the unit.
+          picket_8b7c: Whether the case involves 8(b)(7)(C) picketing.
+          status: Case status indicator.
+          machine_control: Internal CHIPS control code.
+          proceeding_control: Control code for the proceeding state.
+          date_appeal: Date of an appeal, when applicable.
+          ruling_code: Code for the ruling on appeal.
+          consol_code: Consolidation code.
+          date_notice_hearing_issued: Date the hearing notice was issued.
+          date_hearing_opened: Date the hearing opened.
+          date_hearing_closed: Date the hearing closed.
+          hearing_control: Hearing control code.
+          code_date_closed: Code for the closing date.
+          stage_closed: Stage at which the case closed.
+          method_closed: Method of closing.
+          reason_close: Reason for closing.
+          hearing_held_code: Code indicating whether a hearing was held.
+          dec_made_code: Code indicating whether a decision was made.
+          date_agree_approv: Date an agreement was approved.
+          date_appea_recd: Date an appeal was received.
+          date_action_on_appeal: Date action was taken on the appeal.
+          chips_amended_code: CHIPS-internal amendment code.
+          date_hearing2_open_108: Date a second hearing under Section 10(8) opened.
+          date_hearing2_closed_108: Date the second hearing under Section 10(8) closed.
+          blocking_case_code: Code indicating a blocking-case relationship.
+          consol_sever: Consolidation/severance indicator.
+          case_stage_action: Stage of the case action.
+          consol_type: Consolidation type.
+          chips_close_flag: CHIPS-internal close flag.
+          chips_close_date: CHIPS-internal close date.
+          filed_calendar_year: Calendar year the petition was filed.
+          closed_calendar_year: Calendar year the case closed.
+          filed_fiscal_year: Federal fiscal year filed.
+          closed_fiscal_year: Federal fiscal year closed.
+          blocking_case_number: Case number of any blocking case.
+          consol_case_number: Lead case number when consolidated.
+          sub_consol_case_number: Sub-case number when consolidated.
+          transfer_case_number: Case number of any transferred case.
+      rc_elect:
+        description: One row per representation-case election held under CHIPS (75,894 elections, 1969-2000). Captures the union(s) on the ballot, vote totals, challenges, and the outcome. Up to four "losing" unions are tracked alongside the winner, supporting multi-union elections.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          suffix: Election suffix (for re-runs or runoffs within a case).
+          election_date: Date of the election (ISO 8601, YYYY-MM-DD).
+          unit: Bargaining-unit type code. FK to l_unit_codes.
+          description_election: Free-text description of the election.
+          expedited: Indicator for an expedited election (1 if expedited).
+          date_election_held: Date the election actually took place.
+          type_election: Type of election (board-ordered, consent, stipulated, etc.). FK to l_type_elections.
+          no_elig: Number of eligible voters.
+          join_union_won: Joint indicator for the winning union (if more than one union jointly won).
+          union_won_votes: Votes received by the winning union.
+          union_won_intl_type: Type code for the winning international union. FK to l_elect_union_type.
+          union_won_intl: International code for the winning union. FK to l_union_codes_and_names.
+          joint_union_lost_1: Joint indicator for losing union slot 1.
+          union_lost_votes_1: Votes received by losing union 1.
+          union_lost_intl_1_type: Type code for losing union 1's international.
+          union_lost_intl_1: International code for losing union 1.
+          joint_union_lost_2: Joint indicator for losing union slot 2.
+          union_lost_votes_2: Votes received by losing union 2.
+          union_lost_intl_2_type: Type code for losing union 2's international.
+          union_lost_intl_2: International code for losing union 2.
+          joint_union_lost_3: Joint indicator for losing union slot 3.
+          union_lost_votes_3: Votes received by losing union 3.
+          union_lost_intl_3_type: Type code for losing union 3's international.
+          union_lost_intl_3: International code for losing union 3.
+          joint_union_lost_4: Joint indicator for losing union slot 4.
+          union_lost_votes_4: Votes received by losing union 4.
+          union_lost_intl_4_type: Type code for losing union 4's international.
+          union_lost_intl_4: International code for losing union 4.
+          votes_against_union: Votes against representation ("no union").
+          challenges: Number of challenged ballots.
+          void_votes: Number of void ballots.
+          elect_vote_control: Election-vote control code.
+          control: Election control code.
+          conclusive: Conclusive-election indicator. FK to l_elect_conclusive.
+          challenges_determinative: Indicator that challenged ballots are determinative of the outcome.
+          patric_union: Participating-union code. FK to l_elect_participating_union.
+          incumb_union: Incumbent-union indicator. FK to l_elect_incumbent_union.
+          mail_ballot: Indicator for mail-ballot election.
+          union_control: Union-side control code.
+          cross_petition: Indicator that a cross-petition was filed.
+          runoff_necessary: Indicator that a runoff election was needed.
+          cross_pet_case_number: Case number of any cross-petition.
+          rerun_runoff_number: Number identifying re-runs or runoffs.
+          impounded: Indicator that ballots were impounded.
+          date_elect_certified: Date the election was certified.
+          stage: Stage of the election proceedings. FK to l_elect_stage_of_closing.
+          method: Method of disposition. FK to l_elect_method_of_disposition.
+        units:
+          no_elig: persons
+          union_won_votes: votes
+          union_lost_votes_1: votes
+          union_lost_votes_2: votes
+          union_lost_votes_3: votes
+          union_lost_votes_4: votes
+          votes_against_union: votes
+          challenges: ballots
+          void_votes: ballots
+      ud_elect:
+        description: One row per union-deauthorization (UD) election. 1,427 elections, 1969-2000. UD cases ask whether to remove a union's right to enter into union-security agreements (NLRA Section 9(e)(1)). Smaller universe than rc_elect because UD elections are relatively rare.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          suffix: Election suffix (for re-runs).
+          election_date: Date of the election.
+          cunion: Currently-recognized union code.
+          description_election: Free-text description.
+          expedited: Expedited-election indicator.
+          unit: Bargaining-unit type.
+          date_election_held: Date the election took place.
+          type_election: Type code.
+          no_elig: Eligible voters.
+          v_votes: Total votes cast.
+          for_prop: Votes in favor of the deauthorization proposition.
+          agn_prop: Votes against the proposition.
+          chall: Challenged ballots.
+          void: Void ballots.
+          cout: Count control code.
+          control: Election control.
+          date_election_certified: Date the election was certified.
+          stage: Stage of the proceedings.
+          method: Method of disposition.
+          mail_ballot: Mail-ballot indicator.
+          cross_pet_region: Cross-petition region, when applicable.
+          cross_pet_type: Cross-petition case type.
+          cross_pet_docket: Cross-petition docket number.
+          cross_pet_suffix: Cross-petition suffix.
+          rerun_runoff_number: Re-run/runoff identifier.
+          impounded: Ballots-impounded indicator.
+        units:
+          no_elig: persons
+          v_votes: votes
+          for_prop: votes
+          agn_prop: votes
+          chall: ballots
+          void: ballots
+      allegations:
+        description: Allegation-code lookup. Each row maps an allegation code (within a case type) to its descriptive text. 64 rows.
+        columns:
+          ctype: Case-type code the allegation applies to.
+          code: Allegation code.
+          allegations: Text of the allegation.
+      regions:
+        description: NLRB regional-office lookup. 35 rows, covering the agency's regional, sub-regional, and resident-office structure.
+        columns:
+          region_num: Regional office number. Primary key reference.
+          district_num_fk: Parent district number.
+          region_name: Regional office name.
+          subregion_flag: Indicator distinguishing main regions from sub-regions.
+          belongs_to_region: Parent region number, when this is a sub-region or resident office.
+      c_names:
+        description: Names associated with each C-case — typically the complainant, the respondent (employer or union), and any other named parties.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          name: Party name.
+      c_address:
+        description: Addresses associated with each C-case.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          address: Street address.
+          city: City.
+          state_alpha: Two-letter state abbreviation.
+          state_numeric: Numeric state code (FK to l_state_codes).
+      c_formal1:
+        description: First procedural-formal-action stage for C-cases — typically the complaint-issuance stage.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          cf1_date: Stage date.
+          date_last_action: Date of last action at this stage.
+          consol_type: Consolidation type.
+          consol_code: Consolidation code.
+          update_control: Update control flag.
+          code_date_complt_iss: Code for date complaint issued.
+          date_complaint_issued: Date the formal complaint was issued.
+          allegations: Allegations at this stage.
+          number_discrim: Number of employees alleged to have been discriminated against.
+          complaint_control: Complaint control code.
+          code_date_ro_disp: Code for the Regional Office disposition date.
+          date_ro_disp: Regional Office disposition date.
+          ro_disp_control: Regional Office disposition control code.
+          date_hearing_opened: Date a hearing was opened at this stage.
+          code_date_hearing_closed: Code for the hearing-close date.
+          date_hearing_closed: Date the hearing closed.
+          hearing_control: Hearing control code.
+          code_date_disp_issed_recd: Code for the date the disposition was issued/received.
+          date_disp_issued_recd: Date the disposition was issued or received.
+          type_disposition: Type of disposition.
+          allegations_uphld: Count of allegations upheld.
+          allegations_dismd: Count of allegations dismissed.
+          discrim_upheld: Count of discrimination claims upheld.
+          discrim_dismissed: Count of discrimination claims dismissed.
+          back_pay_control: Back-pay control code.
+          admin_law_judge_disp: Administrative Law Judge disposition.
+          board_decision_control: Board-decision control code.
+          card_control: Card-control code (CHIPS-internal).
+          number_discrim_reinst_ca: Number reinstated under a CA remedy.
+          number_rec_back_pay_uni_emp_cb: Number receiving back-pay (union/employee CB cases).
+          number_rec_back_pay_only_ca: Number receiving only back-pay (CA cases).
+          number_discrim_restor_cb: Number restored in CB cases.
+          number_discrim_preferd: Number on the preferential-hiring list.
+          remedy: Remedy type.
+          code_date_hearing_opened: Code for the hearing-opening date.
+          chips_amended_code: CHIPS-internal amendment code.
+          consol_server: Consolidation-server flag.
+          case_state_action: Stage of the case action.
+          complaint_calendar_year: Calendar year the complaint was issued.
+          complaint_fical_year: Federal fiscal year the complaint was issued (typo "fical" preserved from source).
+          consol_case_number: Lead case number when consolidated at this stage.
+          sub_consol_case_number: Sub-case number when consolidated.
+      c_formal2:
+        description: Second procedural-formal-action stage for C-cases — typically the administrative-law-judge / Board decision stage.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          cf2_date: Stage date.
+          date_last_action: Date of last action.
+          consolidation_type: Consolidation type.
+          consolidation_code: Consolidation code.
+          update_control: Update control flag.
+          code_date_transfer_board: Code for date transferred to the Board.
+          date_transfer_board: Date the case was transferred to the Board.
+          control_type: Control type code.
+          date_decision_issued: Date the Board's decision was issued.
+          type_decision: Decision type code.
+          disp_allegations: Disposed allegations.
+          allegations_uphld: Allegations upheld.
+          allegations_dismd: Allegations dismissed.
+          number_discrim_reinstated_ca: Number reinstated under the corrective order.
+          number_receive_back_pay_uni_emp_cb: Number receiving back-pay (union/employee CB cases).
+          number_receive_back_pay_only_ca: Number receiving only back-pay (CA cases).
+          number_discrim_restored_cb: Number restored in CB cases.
+          number_discrim_dismissed: Number of discrimination claims dismissed.
+          number_discrim_preferred: Number on the preferential-hiring list.
+          remedy: Remedy type.
+          board_members: Board members participating in the decision (count or composition code).
+          board_disposition_allegations: Board's disposition of the allegations.
+          close_control: Close-control code.
+          card_control: Card-control code.
+          code_date_dec_issued: Code for the date the decision was issued.
+          volume_number: Volume number of the NLRB-decisions reporter where this case is published.
+          issue_number: Issue number of the NLRB-decisions reporter.
+          party_filing_excpt: Party that filed exceptions to the ALJ decision.
+          board_members_5: Board-members 5-character code variant.
+      c_formal3:
+        description: Third procedural-formal-action stage for C-cases — typically the Circuit Court of Appeals stage.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          cf3_date: Stage date.
+          date_last_action: Date of last action.
+          consol_type: Consolidation type.
+          consol_code: Consolidation code.
+          update_control: Update control flag.
+          date_ref_app_ct: Date referred to the Court of Appeals.
+          type_ref: Type of referral.
+          date_pet_answ_filed: Date the petition/answer was filed.
+          date_ref_pet_answ: Date the referenced petition/answer was filed.
+          date_ca_opinion: Date the Court of Appeals issued its opinion.
+          date_brief_filed: Date briefs were filed.
+          type_disposition: Disposition type.
+          ca_no: Court of Appeals case number.
+          date_ca_decree: Date the Court of Appeals decree issued.
+          type_decree: Type of decree.
+          control_case: Control-case code.
+          card_control: Card-control code.
+          code_date_brief_filed: Code for the brief-filed date.
+      c_formal4:
+        description: Fourth procedural-formal-action stage for C-cases — typically the Supreme Court stage.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          cf4_date: Stage date.
+          date_last_action: Date of last action.
+          stage_last_action: Stage of last action.
+          consolidation_type: Consolidation type.
+          consolidation_code: Consolidation code.
+          upate_control: Update control flag (column-name typo preserved from the CHIPS export).
+          date_referred_scb: Date referred to the Solicitor for cert-brief review.
+          date_recom_writ_cert: Date a recommendation on writ of certiorari was made.
+          type_recom: Type of recommendation.
+          date_pret_writ_cert_filed: Date the petition for writ of certiorari was filed.
+          party_filing: Party that filed the cert petition.
+          date_sc_action: Date the Supreme Court acted.
+          sc_ruling: Supreme Court ruling.
+          date_supreme_court_argue: Date the case was argued at the Supreme Court.
+          date_supreme_court_dec: Date the Supreme Court issued its decision.
+          type_supreme_court_dec: Type of Supreme Court decision.
+          date_back_pay_specs: Date back-pay specifications were issued.
+          stage_back_pay_specs: Stage at which back-pay specifications were issued.
+          date_hearing_closed: Date a hearing was closed at this stage.
+          date_administrative_law_judge_dec_issued: Date the ALJ decision was issued.
+          date_board_suppl_decision: Date the Board issued a supplemental decision.
+          type_board_suppl_decision: Type of supplemental decision.
+          date_ref_acb: Date referred back to the ALJ/Board.
+          date_suppl_ca_decree: Date of a supplemental Court of Appeals decree.
+          card_control: Card-control code.
+          code_date_hearing_closed: Code for the hearing-close date.
+          code_date_administrative_law_judges_decision_issued: Code for the ALJ decision-issued date.
+          code_date_board_suppl_decision: Code for the Board supplemental-decision date.
+      c_consolid:
+        description: Consolidation/severance records for C-cases — when cases were combined or separated during proceedings.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          consolidation: Consolidation indicator.
+          consol_id: Consolidation identifier.
+          consolidation_type: Type of consolidation.
+          consolidation_code: Consolidation code.
+          consolidation_stage: Stage at which consolidation occurred.
+          date_severed: Date of severance, when applicable.
+          severance_id: Severance identifier.
+          severance_type: Severance type.
+          severance_code: Severance code.
+          severance_stage: Stage at which severance occurred.
+          key_consol_case_number: Lead case number in the consolidation.
+          sub_consol_case_number: Subordinate case number in the consolidation.
+      c_trailer:
+        description: Closing/remedy "trailer" records for C-cases — settlement and remediation details captured at case closing.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          trailer_date: Trailer record date.
+          date_last_action: Date of last action.
+          allegations_adjusted: Allegations adjusted as part of settlement.
+          settlement: Settlement type indicator.
+          approval_requested: Whether settlement approval was requested.
+          number_reinstated: Number of employees reinstated.
+          number_w_reinstated: Number reinstated with backpay.
+          number_d_reinstated: Number reinstated to a different position.
+          number_p_list: Number placed on a preferential hiring list.
+          number_restored: Number restored to former position.
+          number_withdrawn_employment: Number withdrawn from employment.
+          number_rcu_employed: Number re-employed.
+          number_allegations: Number of allegations.
+          number_made_whole: Number "made whole" (compensated for losses).
+          number_receiving_back_pay: Number of employees receiving back-pay.
+          total_amt: Total monetary amount of the settlement.
+          amt_pd_co: Amount paid by the company.
+          amt_pd_un: Amount paid by the union.
+          back_pay_control: Back-pay control code.
+          f_installment: Indicator for installment-payment arrangement.
+          number_rcu_dues: Number of employees re-collected union dues (reimbursement-of-dues situations).
+          total_comp: Total compensation paid.
+          total_pd_co: Total paid by the company.
+          total_pd_un: Total paid by the union.
+          dues_control: Dues-payment control code.
+          remedy: Remedy type at closing.
+          date_end_picket: Date picketing ended, when applicable.
+          date_end_work_stop: Date a work stoppage ended, when applicable.
+          number_employs_picket: Number of employees who participated in the picket.
+          number_employes_stop: Number of employees who participated in the work stoppage.
+          number_to_be_reinst: Number to be reinstated per the remedy.
+          related_combined_code: Code linking to a related/combined case.
+          related_key_case_number: Key case number for the related case.
+      r_names:
+        description: Names associated with each R-case — petitioner, employer, intervening unions, and other parties.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          name: Party name.
+      r_address:
+        description: Addresses associated with each R-case.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          address: Street address.
+          city: City.
+          state_alpha: Two-letter state abbreviation.
+          state_numeric: Numeric state code.
+      r_formal1:
+        description: First procedural-formal-action stage for R-cases — typically Regional-Director hearing and decision.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          rf1_date: Stage date.
+          date_last_action: Date of last action.
+          consol_code: Consolidation code.
+          code_date_hearing_close: Code for hearing-close date.
+          date_hearing_close: Date the hearing closed.
+          control: Stage control code.
+          update_control: Update control flag.
+          date_dec_issued: Date the Regional Director's decision was issued.
+          unit: Bargaining-unit type.
+          type_dec: Type of decision.
+          type_specl_elect: Type of special election, when applicable.
+          date_waiver: Date a waiver was filed.
+          date_req_review: Date a request for Board review was filed.
+          party_filing: Party that filed the request for review.
+          date_ruling_reg: Date the Regional Director ruled.
+          ruling_control: Ruling-control code.
+          date_board_dec_req: Date the Board requested briefs/info before its decision.
+          board_dec: Board decision text/code.
+          type_board_dec: Type of Board decision.
+          board_unit: Bargaining unit as determined by the Board.
+          volume_number: NLRB-decisions reporter volume number.
+          issue_number: NLRB-decisions reporter issue number.
+          board_members_5: Board-members 5-character composition code.
+          chips_amended_code: CHIPS-internal amendment code.
+      r_formal2:
+        description: Second procedural-formal-action stage for R-cases — typically post-election objection/challenge resolution.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          suffix: Election suffix.
+          rf2_date: Stage date.
+          date_last_action: Date of last action.
+          transaction: Transaction code.
+          action_777: Section 777 action code.
+          consol_code: Consolidation code.
+          date_election_held: Date the election was held.
+          date_obj_chall_filed: Date objections or challenges were filed.
+          number_obj_filed: Number of objections filed.
+          number_chall: Number of ballots challenged.
+          date_hearing_ordered: Date a hearing was ordered on objections/challenges.
+          basis_election: Basis for the election (consent, stipulated, etc.).
+          party_filing_ob: Party that filed objections. FK to l_party_filing_objection.
+          hearing_code: Hearing code.
+          hearing_ordered_by: Whom the hearing was ordered by (Regional Director vs Board).
+          date_rps_no_hearing_held: Date of Report on Objections/Challenges when no hearing was held.
+          update_control: Update-control flag.
+          date_hearing_closed: Date the hearing on objections/challenges closed.
+          date_hearing_opened: Date the hearing on objections/challenges opened.
+          date_rpt_on_obj_chall: Date of the report on objections and challenges.
+          first_election_rpt: Indicator for first-election report.
+          rpt_control: Report-control code.
+          date_rd_suppl_dec: Date the Regional Director issued a supplemental decision.
+          ruling_on_obj: Ruling on the objection.
+          type_decision: Decision type.
+          decision_control: Decision-control code.
+          another_election: Indicator that another election was ordered.
+          previously_reported: Indicator that the case was previously reported.
+          date_certification: Date the election was certified.
+          stage: Stage of the post-election proceedings.
+          method: Method of resolution.
+          rd_of_bd_dec: Indicator distinguishing a Regional Director decision from a Board decision.
+          date_review_waivered: Date the right to Board review was waived.
+          date_exception_filed: Date exceptions were filed.
+          exception_code: Exception code.
+          date_ruling_on_exc: Date a ruling on the exception was issued.
+          ruling_on_exc_code: Ruling-on-exception code.
+          date_reg_for_review: Date the request-for-review was registered.
+          party_filing_req: Party that filed the request for review.
+          date_ruling_on_req: Date a ruling on the request for review was issued.
+          ruling_on_req_code: Ruling-on-request code.
+          date_board_dec: Date the Board issued its decision on the objections/challenges.
+          type_board_dec: Type of Board decision.
+          number_obj_sustained: Number of objections sustained.
+          number_obj_overuled: Number of objections overruled.
+          number_obj_withdrawn: Number of objections withdrawn.
+          number_chall_sustained: Number of challenges sustained.
+          number_chall_overuled: Number of challenges overruled.
+          number_chall_withdrawn: Number of challenges withdrawn.
+          date_obj_chall_resolved: Date all objections and challenges were resolved.
+          ruling_on_obj_r: Regional Director's ruling on objections.
+          "ruling_on_obj_r.1": Regional Director's ruling on objections (duplicate column from the CSV import; same semantics as ruling_on_obj_r).
+          date_bd_dec_on_rev: Date the Board issued its decision on review.
+          bd_dec_on_rev: Board's decision on review.
+      r_consolid:
+        description: Consolidation records for R-cases.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          consolidation_date: Date of consolidation.
+          consol_id: Consolidation identifier.
+          key_consol_case_reg: Region of the key case in the consolidation.
+          key_consol_case_type: Case-type code of the key case.
+          key_consol_case_docket: Docket number of the key case.
+          key_consol_case_suffix: Suffix of the key case.
+          sub_consol_case_reg: Region of the subordinate case.
+          sub_consol_case_type: Case-type code of the subordinate case.
+          sub_consol_case_docket: Docket number of the subordinate case.
+          sub_consol_case_suffix: Suffix of the subordinate case.
+          consolidation_type: Type of consolidation.
+          consolidation_code: Consolidation code.
+          consolidation_stage: Stage at which consolidation occurred.
+          date_severed: Date of severance, when applicable.
+          severance_id: Severance identifier.
+          severance_type: Severance type.
+          severance_code: Severance code.
+          severance_stage: Stage at which severance occurred.
+      r_blocking:
+        description: Blocking-case relationships for R-cases — when an R-case is held pending resolution of another (typically C) case.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          block_date: Date the block was instituted.
+          blocking_case_number: Case number that's blocking this R-case.
+      l_case_types:
+        description: Case-type code lookup. 13 rows — CA, CB, CC, CD, CG, CP for C-cases; RC, RD, RM for R-cases; AC, UC, UD for special types.
+        columns:
+          code: Numeric or symbolic code stored in c_master.ctype / r_master.ctype.
+          type: Two-letter case-type abbreviation (e.g. "RC", "CA").
+      l_c_case_closing:
+        description: C-case closing-method lookup. 41 rows.
+        columns:
+          stage: Closing stage code.
+          method: Closing method code.
+          definition: Description of the (stage, method) combination.
+      l_c_case_pending_status_codes:
+        description: Pending-status code lookup for C-cases. 63 rows.
+        columns:
+          status: Status code value.
+          definition: Description of the pending status.
+      l_county:
+        description: County lookup. 3,270 rows — every US county keyed by (state, county_number).
+        columns:
+          alpha_state_code: Two-letter US Postal Service state abbreviation (e.g. "AL").
+          numeric_state_code: Numeric state code (joins to l_state_codes.code).
+          county_number: County number within the state.
+          county_name: County name.
+          resident_code: Resident-office code, when the county hosts an NLRB resident office.
+          region: Parent NLRB region number.
+          district: NLRB district.
+          resident_office: Resident-office name.
+          "Unnamed: 8": Empty column carried in from a pandas CSV import; always blank. Worth ignoring.
+      l_party_filing_objection:
+        description: Party-filing-objection lookup. 7 rows describing which party filed an objection (employer, petitioner, union, etc.).
+        columns:
+          code: Code value.
+          situation: Description of the objecting party.
+      l_size_of_unit_codes:
+        description: Bargaining-unit size buckets (e.g. "1-9", "10-19"). 7 rows.
+        columns:
+          code: Size-bucket code.
+          number_of_employees: Size-range label.
+      l_stage_of_disposition:
+        description: Stage-of-disposition lookup for C-cases. 6 rows.
+        columns:
+          code: Stage code value.
+          stages_of_disposition_before_hearing_and_after_hearing_closed: Description of the disposition stage.
+      l_unit_codes:
+        description: Bargaining-unit type code lookup. 9 rows — Industrial, Craft, Office Clerical, Guard, Professional, etc.
+        columns:
+          code: Unit type code.
+          definition: Description of the unit type.
+      l_state_codes:
+        description: State code lookup. 54 rows including territories.
+        columns:
+          code: Numeric state code.
+          state_name: Full state name.
+      l_union_codes_and_names:
+        description: Union code/name lookup. 216 rows — every international or major union referenced in CHIPS, with a short abbreviation.
+        columns:
+          code: Numeric union code.
+          union_name: Union name (often with hyphenated abbreviation appended).
+      l_type_elections:
+        description: Election-type lookup. 5 rows — consent, stipulated, board-ordered, etc.
+        columns:
+          code: Single-letter election-type code.
+          type_election: Short label.
+          description: Full description.
+      l_elect_union_type:
+        description: Election-union-type lookup (petitioner vs intervenor vs incumbent, by federation). 9 rows.
+        columns:
+          code: Union-type code.
+          definition: Description.
+      l_elect_conclusive:
+        description: Conclusive-election lookup. 9 rows.
+        columns:
+          code: Code value.
+          conclusive_election_control: Description of the conclusive-election control case.
+      l_elect_incumbent_union:
+        description: Incumbent-union lookup. 7 rows describing whether an incumbent union was on the ballot.
+        columns:
+          code: Incumbent-status code.
+          incumbent_union: Description.
+      l_elect_method_of_disposition:
+        description: Election method-of-disposition lookup. 2 rows.
+        columns:
+          code: Method code.
+          action: Outcome label.
+          method_of_close: Description of the disposition method.
+      l_elect_stage_of_closing:
+        description: Election stage-of-closing lookup. 6 rows.
+        columns:
+          code: Stage code.
+          stage_of_closing: Description.
+      l_elect_participating_union:
+        description: Participating-union federation lookup. 15 rows.
+        columns:
+          code: Federation code.
+          participating_union: Description (AFL-CIO Alone, Teamsters Alone, etc.).
+      l_transaction_codes:
+        description: Transaction-code lookup. 115 rows — every individual case-action transaction recorded in CHIPS, with a human-readable description.
+        columns:
+          trans: Transaction code (3-digit).
+          action: Description of the action (e.g. "New Charge / Pre Compl Dismissal Letter").
+  opdr:
+    title: OLMS Online Public Disclosure Room — Annual LM-2/LM-3/LM-4 Data
+    description_html: |-
+      <p>Mirror of the <a href="https://olmsapps.dol.gov/olpdr/">DOL Office of Labor-Management Standards Online Public Disclosure Room</a>, covering the annual financial reports that unions file under <a href="https://www.law.cornell.edu/uscode/text/29/431">Section 201 of the Labor-Management Reporting and Disclosure Act</a> — LM-2 (large unions, ≥$250k receipts), LM-3 (medium), and LM-4 (small).</p>
+      <p>Every union with private-sector or some public-sector members must file annually, reporting:</p>
+      <ul>
+        <li>Assets and liabilities (cash, investments, receivables, fixed assets, accounts payable, loans payable)</li>
+        <li>Receipts (dues, fees, investment income, loans) and disbursements (officer/employee compensation, benefits, political activity, contributions, overhead, administrative expenses)</li>
+        <li>Membership counts and dues rates</li>
+        <li>Detailed itemized receipts and disbursements above OLMS thresholds — the largest tables here</li>
+      </ul>
+      <p>The schema is organized around the <a href="./opdr/lm_data">lm_data</a> table (one row per filing, keyed by <code>rpt_id</code>). Most other tables follow the convention <code>ar_&lt;category&gt;_&lt;subcategory&gt;</code> — "ar" for "annual report". Categorical fields foreign-key to <a href="./opdr/ar_erds_codes">ar_erds_codes</a>, a lookup table that expands the OLMS code numbers (account types, disbursement types, fiscal-year-end months, etc.).</p>
+      <p>Roughly 600,000 filings cover 1999 through the present; the largest tables are <a href="./opdr/ar_disbursements_emp_off">ar_disbursements_emp_off</a> (~4.9M officer/employee compensation rows) and <a href="./opdr/ar_disbursements_genrl">ar_disbursements_genrl</a> (~3.1M general disbursement rows).</p>
+    source: OLMS Online Public Disclosure Room
+    source_url: https://github.com/labordata/opdr
+    temporal_coverage: "1999/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Office of Labor-Management Standards
+      url: https://www.dol.gov/agencies/olms
+    keywords:
+      - LM-2
+      - LM-3
+      - LM-4
+      - union financial reports
+      - LMRDA Section 201
+      - OLMS
+      - union disbursements
+      - union officer compensation
+      - dues and receipts
+    tables:
+      lm_data:
+        description: One row per union annual financial report. The hub of the schema — all other tables reference lm_data via rpt_id. ~604,000 filings spanning 1999 to present. Includes union identification, the reporting period, summary totals (assets/liabilities/receipts/disbursements), and various yes/no indicators about filing characteristics.
+        columns:
+          rpt_id: OLMS report ID. Primary key.
+          union_name: Reporting union's name as it appears on the filing.
+          aff_abbr: Affiliate/parent organization abbreviation (e.g. "AFL-CIO", "SEIU").
+          f_num: OLMS file number identifying the union.
+          unit_name: Local or sub-unit name within the union.
+          fye: Fiscal-year-end month (1–12). Foreign key to ar_erds_codes (code_type = "FYE_CODE").
+          est_date: Date the union was established.
+          term_date: Date the union terminated, if applicable.
+          pd_covered_from: Start of the period covered by this filing (ISO 8601, YYYY-MM-DD).
+          pd_covered_to: End of the period covered by this filing.
+          register_date: Date OLMS registered the filing.
+          amended: Whether this filing is an amendment.
+          shortage: Whether the filing notes a financial shortage.
+          maximum_bond: Maximum amount of the fidelity bond carried by the union.
+          ttl_assets: Total assets reported (dollars).
+          ttl_liabilities: Total liabilities reported (dollars).
+          ttl_receipts: Total receipts reported (dollars).
+          ttl_disbursements: Total disbursements reported (dollars).
+          members: Total membership count reported.
+          constitution_bylaw: Whether the union has a constitution and bylaws on file.
+          terminate: Whether the union is being terminated.
+          subsidiary: Whether the union has a subsidiary organization.
+          desiq_pre: Designation prefix for the local (e.g. "Local", "Branch"). The "desiq" spelling (rather than "desig") is the column name as published by OLMS in their bulk-download column metadata, preserved as-is by the scraper.
+          desig_num: Designation number (the local's number).
+          desig_suf: Designation suffix.
+          desig_name: Designation name.
+          hardship: Whether the union claimed financial hardship.
+          has_trust: Whether the union has trust funds.
+          pac_funds: Whether the union has political action committee funds.
+          outside_audit: Whether the financials were audited by an outside auditor.
+          has_property_change: Whether there was a change in property.
+          assets_pledged: Whether assets are pledged.
+          contingent: Whether there are contingent liabilities.
+          next_election: Date of the next scheduled officer election.
+          has_liquidated_liabilities: Whether liquidated liabilities are reported.
+          has_extended_loan_credit: Whether the union extended loan credit.
+          has_liquidated_receivables: Whether liquidated receivables are reported.
+          has_subsidiary: Whether the union has a subsidiary organization (duplicate of subsidiary; OLMS form has two related fields).
+          num_attachments: Number of attachments to the filing.
+          yr_covered: Calendar year that the reporting period falls within (typically equals the year of pd_covered_to).
+          amendment: Amendment sequence number (0 for the original filing, 1 for the first amendment, etc.).
+          receive_date: Date OLMS received the filing (timestamp with time component).
+          adr_id: Address record ID within OLMS.
+          address_type: Address-type code (FK to ar_erds_codes); in this snapshot all rows are 201 = mailing address.
+          mail_firstname: First name on the union's mailing address.
+          mail_lastname: Last name on the union's mailing address.
+          build_num: Building number portion of the union's mailing address.
+          street_adr: Street address (street name and number combined or just street name when build_num is set separately).
+          city: City of the union's mailing address.
+          state: Two-letter US Postal Service state abbreviation.
+          zip: ZIP code of the union's mailing address.
+          voice: Phone number of the union.
+          mod_date: Timestamp of the last modification to this filing's OLMS record.
+          mod_id: Numeric modification ID assigned by OLMS.
+          record_kept: "Where the union's records are kept (\"T\" — at the union's address, \"F\" — at another address; blank when unspecified)."
+          form_type: "Form variant filed — \"LM-2\" (large unions, ≥$250k receipts), \"LM-3\" (medium), \"LM-4\" (small), or \"LM-5\" (terminal report filed when the union dissolves)."
+        units:
+          maximum_bond: dollars
+          ttl_assets: dollars
+          ttl_liabilities: dollars
+          ttl_receipts: dollars
+          ttl_disbursements: dollars
+          members: persons
+      ar_erds_codes:
+        description: Code lookup table. 93 rows. Other ar_ tables foreign-key here for categorical fields. Distinct code_type values include FYE_CODE (12 months), ASSET_CODE (5), DISBURSEMENT_CODE (7), EMP_OFF_CODE (4 officer/employee types), TAX_CODE (26 withholding categories), INVESTMENT_CODE (6), and more.
+        columns:
+          code: Numeric code. Primary key.
+          code_type: Code category (e.g. "DISBURSEMENT_CODE", "FYE_CODE", "EMP_OFF_CODE").
+          name: Short abbreviation for the code value.
+          code_description: Human-readable description.
+      ar_payer_payee:
+        description: Master list of payers and payees referenced from itemized receipts and disbursements. ~2.2M rows. Each row is one named counterparty per filing — typically a vendor, contractor, employer (for dues check-off), or recipient organization. Referenced by ar_disbursements_genrl, ar_receipts_other, etc., via payer_payee_id.
+        columns:
+          payer_payee_id: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          name: Counterparty name.
+          payer_payee_type: Code distinguishing payer from payee. FK to ar_erds_codes (PAYER_PAYEE_CODE).
+          rcpt_disb_type: Code for the kind of receipt or disbursement this counterparty is associated with. FK to ar_erds_codes.
+          type_or_class: Free-text classification of the counterparty.
+          itemized: Itemized amount (dollars) associated with this counterparty.
+          non_itemized: Non-itemized amount (under OLMS reporting threshold).
+          total: Total amount (itemized + non_itemized).
+          street: Street address.
+          po_box: P.O. box.
+          city: City.
+          state: State.
+          zip: ZIP code.
+        units:
+          itemized: dollars
+          non_itemized: dollars
+          total: dollars
+      ar_assets_total:
+        description: Summary balance-sheet asset totals at the start and end of the reporting period. One row per filing.
+        columns:
+          rpt_id: Foreign key to lm_data.rpt_id.
+          cash_start: Cash on hand at period start.
+          cash_end: Cash on hand at period end.
+          accounts_receivable_start: Accounts receivable at period start.
+          accounts_receivable_end: Accounts receivable at period end.
+          investments_start: Investments at period start.
+          investments_end: Investments at period end.
+          fixed_assets_start: Fixed assets (real estate, equipment) at period start.
+          fixed_assets_end: Fixed assets at period end.
+          treasury_securities_start: U.S. Treasury securities at period start.
+          treasury_securities_end: U.S. Treasury securities at period end.
+          other_assets_start: Other assets at period start.
+          other_assets_end: Other assets at period end.
+          loans_receivable_start: Loans receivable at period start.
+          loans_receivable_end: Loans receivable at period end.
+          total_start: Total assets at period start.
+          market_sec_total_cost: Total cost basis of marketable securities.
+          market_sec_total_book_value: Total book value of marketable securities.
+          other_inv_total_cost: Total cost basis of other investments.
+          other_inv_total_book_value: Total book value of other investments.
+      ar_assets_other:
+        description: Itemized "other assets" detail. One row per other-asset entry per filing.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the other asset.
+          book_value: Book value (dollars).
+      ar_assets_accts_rcvbl:
+        description: Accounts receivable detail — receivables by debtor name, including aging (past due 90/180 days) and write-offs.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          name: Debtor name.
+          acct_type: Account type code. FK to ar_erds_codes (ACCT_CODE).
+          past_due_90: Amount past due 90 days.
+          past_due_180: Amount past due 180 days.
+          liquidated: Amount liquidated during the period.
+          total: Total receivable balance.
+      ar_assets_fixed:
+        description: Fixed-asset detail — real estate, vehicles, equipment owned by the union. Each row is one asset with cost basis, depreciation, and book value.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          asset_type: Asset category code. FK to ar_erds_codes (ASSET_CODE).
+          description: Description of the fixed asset.
+          cost_basis: Original cost (dollars).
+          depreciation: Accumulated depreciation (dollars).
+          book_value: Net book value (cost basis minus depreciation).
+          value: Current market value (dollars), when reported.
+      ar_assets_investments:
+        description: Investment-asset detail — securities and other investments held by the union.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          inv_type: Investment category code. FK to ar_erds_codes (INVESTMENT_CODE).
+          name: Name of the investment.
+          amount: Amount invested (dollars).
+      ar_assets_loans_rcvbl:
+        description: Loans receivable detail — loans the union has made, by debtor.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          loan_type: Loan-type code. FK to ar_erds_codes (LOAN_CODE).
+          name: Debtor name.
+          purpose: Purpose of the loan.
+          security: Security/collateral for the loan.
+          terms: Loan terms (interest rate, maturity).
+          outstanding_start_amt: Balance outstanding at period start.
+          outstanding_end_amt: Balance outstanding at period end.
+      ar_liabilities_total:
+        description: Summary balance-sheet liability totals at start and end of the reporting period.
+        columns:
+          rpt_id: Foreign key to lm_data.rpt_id.
+          accounts_payable_start: Accounts payable at period start.
+          accounts_payable_end: Accounts payable at period end.
+          loans_payable_start: Loans payable at period start.
+          loans_payable_end: Loans payable at period end.
+          mortgage_payable_start: Mortgages payable at period start.
+          mortgage_payable_end: Mortgages payable at period end.
+          other_liabilities_start: Other liabilities at period start.
+          other_liabilities_end: Other liabilities at period end.
+          total_start: Total liabilities at period start.
+      ar_liabilities_other:
+        description: Itemized "other liabilities" detail.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the liability.
+          amount: Amount (dollars).
+      ar_liabilities_loans_paybl:
+        description: Loans payable detail — loans the union owes, by source.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          source: Lender name.
+          loans_owed_start: Balance owed at period start.
+          loans_obtained: New loans obtained during the period.
+          cash_repayment: Cash repayments made during the period.
+          non_cash_repayment: Non-cash repayments (write-offs, conversions).
+          loans_owed_end: Balance owed at period end.
+      ar_liabilities_accts_paybl:
+        description: Accounts payable detail — by creditor name, including aging.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          acct_type: Account type code. FK to ar_erds_codes (ACCT_CODE).
+          name: Creditor name.
+          total: Total amount payable.
+          past_due_90: Amount past due 90 days.
+          past_due_180: Amount past due 180 days.
+          liquidated: Amount liquidated during the period.
+      ar_receipts_total:
+        description: Summary receipts (income) totals by category for the reporting period.
+        columns:
+          rpt_id: Foreign key to lm_data.rpt_id.
+          dues: Membership dues received.
+          fees: Initiation and other fees.
+          tax: Per-capita tax received from affiliates.
+          investments: Investment income.
+          interest: Interest income.
+          dividends: Dividend income.
+          rents: Rental income.
+          loans_made: Loan principal received (from loans the union previously made).
+          loans_obtained: New loans obtained.
+          supplies: Income from sale of supplies.
+          members: Receipts from members (other than dues).
+          affiliates: Receipts from affiliated unions.
+          other_receipts: Other receipts category.
+          inv_sale_reinvestments: Proceeds from investment sales and reinvestments.
+          all_other_receipts: Catch-all for other receipts.
+      ar_receipts_other:
+        description: Itemized non-dues receipts detail. Each row is one receipt over OLMS reporting thresholds.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          payer_payee_id: Foreign key to ar_payer_payee.payer_payee_id.
+          receipt_type: Receipt-type code. FK to ar_erds_codes (RECEIPT_CODE).
+          purpose: Purpose of the receipt.
+          date: Date received (ISO 8601, YYYY-MM-DD).
+          amount: Amount received (dollars).
+      ar_receipts_inv_fa_sales:
+        description: Receipts from investment and fixed-asset sales — line-item detail.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the asset sold.
+          cost: Original cost of the asset.
+          book_value: Book value at time of sale.
+          gross_sales_price: Gross sales price.
+          amount_recd: Amount actually received.
+      ar_disbursements_total:
+        description: Summary disbursement (spending) totals by category for the reporting period.
+        columns:
+          rpt_id: Foreign key to lm_data.rpt_id.
+          representational: Representational activity (collective bargaining, contract administration).
+          political: Political activity disbursements.
+          contributions: Contributions, gifts, and grants.
+          general_overhead: General overhead expenses.
+          union_administration: Union administration costs.
+          to_officers: Total disbursements to officers.
+          to_employees: Total disbursements to employees.
+          benefits: Benefit-plan contributions.
+          per_capita_tax: Per-capita taxes paid to affiliates.
+          strike_benefits: Strike benefits paid to members.
+          supplies: Supplies for resale to members.
+          fees: Professional and other fees paid.
+          administration: Administrative expenses.
+          direct_taxes: Direct taxes paid (other than payroll tax withholding).
+          withheld: Taxes and dues withheld but not yet disbursed.
+          withheld_not_disbursed: Withholdings not yet disbursed at period end.
+          officer_deductions: Deductions from officer salaries.
+          employee_deductions: Deductions from employee salaries.
+          members: Disbursements to members.
+          affiliates: Disbursements to affiliated unions.
+          investments: Investment purchases.
+          inv_purch_reinvestments: Investment purchases from reinvestment.
+          loans_made: New loans made during the period.
+          loans_payment: Repayments of loans the union owed.
+          less_total_disbursed: Adjustment for total disbursed.
+          other_disbursements: Other disbursements category.
+          all_other_rep_activities: Representational subcategory catch-all.
+          all_other_pol_activities: Political subcategory catch-all.
+          all_other_contributions: Contributions subcategory catch-all.
+          all_other_gen_overhead: General-overhead subcategory catch-all.
+          all_other_union_admin: Union-admin subcategory catch-all.
+          off_admin_expense: Officer/administrative expense.
+          edu_pub_expense: Educational and publicity expense.
+          pro_fees: Professional fees.
+      ar_disbursements_emp_off:
+        description: Officer and employee compensation detail — Schedule 11 (officers) and Schedule 12 (employees) on the LM-2 form. The largest table in the database at ~4.9M rows. One row per officer or employee per filing, with salary, allowances, official-business expenses, "other" disbursements, and a percentage breakdown of how their time was allocated across representational/political/contribution/general-overhead/administration activities.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          emp_off_type: Type of person (officer vs employee, etc.). FK to ar_erds_codes (EMP_OFF_CODE).
+          first_name: First name.
+          middle_name: Middle name.
+          last_name: Last name.
+          title: Job title.
+          status_other_payer: Status of any other-payer (if the person was also paid by another employer during the period).
+          gross_salary: Gross salary (dollars).
+          allowances: Allowances paid (dollars).
+          official_business: Official-business expenses paid (dollars).
+          other_not_rptd: Other disbursements not reported elsewhere.
+          total: Total disbursements to this person.
+          rep_pct: Percentage of time allocated to representational activities.
+          pol_pct: Percentage allocated to political activities.
+          cont_pct: Percentage allocated to contributions, gifts, and grants.
+          gen_ovrhd_pct: Percentage allocated to general overhead.
+          admin_pct: Percentage allocated to union administration.
+          item_num: Sequence number of the person within the filing.
+        units:
+          gross_salary: dollars
+          allowances: dollars
+          official_business: dollars
+          other_not_rptd: dollars
+          total: dollars
+          rep_pct: percent
+          pol_pct: percent
+          cont_pct: percent
+          gen_ovrhd_pct: percent
+          admin_pct: percent
+      ar_disbursements_genrl:
+        description: General disbursement detail — Schedules 14–19 on the LM-2 form (representational activities, political activities, contributions, general overhead, union administration, and benefits-related disbursements). ~3.1M rows. Each row is one disbursement above OLMS itemization thresholds, with payee, purpose, date, and amount.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          disbursement_type: Disbursement-type code (which schedule the disbursement falls under). FK to ar_erds_codes (DISBURSEMENT_CODE).
+          payer_payee_id: Foreign key to ar_payer_payee.payer_payee_id (the payee).
+          purpose: Purpose of the disbursement.
+          date: Date of the disbursement (ISO 8601, YYYY-MM-DD).
+          amount: Amount paid (dollars).
+        units:
+          amount: dollars
+      ar_disbursements_benefits:
+        description: Benefit plan contributions detail — disbursements to pension funds, health plans, and other employee-benefit funds.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the benefit plan or contribution.
+          paid_to: Name of the recipient organization.
+          amount: Amount paid (dollars).
+        units:
+          amount: dollars
+      ar_disbursements_inv_purchases:
+        description: Investment purchase detail — securities and other investments acquired during the reporting period.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          description: Description of the investment.
+          cost: Cost (dollars).
+          book_value: Book value at acquisition.
+          cash_paid: Cash actually paid (may differ from cost if other consideration was given).
+      ar_membership:
+        description: Membership counts by category (e.g. active, retired, agency-fee payers, life members). Each row is one membership category for one filing.
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          membership_type: Membership category code. FK to ar_erds_codes (MEMBERSHIP_CODE).
+          category: Free-text category name.
+          number: Member count for this category.
+          voting_eligibility: Whether members in this category are eligible to vote in union elections.
+        units:
+          number: persons
+      ar_rates_dues_fees:
+        description: Dues and fee schedules — what the union charges members, broken out by rate type (regular dues, initiation fees, agency fees, working dues, etc.).
+        columns:
+          oid: Primary key.
+          rpt_id: Foreign key to lm_data.rpt_id.
+          rate_type: Rate-category code. FK to ar_erds_codes (RATE_CODE).
+          amount: Rate amount (typically dollars per unit; stored as text because the source mixes flat dollar amounts and percent expressions).
+          unit: Unit of the rate (e.g. "per month", "per year", "per hour").
+          minimum: Minimum rate, when the rate has a range.
+          maximum: Maximum rate, when the rate has a range.
   voluntary_recognitions:
     title: Voluntary Union Recognitions Known to the NLRB
     description_html: |-
-      <p>Private employers, under the jurisidiction of the NLRB, may voluntarily recognize unions for purposes of collective bargaining pursuant to Section 9 of the National Labor Relations Act. When that happens, the employer notifies the NLRB using <a href="https://www.nlrb.gov/sites/default/files/attachments/pages/node-195/5581_7-20.pdf">Form NLRB-5581</a>.</p> <p>This data is gathered from NLRB about these voluntary recognitions through public records requests.</p>
+      <p>Voluntary recognitions of unions by private-sector employers, as reported to the National Labor Relations Board. Under Section 9 of the National Labor Relations Act, employers may voluntarily recognize a union for collective bargaining without an election; when they do, they notify the NLRB using <a href="https://www.nlrb.gov/sites/default/files/attachments/pages/node-195/5581_7-20.pdf">Form NLRB-5581</a> and the agency posts a public notice during which other parties may challenge the recognition.</p>
+      <p>Each row is a single recognition: the employer, the union, the bargaining unit (description and headcount), the NLRB regional office, and the relevant procedural dates (recognition, notice, posting, and any subsequent representation-case petition). The data was obtained from the NLRB via Freedom of Information Act requests and covers 2002 through 2024.</p>
     source: NLRB, Public Records Requests
     source_url: https://github.com/labordata/nlrb-voluntary-recognitions
+    temporal_coverage: "2002/2024"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - voluntary recognition
+      - card check
+      - union recognition
+      - NLRA Section 9
+      - NLRB
+      - bargaining units
+    tables:
+      voluntary_recognitions:
+        description: One row per voluntary recognition reported to the NLRB on Form NLRB-5581. Includes the recognition event, the procedural notice/posting window, and a reference to any representation-case petition filed in response.
+        columns:
+          VR Case Number: NLRB-assigned identifier for the voluntary-recognition filing. Format is <region>-VR-<sequence>, e.g. "14-VR-017".
+          Regional Office: NLRB regional office that received the Form NLRB-5581.
+          Unit City: City where the bargaining unit is located. Often blank in earlier rows.
+          Unit State: Two-letter US Postal Service abbreviation for the state of the bargaining unit. Often blank in earlier rows.
+          Date VR Request Received: Date the NLRB received the voluntary-recognition request from the employer (ISO 8601, YYYY-MM-DD).
+          Employer: Name of the employer extending recognition.
+          Union: Full name of the union receiving recognition, typically including affiliates (e.g. "United Steelworkers", "St. Louis Newspaper Guild, Local 36047, TNG-CWA, AFL-CIO, CLC").
+          Unit Description: Free-text description of the bargaining unit, generally listing job classifications included and excluded.
+          Number of Employees: Headcount of the bargaining unit as reported on Form NLRB-5581. Often blank.
+          Date of Voluntary Recogition: Date the employer formally recognized the union (ISO 8601, YYYY-MM-DD). Note the misspelling — preserved from the NLRB source data.
+          Date VR Notice Sent: Date the NLRB sent the voluntary-recognition notice.
+          Date Notice Posted: Date the NLRB notice was posted at the worksite, opening the window for challenges.
+          Date Posting Closes: End of the posting window. After this date the recognition is final unless a representation-case petition has been filed.
+          Date R Case Petition Filed (if any): Date a representation-case (election) petition was filed challenging the voluntary recognition, when applicable. Most rows are blank.
+          R Case Number: NLRB case number for the representation case challenging the recognition, when applicable. Format <region>-RC-<sequence>.
+          Notes: Free-text notes from the NLRB record.
+          Case Filed Date: Date the NLRB administratively opened the case file.
+        units:
+          Number of Employees: persons
   work_stoppages:
     title: Work Stoppages Known to the FMCS
     description_html: |-
-      <p>The Federal Mediation and Concilliation Service previously published data on 14,318 work stoppages that their staff tracked in their case management system.</p> <p>The FMCS stopped publishing this data at the end of 2020, and removed the archival data from their website. This databases uses data taken from the Internet Archive's copy of the FMCS website.</p>
+      <p>Strikes, lockouts, and other work stoppages in the United States that the Federal Mediation and Conciliation Service tracked in its case management system. Each row is a single stoppage with the employer, the union and local involved, the bargaining unit, location, industry (NAICS), number of workers idled, start and end dates, and duration in days.</p>
+      <p>The FMCS stopped publishing this data at the end of 2020 and removed the archival files from its website. This database is built from the <a href="https://web.archive.org/web/20210105232710/https://www.fmcs.gov/resources/documents-and-data/">Internet Archive's copy of the FMCS pages</a>, with the date and numeric fields standardized.</p>
     source: FMCS website, archived by the Internet Archive
     source_url: https://github.com/labordata/fmcs-work-stoppage
+    temporal_coverage: "1984/2020"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: Federal Mediation and Conciliation Service
+      url: https://www.fmcs.gov/
+    keywords:
+      - work stoppages
+      - strikes
+      - lockouts
+      - labor disputes
+      - FMCS
+      - collective bargaining
+    tables:
+      work_stoppages:
+        description: One row per work stoppage. Earliest stoppages are from 1984; the series ends in 2020 when FMCS discontinued publication. Most rows are strikes; a smaller share are lockouts and other stoppages tracked by FMCS field staff.
+        columns:
+          Employer: Name of the establishment where the work stoppage occurred.
+          Union: Short name or abbreviation of the union involved (for example, "NABET", "GCIU", "UFCW").
+          Union Local: Local number of the union (an integer string).
+          Case Number: FMCS case identifier for the stoppage. Format varies across years.
+          BU: Bargaining-unit identifier assigned by FMCS, when known.
+          NAICS: 6-digit North American Industry Classification System code for the employer's industry.
+          Industry: Human-readable industry sector corresponding to the NAICS code (e.g. "Manufacturing", "Construction", "Information").
+          "City, State": Location of the work stoppage as a single string in the form "City, ST" (city name followed by the two-letter US Postal Service state abbreviation).
+          "# Idled": Number of workers idled by the stoppage, as reported to or estimated by FMCS.
+          Start Date: First day of the stoppage (ISO 8601, YYYY-MM-DD).
+          End Date: Last day of the stoppage, inclusive (ISO 8601, YYYY-MM-DD).
+          Duration: Length of the stoppage in days, typically computed from Start Date and End Date.
+        units:
+          "# Idled": persons
+          Duration: days
   farber:
     title: 1972-1991 NLRB election data due to Henry Farber
     description_html: |-
       <p><a href="https://en.wikipedia.org/wiki/Henry_Farber">Henry Farber</a> got the earliest files on 9-track tape from the NLRB and then updated the data with subsequent FOIA requests. Farber and his co-authors used these data in "Accounting for the Decline of Unions in the Private Sector, 1973-1998" (2001), <a href="https://dataspace.princeton.edu/handle/88435/dsp01j098zb111">"Ronald Reagan and the Politics of Declining Union Organization</a> (2002), and <a href="https://www.nber.org/papers/w19908">"Union Organizing Decisions in a Deteriorating Environment: The Composition of Representation Elections and the Decline in Turnout"</a> (2014).</p>    
   whisard:
     title: Wage and Hour Compliance Action Data
-    desciption_html: |-
-      <p>The Wage and Hourly Division of the Department of Labor <a href="https://enforcedata.dol.gov/views/data_summary.php">publishes data on their investigations and enforcement actions</a>. We check to see if the data is updated daily, but the divison only updates the data quarterly</p>
+    description_html: |-
+      <p>The DOL Wage and Hour Division's "WHISARD" (Wage-Hour Investigative Support and Reporting Database) — every closed WHD investigation. Each case names the employer, the location and industry, and the workers affected; the matched <a href="./whisard/violations">violations</a> table lists each statute violated with counts, back wages owed, and civil money penalties.</p>
+      <p>WHD enforces a wide range of federal labor laws: the Fair Labor Standards Act (minimum wage, overtime, child labor, recordkeeping); the Family and Medical Leave Act; the Davis-Bacon Act and Service Contract Act (prevailing-wage rules on federal contracts); the Migrant and Seasonal Agricultural Worker Protection Act; H-1B, H-2A, and H-2B visa worker protections; the Employee Polygraph Protection Act; and others. The <code>type</code> column on the violations table identifies which statute was violated.</p>
+      <p>The data is scraped from the <a href="https://enforcedata.dol.gov/views/data_summary.php">DOL Enforcement Data Catalog</a>. WHD refreshes their dataset roughly quarterly; the scraper checks for updates daily and re-imports when WHD publishes a new snapshot.</p>
     source: Department of Labor Enforcement Data Catalog, scraped
     source_url: https://github.com/labordata/whd-compliance
+    temporal_coverage: "1985/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Wage and Hour Division
+      url: https://www.dol.gov/agencies/whd
+    keywords:
+      - wage theft
+      - back wages
+      - FLSA
+      - minimum wage
+      - overtime
+      - prevailing wage
+      - Davis-Bacon
+      - WHD
+      - labor enforcement
+      - civil money penalties
+    tables:
+      cases:
+        description: One row per closed WHD investigation. ~365,000 cases since 1985. Each row identifies the employer (trade and legal name, address, NAICS industry), the count of violations found, the civil money penalty assessed, back wages agreed to be paid (and the number of employees due those back wages), and the investigation date range. Note that a small number of rows have nonsense dates (year 0200 or 3021) reflecting upstream data-entry errors.
+        columns:
+          case_id: WHD case identifier. Primary key.
+          trade_nm: Employer's trade name (DBA).
+          legal_name: Employer's legal entity name.
+          street_addr_1_txt: Street address of the cited establishment.
+          cty_nm: City of the establishment.
+          st_cd: Two-letter US Postal Service state abbreviation.
+          zip_cd: ZIP code of the establishment.
+          naic_cd: 6-digit NAICS code for the employer's industry.
+          naics_code_description: Human-readable industry description corresponding to the NAICS code.
+          case_violtn_cnt: Total count of violations cited in this case (sum across all statutes).
+          cmp_assd: Civil money penalty assessed against the employer, in dollars.
+          ee_violtd_cnt: Count of employees who were the subject of violations.
+          bw_atp_amt: Back wages "agreed to pay" — the amount of unpaid wages WHD calculated and the employer agreed to remit, in dollars.
+          ee_atp_cnt: Count of employees due back wages under the agreed-to-pay amount.
+          findings_start_date: Beginning of the investigation period covered by the findings.
+          findings_end_date: End of the investigation period.
+          flsa_repeat_violator: "FLSA repeat-violator flag — \"R\" (repeat violator), \"W\" (willful violator), \"RW\" (both), or \"N/A\" (neither)."
+          load_dt: Timestamp when this row was loaded into the scraper's database.
+        units:
+          case_violtn_cnt: violations
+          ee_violtd_cnt: persons
+          cmp_assd: dollars
+          bw_atp_amt: dollars
+          ee_atp_cnt: persons
+      violations:
+        description: One row per violation type per case — the per-statute breakdown of each investigation's findings. About 542,000 rows. The type column identifies the specific federal labor law violated; the most common are FLSA (general Fair Labor Standards Act), flsa_ot (overtime specifically), flsa_mw (minimum wage), fmla (Family and Medical Leave Act), and dbra (Davis-Bacon Act).
+        columns:
+          id: Primary key.
+          case_id: Foreign key to cases.case_id.
+          type: "Statute violated — \"flsa\" (Fair Labor Standards Act, general), \"flsa_ot\" (FLSA overtime), \"flsa_mw\" (FLSA minimum wage), \"flsa_cl\" (FLSA child labor), \"flsa_smw14\" (FLSA student/learner Section 14 minimum wage), \"fmla\" (Family and Medical Leave Act), \"dbra\" (Davis-Bacon Act, prevailing wage on federal construction), \"sca\" (Service Contract Act, prevailing wage on federal service contracts), \"cwhssa\" (Contract Work Hours and Safety Standards Act), \"mspa\" (Migrant and Seasonal Agricultural Worker Protection Act), \"h1b\" / \"h2a\" / \"h2b\" (visa program violations), \"osha\" (OSHA-related findings), or \"eppa\" (Employee Polygraph Protection Act)."
+          violations: Number of violations cited under this statute for this case.
+          back_wages: Back wages owed under this statute, in dollars.
+          employees: Number of employees affected under this statute.
+          civil_money_penalty: Civil money penalty assessed under this statute, in dollars.
+        units:
+          violations: violations
+          back_wages: dollars
+          employees: persons
+          civil_money_penalty: dollars
+      flsa_details:
+        description: Placeholder table for additional FLSA-violation detail. Currently empty in the snapshot — the upstream WHD export doesn't always populate this. The schema is included for forward-compatibility with future WHD releases.
+        columns:
+          violation_id: Foreign key to violations.id.
+          type: Sub-classification of the FLSA violation.
+          back_wages: Back wages owed under this detail row, in dollars.
+        units:
+          back_wages: dollars
   lm20:
     title: Filings for Activity of Labor Relations Consultants (Anti-union consultants)
     description_html: |-
-      <p>Labor relation consultants hired by employers to oppose a union drive are required to file reports about their activities to the Department of Labor. These forms are called LM20 and LM21.</p><p>This data is gathered nightly from the Office of Labor-Management Standards's Online Public Disclosure Room</p>
+      <p>Reports filed with the Department of Labor by "persuaders" — labor-relations consultants whom employers hire to dissuade workers from joining or supporting a union. Under <a href="https://www.law.cornell.edu/uscode/text/29/433">Section 203 of the Labor-Management Reporting and Disclosure Act</a>, persuaders must file two forms with the DOL Office of Labor-Management Standards:</p>
+      <ul>
+        <li><a href="https://www.dol.gov/agencies/olms/sites/dolgov/files/migrated/regs/compliance/forms-instructions/LM-20.pdf">LM-20 (Agreement and Activities Report)</a> — within 30 days after entering into an agreement to perform persuader activities. Names the employer that hired them, the agreement terms, the people who will do the work, and the specific activities planned.</li>
+        <li><a href="https://www.dol.gov/agencies/olms/sites/dolgov/files/migrated/regs/compliance/forms-instructions/LM-21.pdf">LM-21 (Receipts and Disbursements Report)</a> — annually, reporting the persuader's receipts from clients and how the money was spent.</li>
+      </ul>
+      <p>The data is scraped nightly from the OLMS <a href="https://olms.dol-esa.gov/olpdr/">Online Public Disclosure Room</a>. Filings are organized around a central <a href="./lm20/filing">filing</a> table keyed by <code>rptId</code>; related tables describe the employer that hired the persuader, the people performing the work, the specific activities described, and (for LM-21s) the persuader's financials.</p>
     source: OLMS website, scraped
     source_url: https://github.com/labordata/lm20
+    temporal_coverage: "2001/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Office of Labor-Management Standards
+      url: https://www.dol.gov/agencies/olms
+    keywords:
+      - persuaders
+      - LM-20
+      - LM-21
+      - anti-union consultants
+      - union avoidance
+      - labor relations consultants
+      - LMRDA Section 203
+      - OLMS
     tables:
       filer:
         label_column: companyName
+        description: One row per filing entity (the persuader firm or individual). 778 rows. Identified by OLMS's surrogate filer id (srNum).
+        columns:
+          srNum: OLMS surrogate filer ID. Primary key.
+          companyName: Persuader's filing name.
+          companyCity: City of the filer's reported address.
+          companyState: State of the filer's reported address.
+          srFilerId: OLMS filer-system identifier (string form).
+      filing:
+        description: One row per LM-20 or LM-21 filing. About 10,346 LM-20s and 1,257 LM-21s. Keyed by rptId.
+        columns:
+          rptId: OLMS report ID. Primary key.
+          formFiled: "Form type — \"LM-20\" or \"LM-21\"."
+          srNum: Foreign key to filer.srNum (the persuader who filed).
+          srFilerId: OLMS filer-system identifier (denormalized from filer).
+          empLabOrg: Employer or labor organization named on the filing (denormalized from employer).
+          address1: Filer's mailing address line 1.
+          address2: Filer's mailing address line 2.
+          city: Filer's city.
+          state: Filer's state.
+          zip: Filer's ZIP code.
+          amended: "Whether the filing is an amendment to a prior report (\"Yes\"/\"No\")."
+          amendment: Sequence number of the amendment, when applicable.
+          originalRptId: rptId of the original filing that this report amends, when applicable.
+          beginDate: For LM-21, start of the reporting period (the persuader's fiscal year start).
+          endDate: For LM-21, end of the reporting period.
+          yrCovered: Year covered by the report.
+          receiveDate: Date OLMS received the filing (ISO 8601, YYYY-MM-DD).
+          registerDate: Date OLMS registered the filing in its system.
+          paperOrElect: "Whether the filing was submitted on paper or electronically (\"Paper\"/\"Electronic\")."
+          repOrgsCnt: Number of reporting organizations on the filing.
+          filing_url: URL to the filing on the OLMS public disclosure site.
+          file_path: Local path to the cached file in the scraper's storage layout.
+          file_checksum: Checksum of the cached file (for change detection).
+          file_status: Scraper status indicator for the file fetch.
+      contact:
+        description: Contact persons named in filings — the filer's representatives. Two contact_type values are used; see column docs.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          contact_type: "Role of the contact — \"name_and_mailing_address\" (primary contact for the filing) or \"any_other_name_or_address_necessary_to_verify_report\" (alternate address)."
+          name: Contact person's name.
+          title: Contact person's title.
+          organization: Organization the contact is associated with.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number, when applicable.
+          city: City.
+          state: State.
+          zip_code: ZIP code.
+          ein: Employer Identification Number, when reported.
+      employer:
+        description: Employers that hired the persuader. Each LM-20 names the employer that contracted for persuader services; sometimes more than one employer per filing (~13k rows across ~10k LM-20 filings).
+        columns:
+          rptId: Foreign key to filing.rptId.
+          empLabOrg: Employer name.
+          empTrdName: Employer trade name (DBA), when different from the legal name.
+          city: Employer's city.
+          state: Employer's state.
+          termDate: Date the agreement with the persuader was terminated, when applicable.
+          amount: Amount paid to the persuader under this agreement.
+      lm20:
+        description: LM-20-specific fields — the persuader agreement details. One row per LM-20 filing (3,337 rows). Keyed by rptId.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          amended: Amendment flag (numeric).
+          date_fiscal_year_ends: End date of the persuader's fiscal year.
+          date_entered_into: Date the agreement with the employer was entered into.
+          direct: Description of direct persuader activities planned.
+          indirect: Description of indirect persuader activities planned.
+          written_agreement: "Whether there is a written agreement (\"Yes\"/\"No\")."
+          notes: Free-text notes from the filing.
+          type_of_person: "Persuader's legal form — \"Corporation C\", \"Individual\", \"Partnership\", or \"Other\"."
+          name: Persuader name as listed on the LM-20.
+          organization: Persuader's organization.
+          ein: Employer Identification Number.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          zip_code: ZIP code.
+      lm21:
+        description: LM-21-specific fields — the annual receipts and disbursements report (Schedule lines + summary totals). 379 rows. Column names preserve the verbatim formatting from the source export, including some leading-space and abbreviated column names.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          period_begin: Beginning of the reporting period.
+          period_through: End of the reporting period.
+          fees_for_professional_services: Item 8 — Fees for professional services.
+          loans_made: Item 9 — Loans made.
+          publicity: Item 10 — Publicity expenses.
+          other_disbursements: Item 11 — Other disbursements.
+          officer_and_administrative_expenses: Item 12 — Officer and administrative expenses.
+          total_disbursements_to_officers_and_employees: Item 13 — Total disbursements to officers and employees.
+          "total_disbursements_(sum_of_items_8-13)": Total disbursements summed across items 8–13.
+          total_disbursements: Grand total of all disbursements reported.
+          " Employer Name": Employer client name. (Column name has a leading space, preserved from the source export.)
+          " Trade Name, If any": Employer trade name. (Stored as INTEGER affinity but typically holds text; quirk of the source schema.)
+          Amount: Amount received from the client.
+          Purpose: Purpose of the receipt or disbursement.
+          Name: Officer or employee name (Schedule 13 disbursement listing).
+          Title: Officer or employee title.
+          Organization: Organization name.
+          City: City.
+          Street: Street.
+          "P.O. B, B, Room N, if any": P.O. box, building, or room number. (Column name truncated in the source export.)
+          ZIP code: ZIP code.
+      performer:
+        description: Individuals or organizations who will perform the persuader activities described on the LM-20. Linked back to a specific_activity via specific_activity_id when the form ties performers to specific listed activities.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          specific_activity_id: Foreign key to specific_activity.id, linking this performer to one of the listed activities.
+          performer_order: Sequential order of the performer as listed on the form.
+          name: Performer's name.
+          title: Performer's title.
+          organization: Performer's organization.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          zip: ZIP code.
+          ein: Employer Identification Number, when reported.
+      specific_activity:
+        description: Specific persuader activities described on LM-20s. Each activity row has its own id and groups performers, the target workforce, and the affected union(s).
+        columns:
+          id: Primary key for the activity.
+          rptId: Foreign key to filing.rptId.
+          activity_order: Sequence number of this activity within the filing.
+          specific_nature_of_activity: Description of the persuader activity (e.g. captive-audience meetings, one-on-one supervisor training, mailings).
+          specific_period_of_performance: Time window during which the activity is to be performed.
+          specific_extent_of_performance: Extent or volume of the activity (e.g. number of meetings, duration).
+          specific_subject_employees: The workers the activity is directed at.
+          specific_subject_labor_orgs: The unions the activity is directed against.
+      receipts:
+        description: Receipts (income) reported on LM-21 filings, listing what each client paid the persuader.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          receipt_number: Sequential number of the receipt entry on the filing.
+          employer: Client employer that made the payment.
+          trade_name: Client trade name (DBA), when different.
+          amount: Dollar amount received.
+          type_of_payment: "Form of payment (e.g. \"Cash\", \"Check\")."
+          "non-cash_payment": Description of any non-cash payment.
+          termination_date: Date the agreement with this client was terminated, when applicable.
+          name: Contact name at the client.
+          title: Contact title.
+          street: Street address.
+          mailing_address: Mailing address (sometimes captured as integer in the source).
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          zip_code: ZIP code.
+      signatures:
+        description: Signature blocks on each filing — typically two signers per filing (president and treasurer).
+        columns:
+          rptId: Foreign key to filing.rptId.
+          signature_number: Sequence number (1, 2) of the signature block.
+          signed: Name of the signer.
+          title: Signer's title.
+          date: Date signed (ISO 8601, YYYY-MM-DD).
+          telephone: Phone number indicator (numeric form).
+          telephone_number: Phone number as a string.
+      attachment:
+        description: Supplementary files attached to filings.
+        columns:
+          attachment_id: Primary key.
+          rptId: Foreign key to filing.rptId.
+          filename: Filename of the attachment.
+          file_description: Free-text description of the attachment.
+          file_urls: URL(s) to download the attachment from OLMS.
+      individual_disbursements:
+        description: Individual disbursement records from LM-21 Schedule 13 — payments to specific officers and employees of the persuader firm during the reporting period.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          disbursement_order: Sequence number within the filing.
+          name: Officer or employee name.
+          salary: Salary component of the disbursement.
+          expense: Expense-reimbursement component.
+          total: Total disbursement to the named person.
   lm10:
     title: Filings for Employers who hire Labor Relation Consultants or Pay Labor Officials
     description_html: |-
-      <p>Employers must file Form LM-10 annual reports to disclose financial dealings with a union or officer or with a labor relation consultant.</p>
+      <p>Annual reports filed by employers under <a href="https://www.law.cornell.edu/uscode/text/29/433">Section 203(a) of the Labor-Management Reporting and Disclosure Act</a>, disclosing financial dealings that bear on labor relations:</p>
+      <ul>
+        <li><strong>8.a</strong> — Payments to a labor organization or its officers/agents</li>
+        <li><strong>8.b</strong> — Payments to employees to persuade other employees about organizing or bargaining</li>
+        <li><strong>8.c</strong> — Expenditures meant to interfere with, restrain, or coerce employees in their organizing rights</li>
+        <li><strong>8.d</strong> — Expenditures to gather information on employees' or unions' activities in a labor dispute</li>
+        <li><strong>8.e</strong> — Agreements with labor-relations consultants for anti-union persuasion activities (the employer-side counterpart to the consultant's <a href="./lm20">LM-20</a> filing)</li>
+        <li><strong>8.f</strong> — Agreements with consultants for information-gathering on labor activities</li>
+      </ul>
+      <p>Form <a href="https://www.dol.gov/agencies/olms/sites/dolgov/files/migrated/regs/compliance/forms-instructions/LM-10.pdf">LM-10</a> is filed by the <em>employer</em>; the matched <a href="./lm20">LM-20</a> is filed by the consultant. Joining the two via the employer name and approximate dates is the standard analytical workflow.</p>
+      <p>The data is scraped nightly from the OLMS <a href="https://olms.dol-esa.gov/olpdr/">Online Public Disclosure Room</a>. Organized around a central <a href="./lm10/filing">filing</a> table keyed by <code>rptId</code>; activities are in <a href="./lm10/activity">activity</a> keyed by <code>id</code> with counterparty, contact, and expenditure detail in joined tables.</p>
     source: OLMS website, scraped
     source_url: https://github.com/labordata/lm10
+    temporal_coverage: "2001/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Office of Labor-Management Standards
+      url: https://www.dol.gov/agencies/olms
+    keywords:
+      - LM-10
+      - employer reporting
+      - persuader agreements
+      - LMRDA Section 203
+      - OLMS
+      - anti-union expenditures
+      - labor relations consultants
+    tables:
+      filer:
+        label_column: companyName
+        description: One row per employer that files LM-10s. 5,879 rows. Identified by OLMS surrogate filer id (srNum).
+        columns:
+          srNum: OLMS surrogate filer ID. Primary key.
+          srFilerId: OLMS filer-system identifier (string form).
+          filerType: Filer type as classified by OLMS.
+          companyName: Employer's filing name.
+          companyCity: City of the filer's reported address.
+          companyState: State of the filer's reported address.
+      filing:
+        description: One row per LM-10 filing. 14,548 rows. Keyed by rptId. Each filing covers a fiscal year and may disclose multiple reportable activities.
+        columns:
+          rptId: OLMS report ID. Primary key.
+          formFiled: "Form type — always \"LM-10\" in this database."
+          formLink: URL to the form on the OLMS public disclosure site.
+          srNum: Foreign key to filer.srNum.
+          srFilerId: OLMS filer-system identifier (denormalized from filer).
+          oID: Organization identifier within OLMS.
+          empLabOrg: Employer name (denormalized).
+          empTrdName: Employer trade name (DBA), when different.
+          subLabOrg1: Subsidiary or affiliated organization, slot 1.
+          subLabOrg2: Subsidiary or affiliated organization, slot 2.
+          address1: Filer's mailing address line 1.
+          address2: Filer's mailing address line 2.
+          city: Filer's city.
+          state: Filer's state.
+          zip: Filer's ZIP code.
+          amended: "Whether the filing is an amendment to a prior report (\"Yes\"/\"No\")."
+          amendment: Sequence number of the amendment, when applicable.
+          beginDate: Start of the reporting period covered by this filing.
+          endDate: End of the reporting period.
+          yrCovered: Year covered by the report.
+          receiveDate: Date OLMS received the filing (ISO 8601, YYYY-MM-DD).
+          registerDate: Date OLMS registered the filing in its system.
+          promiseDate: Date a future filing is promised, when applicable.
+          paperOrElect: "Whether the filing was submitted on paper or electronically (\"Paper\"/\"Electronic\")."
+          repOrgsCnt: Number of reporting organizations on the filing.
+          filing_url: URL to the filing on the OLMS public disclosure site.
+          file_path: Local path to the cached file in the scraper's storage layout.
+          file_checksum: Checksum of the cached file (for change detection).
+          file_status: Scraper status indicator for the file fetch.
+      lm10:
+        description: LM-10 form-specific fields. One row per filing (2,752 rows). Mostly covers the reporting period and metadata about where the underlying records are kept.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          file_number: OLMS internal file number.
+          formFiled: Form type (denormalized).
+          period_begin: Beginning of the fiscal-year reporting period.
+          period_through: End of the reporting period.
+          type_of_organization: "Filer's legal form — \"Corporation\", \"Partnership\", \"Individual\", or \"Other\"."
+          records_hosted_with_reporting_employer: "Whether the underlying activity records are kept at the reporting employer's address (\"Yes\"/\"No\")."
+          records_hosted_with_principal_officer: Whether records are kept at the principal officer's address.
+          records_hosted_at_other_address: Whether records are kept at a third address (see other_address table).
+      reporting_employer:
+        description: Address and contact details for the reporting employer, as listed on the LM-10. One row per filing.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          employer: Employer name.
+          trade_name: Employer trade name (DBA).
+          attention_to: Attention-to line for mail.
+          title: Title of the contact person.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number, when applicable.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
+      activity:
+        description: Reportable activities — one row per individual payment, agreement, or expenditure the employer must disclose. ~14,500 rows across ~14,500 filings. Each activity is classified by activity_code (which question on the form, 8.a-f) and activity_type (Payment, Agreement, or Both).
+        columns:
+          id: Primary key for the activity.
+          rptId: Foreign key to filing.rptId.
+          activity_code: Form item the activity falls under — "ITEM 8.a." (payments to unions/officials), "ITEM 8.e." (consultant agreements), "ITEM 8.b./c./d./f." for the less-common categories.
+          activity_type: "\"Payment\", \"Agreement\", or \"Both\"."
+          date_of_agreement: Date the agreement was entered into, when applicable.
+          form_agreement: "Whether there is a written agreement (\"Yes\"/\"No\")."
+          counterparty_position: Job position of the counterparty (e.g. union officer's title).
+          explanation: Free-text explanation of the activity.
+          federal_work: Whether the work is federally funded or contracted (relevant to the federal-work flag added in later form versions).
+          uei: Unique Entity Identifier (federal contractor ID), when applicable.
+          no_uei_checkbox: Indicator that no UEI applies.
+          agencies: Federal agencies involved, when reporting federal-work activity.
+          unlisted_agencies: Free-text list of agencies not in the standard dropdown.
+          12b_exists: "Indicator (1/0) for whether the Item 12.b. block applies (additional information continuation)."
+      reportable_activity:
+        description: One row per Form Item 8.a–8.f question per filing, recording the employer's yes/no answer and (when "Yes") the count of detailed activity rows reported in the activity table. ~16,500 rows.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          code: Question code — "8.a" through "8.f".
+          question: Full text of the question on the form.
+          answer: "Employer's answer — \"Yes\" or \"No\"."
+          n_responses: Number of detailed activity rows the employer reported for this question.
+      counterparty_organization:
+        description: The organization on the other side of each reportable activity — a union, a consultant firm, or another employer. One row per activity.
+        columns:
+          activity_id: Foreign key to activity.id.
+          organization: Counterparty organization name.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
+      counterparty_contact:
+        description: Contact person at the counterparty organization for each activity.
+        columns:
+          activity_id: Foreign key to activity.id.
+          name: Contact person's name.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
+      expenditure:
+        description: Individual expenditure rows under each activity — the line-by-line payments. ~39,400 rows. The kind field is free-text and not normalized ("Check", "check", "Payment by check", "Cash", "Travel Savings", "Meal" / "Meals", etc.).
+        columns:
+          activity_id: Foreign key to activity.id.
+          date: Date of the expenditure (ISO 8601, YYYY-MM-DD).
+          amount: Dollar amount of the expenditure.
+          kind: Type of payment as free text — not normalized. Common values include "Check", "Cash", "Credit Card", "Meal"/"Meals", "Travel Savings", "Expense Reimbursement (Cash)", "Payment by check".
+      principal_officer:
+        description: Principal officer of the reporting employer — the person responsible for the filing's accuracy.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          name: Principal officer's name.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
+      signature:
+        description: Signature blocks on each LM-10 — typically two signers (president and treasurer).
+        columns:
+          rptId: Foreign key to filing.rptId.
+          signed: Name of the signer.
+          title: Signer's title.
+          on_date: Date signed.
+          telephone_number: Phone number.
+      organization:
+        description: Subsidiary and affiliated organizations of the reporting employer. ~33,500 rows — many filings list multiple related corporate entities.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          oID: Organization identifier within OLMS.
+          empLabOrg: Organization name.
+          city: City.
+          state: State.
+          promiseDate: Date a future filing for this organization is promised, when applicable.
+      other_address:
+        description: Third-party address where the underlying activity records are kept (used when lm10.records_hosted_at_other_address is "Yes").
+        columns:
+          rptId: Foreign key to filing.rptId.
+          name: Name of the records custodian.
+          title: Title of the custodian.
+          organization: Organization holding the records.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
