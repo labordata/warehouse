@@ -43,6 +43,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Checkout datasette-schema-org
+        uses: actions/checkout@v3
+        with:
+          repository: labordata/datasette-schema-org
+          path: datasette-schema-org
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/lib/android /opt/ghc
@@ -82,14 +88,15 @@ jobs:
           datasette package *.db \
             -t $IMAGE:$GITHUB_RUN_NUMBER \
             -m warehouse_metadata.yml \
-            --template-dir=templates/ \
-            --extra-options="--crossdb --setting sql_time_limit_ms 100000 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1 --setting max_csv_mb 1000 --setting force_https_urls on" \
-            --install=datasette-atom \
+            --plugins-dir=plugins/ \
+            --extra-options="-c datasette.yml --crossdb --setting sql_time_limit_ms 100000 --cors --setting facet_time_limit_ms 500 --setting allow_facet off --setting trace_debug 1 --setting max_csv_mb 1000 --setting force_https_urls on" \
+            --install=datasette-atom==0.10a0 \
             --install=datasette-rure \
             --install=pysqlite3-binary \
             --install=datasette-hashed-urls \
             --install=datasette-block-robots \
             --install=datasette-pretty-traces \
+            --install=./datasette-schema-org \
             --version-note=$GITHUB_RUN_NUMBER
           docker tag $IMAGE:$GITHUB_RUN_NUMBER $IMAGE:latest
 
