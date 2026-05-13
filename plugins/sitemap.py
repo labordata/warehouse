@@ -13,15 +13,13 @@ async def sitemap(request, datasette):
     for name, db in datasette.databases.items():
         if name in INTERNAL_DATABASES:
             continue
-        suffix = f"-{db.hash[:7]}" if getattr(db, "hash", None) else ""
-        slug = f"{name}{suffix}"
-        urls.append(f"{base}/{slug}")
-        urls.append(f"{base}/{slug}.db")
+        urls.append(f"{base}/{name}")
+        urls.append(f"{base}/{name}.db")
         hidden = set(await db.hidden_table_names())
         for table in await db.table_names():
             if table in hidden or table.startswith("sqlite_"):
                 continue
-            urls.append(f"{base}/{slug}/{table}")
+            urls.append(f"{base}/{name}/{table}")
     body = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
