@@ -333,7 +333,7 @@ databases:
           valid_for: votes
           valid_cast: votes
   cats:
-    title: NLRB CATS data, 1975-2011
+    title: NLRB cases, 1999-2011
     source: NLRB files posted to data.gov, archived on archive.org
     source_url: https://github.com/labordata/nlrb-cats
     description_html: |-
@@ -345,10 +345,10 @@ databases:
         <li><strong>l_*</strong> — Lookup tables. About 200 of them, expanding every short coded value in the c_*/r_* tables (case types, role types, action codes, determinations, etc.).</li>
         <li><strong>cl_*</strong> — Closed-Case Report files (denormalized closing reports).</li>
       </ul>
-      <p>C-case data observed from 1975 onward (most cases 1999-2011 — older rows are legacy cases that remained open into CATS). R-case data observed from 1982 onward. Both end mid-2011.</p>
+      <p>A small number of legacy rows with file dates from the mid-1970s or 1980s appear in the C-case and R-case tables — these are pre-CATS cases that remained open into the CATS era. The bulk of the data covers 1999 through mid-2011.</p>
       <p>Source data is the publicly-releasable archive that NLRB posted to data.gov, preserved via archive.org after the original posting was removed.</p>
       <p><strong>Note on column documentation:</strong> Plain-English descriptions for well-known fields (case numbers, dates, vote counts, participant names, case-type codes) are reliable. Descriptions of internal NLRB-procedural / control-code fields (determination codes, motion-type codes, abeyance codes, etc.) are inferred from column names and general NLRB process knowledge, not from a codebook. For ground-truth definitions of opaque coded fields, consult the official CATS documentation if available or the corresponding lookup table.</p>
-    temporal_coverage: "1975/2011"
+    temporal_coverage: "1999/2011"
     source_organization:
       "@type": GovernmentOrganization
       name: National Labor Relations Board
