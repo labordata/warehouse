@@ -759,6 +759,188 @@ databases:
   lm10:
     title: Filings for Employers who hire Labor Relation Consultants or Pay Labor Officials
     description_html: |-
-      <p>Employers must file Form LM-10 annual reports to disclose financial dealings with a union or officer or with a labor relation consultant.</p>
+      <p>Annual reports filed by employers under <a href="https://www.law.cornell.edu/uscode/text/29/433">Section 203(a) of the Labor-Management Reporting and Disclosure Act</a>, disclosing financial dealings that bear on labor relations:</p>
+      <ul>
+        <li><strong>8.a</strong> — Payments to a labor organization or its officers/agents</li>
+        <li><strong>8.b</strong> — Payments to employees to persuade other employees about organizing or bargaining</li>
+        <li><strong>8.c</strong> — Expenditures meant to interfere with, restrain, or coerce employees in their organizing rights</li>
+        <li><strong>8.d</strong> — Expenditures to gather information on employees' or unions' activities in a labor dispute</li>
+        <li><strong>8.e</strong> — Agreements with labor-relations consultants for anti-union persuasion activities (the employer-side counterpart to the consultant's <a href="./lm20">LM-20</a> filing)</li>
+        <li><strong>8.f</strong> — Agreements with consultants for information-gathering on labor activities</li>
+      </ul>
+      <p>Form <a href="https://www.dol.gov/agencies/olms/sites/dolgov/files/migrated/regs/compliance/forms-instructions/LM-10.pdf">LM-10</a> is filed by the <em>employer</em>; the matched <a href="./lm20">LM-20</a> is filed by the consultant. Joining the two via the employer name and approximate dates is the standard analytical workflow.</p>
+      <p>The data is scraped nightly from the OLMS <a href="https://olms.dol-esa.gov/olpdr/">Online Public Disclosure Room</a>. Organized around a central <a href="./lm10/filing">filing</a> table keyed by <code>rptId</code>; activities are in <a href="./lm10/activity">activity</a> keyed by <code>id</code> with counterparty, contact, and expenditure detail in joined tables.</p>
     source: OLMS website, scraped
     source_url: https://github.com/labordata/lm10
+    temporal_coverage: "2001/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Office of Labor-Management Standards
+      url: https://www.dol.gov/agencies/olms
+    keywords:
+      - LM-10
+      - employer reporting
+      - persuader agreements
+      - LMRDA Section 203
+      - OLMS
+      - anti-union expenditures
+      - labor relations consultants
+    tables:
+      filer:
+        label_column: companyName
+        description: One row per employer that files LM-10s. 5,879 rows. Identified by OLMS surrogate filer id (srNum).
+        columns:
+          srNum: OLMS surrogate filer ID. Primary key.
+          srFilerId: OLMS filer-system identifier (string form).
+          filerType: Filer type as classified by OLMS.
+          companyName: Employer's filing name.
+          companyCity: City of the filer's reported address.
+          companyState: State of the filer's reported address.
+      filing:
+        description: One row per LM-10 filing. 14,548 rows. Keyed by rptId. Each filing covers a fiscal year and may disclose multiple reportable activities.
+        columns:
+          rptId: OLMS report ID. Primary key.
+          formFiled: "Form type — always \"LM-10\" in this database."
+          formLink: URL to the form on the OLMS public disclosure site.
+          srNum: Foreign key to filer.srNum.
+          srFilerId: OLMS filer-system identifier (denormalized from filer).
+          oID: Organization identifier within OLMS.
+          empLabOrg: Employer name (denormalized).
+          empTrdName: Employer trade name (DBA), when different.
+          subLabOrg1: Subsidiary or affiliated organization, slot 1.
+          subLabOrg2: Subsidiary or affiliated organization, slot 2.
+          address1: Filer's mailing address line 1.
+          address2: Filer's mailing address line 2.
+          city: Filer's city.
+          state: Filer's state.
+          zip: Filer's ZIP code.
+          amended: "Whether the filing is an amendment to a prior report (\"Yes\"/\"No\")."
+          amendment: Sequence number of the amendment, when applicable.
+          beginDate: Start of the reporting period covered by this filing.
+          endDate: End of the reporting period.
+          yrCovered: Year covered by the report.
+          receiveDate: Date OLMS received the filing (ISO 8601, YYYY-MM-DD).
+          registerDate: Date OLMS registered the filing in its system.
+          promiseDate: Date a future filing is promised, when applicable.
+          paperOrElect: "Whether the filing was submitted on paper or electronically (\"Paper\"/\"Electronic\")."
+          repOrgsCnt: Number of reporting organizations on the filing.
+          filing_url: URL to the filing on the OLMS public disclosure site.
+          file_path: Local path to the cached file in the scraper's storage layout.
+          file_checksum: Checksum of the cached file (for change detection).
+          file_status: Scraper status indicator for the file fetch.
+      lm10:
+        description: LM-10 form-specific fields. One row per filing (2,752 rows). Mostly covers the reporting period and metadata about where the underlying records are kept.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          file_number: OLMS internal file number.
+          formFiled: Form type (denormalized).
+          period_begin: Beginning of the fiscal-year reporting period.
+          period_through: End of the reporting period.
+          type_of_organization: "Filer's legal form — \"Corporation\", \"Partnership\", \"Individual\", or \"Other\"."
+          records_hosted_with_reporting_employer: "Whether the underlying activity records are kept at the reporting employer's address (\"Yes\"/\"No\")."
+          records_hosted_with_principal_officer: Whether records are kept at the principal officer's address.
+          records_hosted_at_other_address: Whether records are kept at a third address (see other_address table).
+      reporting_employer:
+        description: Address and contact details for the reporting employer, as listed on the LM-10. One row per filing.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          employer: Employer name.
+          trade_name: Employer trade name (DBA).
+          attention_to: Attention-to line for mail.
+          title: Title of the contact person.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number, when applicable.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
+      activity:
+        description: Reportable activities — one row per individual payment, agreement, or expenditure the employer must disclose. ~14,500 rows across ~14,500 filings. Each activity is classified by activity_code (which question on the form, 8.a-f) and activity_type (Payment, Agreement, or Both).
+        columns:
+          id: Primary key for the activity.
+          rptId: Foreign key to filing.rptId.
+          activity_code: Form item the activity falls under — "ITEM 8.a." (payments to unions/officials), "ITEM 8.e." (consultant agreements), "ITEM 8.b./c./d./f." for the less-common categories.
+          activity_type: "\"Payment\", \"Agreement\", or \"Both\"."
+          date_of_agreement: Date the agreement was entered into, when applicable.
+          form_agreement: "Whether there is a written agreement (\"Yes\"/\"No\")."
+          counterparty_position: Job position of the counterparty (e.g. union officer's title).
+          explanation: Free-text explanation of the activity.
+          federal_work: Whether the work is federally funded or contracted (relevant to the federal-work flag added in later form versions).
+          uei: Unique Entity Identifier (federal contractor ID), when applicable.
+          no_uei_checkbox: Indicator that no UEI applies.
+          agencies: Federal agencies involved, when reporting federal-work activity.
+          unlisted_agencies: Free-text list of agencies not in the standard dropdown.
+          12b_exists: "Indicator (1/0) for whether the Item 12.b. block applies (additional information continuation)."
+      reportable_activity:
+        description: One row per Form Item 8.a–8.f question per filing, recording the employer's yes/no answer and (when "Yes") the count of detailed activity rows reported in the activity table. ~16,500 rows.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          code: Question code — "8.a" through "8.f".
+          question: Full text of the question on the form.
+          answer: "Employer's answer — \"Yes\" or \"No\"."
+          n_responses: Number of detailed activity rows the employer reported for this question.
+      counterparty_organization:
+        description: The organization on the other side of each reportable activity — a union, a consultant firm, or another employer. One row per activity.
+        columns:
+          activity_id: Foreign key to activity.id.
+          organization: Counterparty organization name.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
+      counterparty_contact:
+        description: Contact person at the counterparty organization for each activity.
+        columns:
+          activity_id: Foreign key to activity.id.
+          name: Contact person's name.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
+      expenditure:
+        description: Individual expenditure rows under each activity — the line-by-line payments. ~39,400 rows. The kind field is free-text and not normalized ("Check", "check", "Payment by check", "Cash", "Travel Savings", "Meal" / "Meals", etc.).
+        columns:
+          activity_id: Foreign key to activity.id.
+          date: Date of the expenditure (ISO 8601, YYYY-MM-DD).
+          amount: Dollar amount of the expenditure.
+          kind: Type of payment as free text — not normalized. Common values include "Check", "Cash", "Credit Card", "Meal"/"Meals", "Travel Savings", "Expense Reimbursement (Cash)", "Payment by check".
+      principal_officer:
+        description: Principal officer of the reporting employer — the person responsible for the filing's accuracy.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          name: Principal officer's name.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
+      signature:
+        description: Signature blocks on each LM-10 — typically two signers (president and treasurer).
+        columns:
+          rptId: Foreign key to filing.rptId.
+          signed: Name of the signer.
+          title: Signer's title.
+          on_date: Date signed.
+          telephone_number: Phone number.
+      organization:
+        description: Subsidiary and affiliated organizations of the reporting employer. ~33,500 rows — many filings list multiple related corporate entities.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          oID: Organization identifier within OLMS.
+          empLabOrg: Organization name.
+          city: City.
+          state: State.
+          promiseDate: Date a future filing for this organization is promised, when applicable.
+      other_address:
+        description: Third-party address where the underlying activity records are kept (used when lm10.records_hosted_at_other_address is "Yes").
+        columns:
+          rptId: Foreign key to filing.rptId.
+          name: Name of the records custodian.
+          title: Title of the custodian.
+          organization: Organization holding the records.
+          street: Street address.
+          "po_box,_bldg,_room_no,_if_any": P.O. box, building, or room number.
+          city: City.
+          state: State.
+          "zip_code_+_4": ZIP+4 code.
