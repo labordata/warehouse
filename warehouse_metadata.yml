@@ -243,5 +243,6 @@ plugins:
     datasette-block-robots:
         literal: |-
             User-agent: *
-            Disallow: /*/*
-            Disallow: /*?*
+            Disallow: /*?
+
+            Sitemap: https://labordata.bunkum.us/sitemap.xml
