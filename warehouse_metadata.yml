@@ -513,7 +513,7 @@ databases:
           constitution_bylaw: Whether the union has a constitution and bylaws on file.
           terminate: Whether the union is being terminated.
           subsidiary: Whether the union has a subsidiary organization.
-          desiq_pre: Designation prefix for the local (e.g. "Local", "Branch"). [Source typo of "desig_pre" preserved.]
+          desiq_pre: Designation prefix for the local (e.g. "Local", "Branch"). The "desiq" spelling (rather than "desig") is the column name as published by OLMS in their bulk-download column metadata, preserved as-is by the scraper.
           desig_num: Designation number (the local's number).
           desig_suf: Designation suffix.
           desig_name: Designation name.
