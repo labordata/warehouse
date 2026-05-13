@@ -452,11 +452,692 @@ databases:
       l_blue_book_chapter:
         label_column: description
   chips:
-    title: NLRB cases, 1984-2000
+    title: NLRB CHIPS data, 1963-2000
     source: NLRB files archived with the National Archive
-    description_html: |-
-      <p>The county table was transcribe by Sean Brailey from the <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook</a>.</p>
     source_url: https://github.com/labordata/CHIPS
+    description_html: |-
+      <p>The NLRB's <strong>Case Handling Information Processing System (CHIPS)</strong> — the agency's case-management database from the 1960s through 2000, when it was replaced by what became the <a href="./cats">cats</a> system (1999-2011) and then by the current online case system (2010+ , see <a href="./nlrb">nlrb</a>).</p>
+      <p>Covers two case families:</p>
+      <ul>
+        <li><strong>C-cases</strong> (unfair labor practice charges) — keyed by <code>case_number</code> in <a href="./chips/c_master">c_master</a>, with names and addresses in <a href="./chips/c_names">c_names</a> / <a href="./chips/c_address">c_address</a> and procedural milestones in <a href="./chips/c_formal1">c_formal1</a> through <a href="./chips/c_formal4">c_formal4</a>. The CHIPS C-cases run 1963 through 2000.</li>
+        <li><strong>R-cases</strong> (representation petitions) — keyed by <code>case_number</code> in <a href="./chips/r_master">r_master</a>, with election outcomes in <a href="./chips/rc_elect">rc_elect</a> (75,894 elections) and union-deauthorization elections in <a href="./chips/ud_elect">ud_elect</a> (1,427 cases). The R-cases run 1969 through 2000.</li>
+      </ul>
+      <p>The data is sourced from NLRB files preserved by the National Archives. Sean Brailey transcribed the county table and other lookup tables from the official <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook (PDF)</a>, which remains the authoritative reference for the many short-coded fields (case-type codes, transaction codes, disposition stages, union-type codes, etc.). Code-expansion lookup tables are prefixed <code>l_</code>.</p>
+    temporal_coverage: "1963/2000"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - NLRB
+      - CHIPS
+      - unfair labor practices
+      - representation elections
+      - decertification
+      - historical labor data
+      - National Archives
+    tables:
+      c_master:
+        description: One row per unfair-labor-practice (C) case. 516,355 rows spanning 1963-2000. Hub of the C-case schema, keyed by case_number; other c_* tables foreign-key here. Charges include CA (against employer), CB (against union), CC (secondary), CD (jurisdictional), CG (union duty-of-fair-representation), and CP (picketing).
+        columns:
+          case_number: Composite NLRB case identifier (region-type-docket-suffix combined). Primary key.
+          region: NLRB regional office (1-32).
+          ctype: Case-type code. FK to l_case_types.
+          docket: Docket number within the region.
+          suffix: Sub-docket suffix (typically 0 for original, higher for consolidations).
+          file_date: Date the charge was filed (ISO 8601, YYYY-MM-DD).
+          close_date: Date the case was administratively closed.
+          date_last_action: Date of the most recent recorded action.
+          county: County code where the alleged conduct occurred. FK to l_county.
+          state: State code. FK to l_state_codes.
+          industry: SIC industry code or descriptive industry text.
+          complainant: Charging party (the union or worker filing the charge). FK to l_union_codes_and_names when the complainant is a coded union.
+          joint_complainant: Second complainant code, when more than one party joined the charge.
+          respondent: Charged party (the employer or union being accused).
+          joint_respondent: Second respondent, when more than one party was charged.
+          number_employed: Number of employees at the establishment.
+          allegations: Allegation code(s) — see allegations table for the code/text mapping.
+          number_discrim: Number of employees alleged to have been discriminated against.
+          situation: Procedural situation code.
+          number_of_charges: Count of charges within this case file.
+          type_charge: Free-text or coded charge type.
+          number_allegations: Count of allegations across charges.
+          status: Case status indicator.
+          formal_action_control: Control code for formal-action stage.
+          machine_control: Internal CHIPS control code.
+          proceeding_control: Control code for the proceeding state.
+          fact_advice: Indicator for whether advice was sought from the General Counsel's Office.
+          type_refusal: Type of refusal-to-bargain, when applicable (mostly relevant to 8(a)(5) cases).
+          fact_appeal: Indicator for whether an appeal was filed.
+          code_date_ro_disp: Code for the date of the Regional Office disposition.
+          date_ro_disp: Date the Regional Office issued its disposition.
+          method_disposition: Method of disposition code.
+          collyer_deferral: Whether the case was deferred under the Collyer doctrine (arbitration deferral).
+          date_collyer_began: Date Collyer deferral began.
+          date_collyer_end: Date Collyer deferral ended.
+          code_date_closed: Code for the closing date.
+          stage_close: Stage at which the case closed.
+          method_close: Method of closing. FK to l_c_case_closing.
+          reason_remedy_close: Reason or remedy at closing.
+          status_barg_close: Bargaining-status indicator at closing.
+          solic_stages_investig: Solicitor's stages of investigation indicator.
+          contact_witness: Witness-contact indicator.
+          date_re_advice_received: Date a response to advice was received.
+          date_action_on_advice: Date action was taken on advice.
+          date_appeal_received: Date an appeal was received.
+          date_action_on_appeal: Date action was taken on the appeal.
+          hearing_held_code: Code indicating whether a hearing was held.
+          decision_made_code: Code indicating whether a decision was made.
+          chips_close_flag: CHIPS-internal close flag.
+          chips_close_date: CHIPS-internal close date.
+          related_case: Related case-number reference.
+          chips_amended_code: CHIPS-internal amendment code.
+          formal_setl: Indicator for formal settlement.
+          filed_calendar_year: Calendar year the charge was filed.
+          closed_calendar_year: Calendar year the case closed.
+          filed_fiscal_year: Federal fiscal year filed (October-September).
+          closed_fiscal_year: Federal fiscal year closed.
+          key_case_number: Lead case number when consolidated.
+          sub_key_case_number: Sub-case number when consolidated.
+          transferred_case_number: Case number to which the file was transferred, when applicable.
+      r_master:
+        description: One row per representation (R) case. 111,291 rows spanning 1969-2000. Hub of the R-case schema. Includes petitions for certification (RC), decertification (RD), and employer-filed (RM); also UD (union deauthorization) and UC (unit clarification) cases.
+        columns:
+          case_number: Composite NLRB case identifier. Primary key.
+          region: NLRB regional office. FK to regions.region_num.
+          ctype: Case-type code. FK to l_case_types.
+          docket: Docket number within region.
+          file_date: Date the petition was filed (ISO 8601, YYYY-MM-DD).
+          close_date: Date the case closed.
+          date_last_action: Date of the most recent recorded action.
+          industry: Industry code or descriptive text.
+          state: State code. FK to l_state_codes.
+          county: County code. FK to l_county.
+          petitioner_type: Type of petitioning party (individual, union, employer).
+          petitioner: Petitioner identifier. FK to l_union_codes_and_names when the petitioner is a coded union.
+          joint_petitioner: Second petitioner, when more than one filed.
+          local_number: Local-union number of the petitioner.
+          recogn_union_type: Type of currently-recognized union, when applicable (relevant to RD/RM cases).
+          recogn_union: Code for the recognized union. FK to l_union_codes_and_names.
+          joint_recogn_union: Second recognized union.
+          unit: Bargaining-unit type code. FK to l_unit_codes.
+          number_emp: Number of employees in the bargaining unit.
+          proposed_no_emp: Proposed number of employees in the unit.
+          picket_8b7c: Whether the case involves 8(b)(7)(C) picketing.
+          status: Case status indicator.
+          machine_control: Internal CHIPS control code.
+          proceeding_control: Control code for the proceeding state.
+          date_appeal: Date of an appeal, when applicable.
+          ruling_code: Code for the ruling on appeal.
+          consol_code: Consolidation code.
+          date_notice_hearing_issued: Date the hearing notice was issued.
+          date_hearing_opened: Date the hearing opened.
+          date_hearing_closed: Date the hearing closed.
+          hearing_control: Hearing control code.
+          code_date_closed: Code for the closing date.
+          stage_closed: Stage at which the case closed.
+          method_closed: Method of closing.
+          reason_close: Reason for closing.
+          hearing_held_code: Code indicating whether a hearing was held.
+          dec_made_code: Code indicating whether a decision was made.
+          date_agree_approv: Date an agreement was approved.
+          date_appea_recd: Date an appeal was received.
+          date_action_on_appeal: Date action was taken on the appeal.
+          chips_amended_code: CHIPS-internal amendment code.
+          date_hearing2_open_108: Date a second hearing under Section 10(8) opened.
+          date_hearing2_closed_108: Date the second hearing under Section 10(8) closed.
+          blocking_case_code: Code indicating a blocking-case relationship.
+          consol_sever: Consolidation/severance indicator.
+          case_stage_action: Stage of the case action.
+          consol_type: Consolidation type.
+          chips_close_flag: CHIPS-internal close flag.
+          chips_close_date: CHIPS-internal close date.
+          filed_calendar_year: Calendar year the petition was filed.
+          closed_calendar_year: Calendar year the case closed.
+          filed_fiscal_year: Federal fiscal year filed.
+          closed_fiscal_year: Federal fiscal year closed.
+          blocking_case_number: Case number of any blocking case.
+          consol_case_number: Lead case number when consolidated.
+          sub_consol_case_number: Sub-case number when consolidated.
+          transfer_case_number: Case number of any transferred case.
+      rc_elect:
+        description: One row per representation-case election held under CHIPS (75,894 elections, 1969-2000). Captures the union(s) on the ballot, vote totals, challenges, and the outcome. Up to four "losing" unions are tracked alongside the winner, supporting multi-union elections.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          suffix: Election suffix (for re-runs or runoffs within a case).
+          election_date: Date of the election (ISO 8601, YYYY-MM-DD).
+          unit: Bargaining-unit type code. FK to l_unit_codes.
+          description_election: Free-text description of the election.
+          expedited: Indicator for an expedited election (1 if expedited).
+          date_election_held: Date the election actually took place.
+          type_election: Type of election (board-ordered, consent, stipulated, etc.). FK to l_type_elections.
+          no_elig: Number of eligible voters.
+          join_union_won: Joint indicator for the winning union (if more than one union jointly won).
+          union_won_votes: Votes received by the winning union.
+          union_won_intl_type: Type code for the winning international union. FK to l_elect_union_type.
+          union_won_intl: International code for the winning union. FK to l_union_codes_and_names.
+          joint_union_lost_1: Joint indicator for losing union slot 1.
+          union_lost_votes_1: Votes received by losing union 1.
+          union_lost_intl_1_type: Type code for losing union 1's international.
+          union_lost_intl_1: International code for losing union 1.
+          joint_union_lost_2: Joint indicator for losing union slot 2.
+          union_lost_votes_2: Votes received by losing union 2.
+          union_lost_intl_2_type: Type code for losing union 2's international.
+          union_lost_intl_2: International code for losing union 2.
+          joint_union_lost_3: Joint indicator for losing union slot 3.
+          union_lost_votes_3: Votes received by losing union 3.
+          union_lost_intl_3_type: Type code for losing union 3's international.
+          union_lost_intl_3: International code for losing union 3.
+          joint_union_lost_4: Joint indicator for losing union slot 4.
+          union_lost_votes_4: Votes received by losing union 4.
+          union_lost_intl_4_type: Type code for losing union 4's international.
+          union_lost_intl_4: International code for losing union 4.
+          votes_against_union: Votes against representation ("no union").
+          challenges: Number of challenged ballots.
+          void_votes: Number of void ballots.
+          elect_vote_control: Election-vote control code.
+          control: Election control code.
+          conclusive: Conclusive-election indicator. FK to l_elect_conclusive.
+          challenges_determinative: Indicator that challenged ballots are determinative of the outcome.
+          patric_union: Participating-union code. FK to l_elect_participating_union.
+          incumb_union: Incumbent-union indicator. FK to l_elect_incumbent_union.
+          mail_ballot: Indicator for mail-ballot election.
+          union_control: Union-side control code.
+          cross_petition: Indicator that a cross-petition was filed.
+          runoff_necessary: Indicator that a runoff election was needed.
+          cross_pet_case_number: Case number of any cross-petition.
+          rerun_runoff_number: Number identifying re-runs or runoffs.
+          impounded: Indicator that ballots were impounded.
+          date_elect_certified: Date the election was certified.
+          stage: Stage of the election proceedings. FK to l_elect_stage_of_closing.
+          method: Method of disposition. FK to l_elect_method_of_disposition.
+        units:
+          no_elig: persons
+          union_won_votes: votes
+          union_lost_votes_1: votes
+          union_lost_votes_2: votes
+          union_lost_votes_3: votes
+          union_lost_votes_4: votes
+          votes_against_union: votes
+          challenges: ballots
+          void_votes: ballots
+      ud_elect:
+        description: One row per union-deauthorization (UD) election. 1,427 elections, 1969-2000. UD cases ask whether to remove a union's right to enter into union-security agreements (NLRA Section 9(e)(1)). Smaller universe than rc_elect because UD elections are relatively rare.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          suffix: Election suffix (for re-runs).
+          election_date: Date of the election.
+          cunion: Currently-recognized union code.
+          description_election: Free-text description.
+          expedited: Expedited-election indicator.
+          unit: Bargaining-unit type.
+          date_election_held: Date the election took place.
+          type_election: Type code.
+          no_elig: Eligible voters.
+          v_votes: Total votes cast.
+          for_prop: Votes in favor of the deauthorization proposition.
+          agn_prop: Votes against the proposition.
+          chall: Challenged ballots.
+          void: Void ballots.
+          cout: Count control code.
+          control: Election control.
+          date_election_certified: Date the election was certified.
+          stage: Stage of the proceedings.
+          method: Method of disposition.
+          mail_ballot: Mail-ballot indicator.
+          cross_pet_region: Cross-petition region, when applicable.
+          cross_pet_type: Cross-petition case type.
+          cross_pet_docket: Cross-petition docket number.
+          cross_pet_suffix: Cross-petition suffix.
+          rerun_runoff_number: Re-run/runoff identifier.
+          impounded: Ballots-impounded indicator.
+        units:
+          no_elig: persons
+          v_votes: votes
+          for_prop: votes
+          agn_prop: votes
+          chall: ballots
+          void: ballots
+      allegations:
+        description: Allegation-code lookup. Each row maps an allegation code (within a case type) to its descriptive text. 64 rows.
+        columns:
+          ctype: Case-type code the allegation applies to.
+          code: Allegation code.
+          allegations: Text of the allegation.
+      regions:
+        description: NLRB regional-office lookup. 35 rows, covering the agency's regional, sub-regional, and resident-office structure.
+        columns:
+          region_num: Regional office number. Primary key reference.
+          district_num_fk: Parent district number.
+          region_name: Regional office name.
+          subregion_flag: Indicator distinguishing main regions from sub-regions.
+          belongs_to_region: Parent region number, when this is a sub-region or resident office.
+      c_names:
+        description: Names associated with each C-case — typically the complainant, the respondent (employer or union), and any other named parties.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          name: Party name.
+      c_address:
+        description: Addresses associated with each C-case.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          address: Street address.
+          city: City.
+          state_alpha: Two-letter state abbreviation.
+          state_numeric: Numeric state code (FK to l_state_codes).
+      c_formal1:
+        description: First procedural-formal-action stage for C-cases — typically the complaint-issuance stage.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          cf1_date: Stage date.
+          date_last_action: Date of last action at this stage.
+          consol_type: Consolidation type.
+          consol_code: Consolidation code.
+          update_control: Update control flag.
+          code_date_complt_iss: Code for date complaint issued.
+          date_complaint_issued: Date the formal complaint was issued.
+          allegations: Allegations at this stage.
+          number_discrim: Number of employees alleged to have been discriminated against.
+          complaint_control: Complaint control code.
+          code_date_ro_disp: Code for the Regional Office disposition date.
+          date_ro_disp: Regional Office disposition date.
+          ro_disp_control: Regional Office disposition control code.
+          date_hearing_opened: Date a hearing was opened at this stage.
+          code_date_hearing_closed: Code for the hearing-close date.
+          date_hearing_closed: Date the hearing closed.
+          hearing_control: Hearing control code.
+          code_date_disp_issed_recd: Code for the date the disposition was issued/received.
+          date_disp_issued_recd: Date the disposition was issued or received.
+          type_disposition: Type of disposition.
+          allegations_uphld: Count of allegations upheld.
+          allegations_dismd: Count of allegations dismissed.
+          discrim_upheld: Count of discrimination claims upheld.
+          discrim_dismissed: Count of discrimination claims dismissed.
+          back_pay_control: Back-pay control code.
+          admin_law_judge_disp: Administrative Law Judge disposition.
+          board_decision_control: Board-decision control code.
+          card_control: Card-control code (CHIPS-internal).
+          number_discrim_reinst_ca: Number reinstated under a CA remedy.
+          number_rec_back_pay_uni_emp_cb: Number receiving back-pay (union/employee CB cases).
+          number_rec_back_pay_only_ca: Number receiving only back-pay (CA cases).
+          number_discrim_restor_cb: Number restored in CB cases.
+          number_discrim_preferd: Number on the preferential-hiring list.
+          remedy: Remedy type.
+          code_date_hearing_opened: Code for the hearing-opening date.
+          chips_amended_code: CHIPS-internal amendment code.
+          consol_server: Consolidation-server flag.
+          case_state_action: Stage of the case action.
+          complaint_calendar_year: Calendar year the complaint was issued.
+          complaint_fical_year: Federal fiscal year the complaint was issued (typo "fical" preserved from source).
+          consol_case_number: Lead case number when consolidated at this stage.
+          sub_consol_case_number: Sub-case number when consolidated.
+      c_formal2:
+        description: Second procedural-formal-action stage for C-cases — typically the administrative-law-judge / Board decision stage.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          cf2_date: Stage date.
+          date_last_action: Date of last action.
+          consolidation_type: Consolidation type.
+          consolidation_code: Consolidation code.
+          update_control: Update control flag.
+          code_date_transfer_board: Code for date transferred to the Board.
+          date_transfer_board: Date the case was transferred to the Board.
+          control_type: Control type code.
+          date_decision_issued: Date the Board's decision was issued.
+          type_decision: Decision type code.
+          disp_allegations: Disposed allegations.
+          allegations_uphld: Allegations upheld.
+          allegations_dismd: Allegations dismissed.
+          number_discrim_reinstated_ca: Number reinstated under the corrective order.
+          number_receive_back_pay_uni_emp_cb: Number receiving back-pay (union/employee CB cases).
+          number_receive_back_pay_only_ca: Number receiving only back-pay (CA cases).
+          number_discrim_restored_cb: Number restored in CB cases.
+          number_discrim_dismissed: Number of discrimination claims dismissed.
+          number_discrim_preferred: Number on the preferential-hiring list.
+          remedy: Remedy type.
+          board_members: Board members participating in the decision (count or composition code).
+          board_disposition_allegations: Board's disposition of the allegations.
+          close_control: Close-control code.
+          card_control: Card-control code.
+          code_date_dec_issued: Code for the date the decision was issued.
+          volume_number: Volume number of the NLRB-decisions reporter where this case is published.
+          issue_number: Issue number of the NLRB-decisions reporter.
+          party_filing_excpt: Party that filed exceptions to the ALJ decision.
+          board_members_5: Board-members 5-character code variant.
+      c_formal3:
+        description: Third procedural-formal-action stage for C-cases — typically the Circuit Court of Appeals stage.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          cf3_date: Stage date.
+          date_last_action: Date of last action.
+          consol_type: Consolidation type.
+          consol_code: Consolidation code.
+          update_control: Update control flag.
+          date_ref_app_ct: Date referred to the Court of Appeals.
+          type_ref: Type of referral.
+          date_pet_answ_filed: Date the petition/answer was filed.
+          date_ref_pet_answ: Date the referenced petition/answer was filed.
+          date_ca_opinion: Date the Court of Appeals issued its opinion.
+          date_brief_filed: Date briefs were filed.
+          type_disposition: Disposition type.
+          ca_no: Court of Appeals case number.
+          date_ca_decree: Date the Court of Appeals decree issued.
+          type_decree: Type of decree.
+          control_case: Control-case code.
+          card_control: Card-control code.
+          code_date_brief_filed: Code for the brief-filed date.
+      c_formal4:
+        description: Fourth procedural-formal-action stage for C-cases — typically the Supreme Court stage.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          cf4_date: Stage date.
+          date_last_action: Date of last action.
+          stage_last_action: Stage of last action.
+          consolidation_type: Consolidation type.
+          consolidation_code: Consolidation code.
+          upate_control: Update control flag (column-name typo preserved from the CHIPS export).
+          date_referred_scb: Date referred to the Solicitor for cert-brief review.
+          date_recom_writ_cert: Date a recommendation on writ of certiorari was made.
+          type_recom: Type of recommendation.
+          date_pret_writ_cert_filed: Date the petition for writ of certiorari was filed.
+          party_filing: Party that filed the cert petition.
+          date_sc_action: Date the Supreme Court acted.
+          sc_ruling: Supreme Court ruling.
+          date_supreme_court_argue: Date the case was argued at the Supreme Court.
+          date_supreme_court_dec: Date the Supreme Court issued its decision.
+          type_supreme_court_dec: Type of Supreme Court decision.
+          date_back_pay_specs: Date back-pay specifications were issued.
+          stage_back_pay_specs: Stage at which back-pay specifications were issued.
+          date_hearing_closed: Date a hearing was closed at this stage.
+          date_administrative_law_judge_dec_issued: Date the ALJ decision was issued.
+          date_board_suppl_decision: Date the Board issued a supplemental decision.
+          type_board_suppl_decision: Type of supplemental decision.
+          date_ref_acb: Date referred back to the ALJ/Board.
+          date_suppl_ca_decree: Date of a supplemental Court of Appeals decree.
+          card_control: Card-control code.
+          code_date_hearing_closed: Code for the hearing-close date.
+          code_date_administrative_law_judges_decision_issued: Code for the ALJ decision-issued date.
+          code_date_board_suppl_decision: Code for the Board supplemental-decision date.
+      c_consolid:
+        description: Consolidation/severance records for C-cases — when cases were combined or separated during proceedings.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          consolidation: Consolidation indicator.
+          consol_id: Consolidation identifier.
+          consolidation_type: Type of consolidation.
+          consolidation_code: Consolidation code.
+          consolidation_stage: Stage at which consolidation occurred.
+          date_severed: Date of severance, when applicable.
+          severance_id: Severance identifier.
+          severance_type: Severance type.
+          severance_code: Severance code.
+          severance_stage: Stage at which severance occurred.
+          key_consol_case_number: Lead case number in the consolidation.
+          sub_consol_case_number: Subordinate case number in the consolidation.
+      c_trailer:
+        description: Closing/remedy "trailer" records for C-cases — settlement and remediation details captured at case closing.
+        columns:
+          case_number: Foreign key to c_master.case_number.
+          trailer_date: Trailer record date.
+          date_last_action: Date of last action.
+          allegations_adjusted: Allegations adjusted as part of settlement.
+          settlement: Settlement type indicator.
+          approval_requested: Whether settlement approval was requested.
+          number_reinstated: Number of employees reinstated.
+          number_w_reinstated: Number reinstated with backpay.
+          number_d_reinstated: Number reinstated to a different position.
+          number_p_list: Number placed on a preferential hiring list.
+          number_restored: Number restored to former position.
+          number_withdrawn_employment: Number withdrawn from employment.
+          number_rcu_employed: Number re-employed.
+          number_allegations: Number of allegations.
+          number_made_whole: Number "made whole" (compensated for losses).
+          number_receiving_back_pay: Number of employees receiving back-pay.
+          total_amt: Total monetary amount of the settlement.
+          amt_pd_co: Amount paid by the company.
+          amt_pd_un: Amount paid by the union.
+          back_pay_control: Back-pay control code.
+          f_installment: Indicator for installment-payment arrangement.
+          number_rcu_dues: Number of employees re-collected union dues (reimbursement-of-dues situations).
+          total_comp: Total compensation paid.
+          total_pd_co: Total paid by the company.
+          total_pd_un: Total paid by the union.
+          dues_control: Dues-payment control code.
+          remedy: Remedy type at closing.
+          date_end_picket: Date picketing ended, when applicable.
+          date_end_work_stop: Date a work stoppage ended, when applicable.
+          number_employs_picket: Number of employees who participated in the picket.
+          number_employes_stop: Number of employees who participated in the work stoppage.
+          number_to_be_reinst: Number to be reinstated per the remedy.
+          related_combined_code: Code linking to a related/combined case.
+          related_key_case_number: Key case number for the related case.
+      r_names:
+        description: Names associated with each R-case — petitioner, employer, intervening unions, and other parties.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          name: Party name.
+      r_address:
+        description: Addresses associated with each R-case.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          address: Street address.
+          city: City.
+          state_alpha: Two-letter state abbreviation.
+          state_numeric: Numeric state code.
+      r_formal1:
+        description: First procedural-formal-action stage for R-cases — typically Regional-Director hearing and decision.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          rf1_date: Stage date.
+          date_last_action: Date of last action.
+          consol_code: Consolidation code.
+          code_date_hearing_close: Code for hearing-close date.
+          date_hearing_close: Date the hearing closed.
+          control: Stage control code.
+          update_control: Update control flag.
+          date_dec_issued: Date the Regional Director's decision was issued.
+          unit: Bargaining-unit type.
+          type_dec: Type of decision.
+          type_specl_elect: Type of special election, when applicable.
+          date_waiver: Date a waiver was filed.
+          date_req_review: Date a request for Board review was filed.
+          party_filing: Party that filed the request for review.
+          date_ruling_reg: Date the Regional Director ruled.
+          ruling_control: Ruling-control code.
+          date_board_dec_req: Date the Board requested briefs/info before its decision.
+          board_dec: Board decision text/code.
+          type_board_dec: Type of Board decision.
+          board_unit: Bargaining unit as determined by the Board.
+          volume_number: NLRB-decisions reporter volume number.
+          issue_number: NLRB-decisions reporter issue number.
+          board_members_5: Board-members 5-character composition code.
+          chips_amended_code: CHIPS-internal amendment code.
+      r_formal2:
+        description: Second procedural-formal-action stage for R-cases — typically post-election objection/challenge resolution.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          suffix: Election suffix.
+          rf2_date: Stage date.
+          date_last_action: Date of last action.
+          transaction: Transaction code.
+          action_777: Section 777 action code.
+          consol_code: Consolidation code.
+          date_election_held: Date the election was held.
+          date_obj_chall_filed: Date objections or challenges were filed.
+          number_obj_filed: Number of objections filed.
+          number_chall: Number of ballots challenged.
+          date_hearing_ordered: Date a hearing was ordered on objections/challenges.
+          basis_election: Basis for the election (consent, stipulated, etc.).
+          party_filing_ob: Party that filed objections. FK to l_party_filing_objection.
+          hearing_code: Hearing code.
+          hearing_ordered_by: Whom the hearing was ordered by (Regional Director vs Board).
+          date_rps_no_hearing_held: Date of Report on Objections/Challenges when no hearing was held.
+          update_control: Update-control flag.
+          date_hearing_closed: Date the hearing on objections/challenges closed.
+          date_hearing_opened: Date the hearing on objections/challenges opened.
+          date_rpt_on_obj_chall: Date of the report on objections and challenges.
+          first_election_rpt: Indicator for first-election report.
+          rpt_control: Report-control code.
+          date_rd_suppl_dec: Date the Regional Director issued a supplemental decision.
+          ruling_on_obj: Ruling on the objection.
+          type_decision: Decision type.
+          decision_control: Decision-control code.
+          another_election: Indicator that another election was ordered.
+          previously_reported: Indicator that the case was previously reported.
+          date_certification: Date the election was certified.
+          stage: Stage of the post-election proceedings.
+          method: Method of resolution.
+          rd_of_bd_dec: Indicator distinguishing a Regional Director decision from a Board decision.
+          date_review_waivered: Date the right to Board review was waived.
+          date_exception_filed: Date exceptions were filed.
+          exception_code: Exception code.
+          date_ruling_on_exc: Date a ruling on the exception was issued.
+          ruling_on_exc_code: Ruling-on-exception code.
+          date_reg_for_review: Date the request-for-review was registered.
+          party_filing_req: Party that filed the request for review.
+          date_ruling_on_req: Date a ruling on the request for review was issued.
+          ruling_on_req_code: Ruling-on-request code.
+          date_board_dec: Date the Board issued its decision on the objections/challenges.
+          type_board_dec: Type of Board decision.
+          number_obj_sustained: Number of objections sustained.
+          number_obj_overuled: Number of objections overruled.
+          number_obj_withdrawn: Number of objections withdrawn.
+          number_chall_sustained: Number of challenges sustained.
+          number_chall_overuled: Number of challenges overruled.
+          number_chall_withdrawn: Number of challenges withdrawn.
+          date_obj_chall_resolved: Date all objections and challenges were resolved.
+          ruling_on_obj_r: Regional Director's ruling on objections.
+          "ruling_on_obj_r.1": Regional Director's ruling on objections (duplicate column from the CSV import; same semantics as ruling_on_obj_r).
+          date_bd_dec_on_rev: Date the Board issued its decision on review.
+          bd_dec_on_rev: Board's decision on review.
+      r_consolid:
+        description: Consolidation records for R-cases.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          consolidation_date: Date of consolidation.
+          consol_id: Consolidation identifier.
+          key_consol_case_reg: Region of the key case in the consolidation.
+          key_consol_case_type: Case-type code of the key case.
+          key_consol_case_docket: Docket number of the key case.
+          key_consol_case_suffix: Suffix of the key case.
+          sub_consol_case_reg: Region of the subordinate case.
+          sub_consol_case_type: Case-type code of the subordinate case.
+          sub_consol_case_docket: Docket number of the subordinate case.
+          sub_consol_case_suffix: Suffix of the subordinate case.
+          consolidation_type: Type of consolidation.
+          consolidation_code: Consolidation code.
+          consolidation_stage: Stage at which consolidation occurred.
+          date_severed: Date of severance, when applicable.
+          severance_id: Severance identifier.
+          severance_type: Severance type.
+          severance_code: Severance code.
+          severance_stage: Stage at which severance occurred.
+      r_blocking:
+        description: Blocking-case relationships for R-cases — when an R-case is held pending resolution of another (typically C) case.
+        columns:
+          case_number: Foreign key to r_master.case_number.
+          block_date: Date the block was instituted.
+          blocking_case_number: Case number that's blocking this R-case.
+      l_case_types:
+        description: Case-type code lookup. 13 rows — CA, CB, CC, CD, CG, CP for C-cases; RC, RD, RM for R-cases; AC, UC, UD for special types.
+        columns:
+          code: Numeric or symbolic code stored in c_master.ctype / r_master.ctype.
+          type: Two-letter case-type abbreviation (e.g. "RC", "CA").
+      l_c_case_closing:
+        description: C-case closing-method lookup. 41 rows.
+        columns:
+          stage: Closing stage code.
+          method: Closing method code.
+          definition: Description of the (stage, method) combination.
+      l_c_case_pending_status_codes:
+        description: Pending-status code lookup for C-cases. 63 rows.
+        columns:
+          status: Status code value.
+          definition: Description of the pending status.
+      l_county:
+        description: County lookup. 3,270 rows — every US county keyed by (state, county_number).
+        columns:
+          alpha_state_code: Two-letter US Postal Service state abbreviation (e.g. "AL").
+          numeric_state_code: Numeric state code (joins to l_state_codes.code).
+          county_number: County number within the state.
+          county_name: County name.
+          resident_code: Resident-office code, when the county hosts an NLRB resident office.
+          region: Parent NLRB region number.
+          district: NLRB district.
+          resident_office: Resident-office name.
+          "Unnamed: 8": Empty column carried in from a pandas CSV import; always blank. Worth ignoring.
+      l_party_filing_objection:
+        description: Party-filing-objection lookup. 7 rows describing which party filed an objection (employer, petitioner, union, etc.).
+        columns:
+          code: Code value.
+          situation: Description of the objecting party.
+      l_size_of_unit_codes:
+        description: Bargaining-unit size buckets (e.g. "1-9", "10-19"). 7 rows.
+        columns:
+          code: Size-bucket code.
+          number_of_employees: Size-range label.
+      l_stage_of_disposition:
+        description: Stage-of-disposition lookup for C-cases. 6 rows.
+        columns:
+          code: Stage code value.
+          stages_of_disposition_before_hearing_and_after_hearing_closed: Description of the disposition stage.
+      l_unit_codes:
+        description: Bargaining-unit type code lookup. 9 rows — Industrial, Craft, Office Clerical, Guard, Professional, etc.
+        columns:
+          code: Unit type code.
+          definition: Description of the unit type.
+      l_state_codes:
+        description: State code lookup. 54 rows including territories.
+        columns:
+          code: Numeric state code.
+          state_name: Full state name.
+      l_union_codes_and_names:
+        description: Union code/name lookup. 216 rows — every international or major union referenced in CHIPS, with a short abbreviation.
+        columns:
+          code: Numeric union code.
+          union_name: Union name (often with hyphenated abbreviation appended).
+      l_type_elections:
+        description: Election-type lookup. 5 rows — consent, stipulated, board-ordered, etc.
+        columns:
+          code: Single-letter election-type code.
+          type_election: Short label.
+          description: Full description.
+      l_elect_union_type:
+        description: Election-union-type lookup (petitioner vs intervenor vs incumbent, by federation). 9 rows.
+        columns:
+          code: Union-type code.
+          definition: Description.
+      l_elect_conclusive:
+        description: Conclusive-election lookup. 9 rows.
+        columns:
+          code: Code value.
+          conclusive_election_control: Description of the conclusive-election control case.
+      l_elect_incumbent_union:
+        description: Incumbent-union lookup. 7 rows describing whether an incumbent union was on the ballot.
+        columns:
+          code: Incumbent-status code.
+          incumbent_union: Description.
+      l_elect_method_of_disposition:
+        description: Election method-of-disposition lookup. 2 rows.
+        columns:
+          code: Method code.
+          action: Outcome label.
+          method_of_close: Description of the disposition method.
+      l_elect_stage_of_closing:
+        description: Election stage-of-closing lookup. 6 rows.
+        columns:
+          code: Stage code.
+          stage_of_closing: Description.
+      l_elect_participating_union:
+        description: Participating-union federation lookup. 15 rows.
+        columns:
+          code: Federation code.
+          participating_union: Description (AFL-CIO Alone, Teamsters Alone, etc.).
+      l_transaction_codes:
+        description: Transaction-code lookup. 115 rows — every individual case-action transaction recorded in CHIPS, with a human-readable description.
+        columns:
+          trans: Transaction code (3-digit).
+          action: Description of the action (e.g. "New Charge / Pre Compl Dismissal Letter").
   opdr:
     title: OLMS Online Public Disclosure Room — Annual LM-2/LM-3/LM-4 Data
     description_html: |-
