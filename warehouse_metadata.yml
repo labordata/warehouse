@@ -81,9 +81,94 @@ databases:
           establishment_size: persons
   nlrb_rc_elections_1961_1998:
     title: Results of NLRB union-representation elections, 1965-1998
-    description: This file was built from an old database of union elections maintained by the AFL-CIO in Washington, DC. It contains election results for all petitions filed with the NLRB between 1965 and 1998 that went to elections. That is to say, it does NOT contain data on organizing drives where petitions were filed but later withdrawn or dismissed.
+    description: Historical record of NLRB representation elections from 1965 to 1998, drawn from an internal AFL-CIO database. Each row is one election that was actually held (the dataset does NOT include organizing drives where petitions were withdrawn or dismissed before a vote). Includes the petitioning union, the employer, the bargaining unit, vote totals, and the election outcome.
+    description_html: |-
+      <p>Election-by-election results for NLRB union-representation cases (RC, RD, and RM petitions) from the mid-1960s through 1998. The data was originally maintained by the AFL-CIO in Washington, DC, then compiled and cleaned by <a href="https://www.gsb.stanford.edu/faculty-research/faculty/john-paul-ferguson">JP Ferguson</a> (now at McGill University) for use in academic research on union organizing.</p>
+      <p>Each row is one election that was actually held. Note that the data does NOT include organizing drives where petitions were filed but later withdrawn or dismissed before reaching a vote — for those, a much larger universe of records is needed (see <a href="./cats">cats</a> for the 1999–2011 successor system).</p>
+      <p>Many internal NLRB code fields are preserved as-is from the source database; their mappings are not fully documented in the upstream cleaning scripts. The most analytically useful columns are the employer/union names, the vote totals (<code>fst_votes</code>, <code>votes_no</code>, <code>valid_for</code>, <code>valid_cast</code>), the bargaining-unit category, the election date, and <code>won</code>.</p>
     source: JP Ferguson
     source_url: https://github.com/jpfergongithub/nlrb_old_rcases
+    temporal_coverage: "1959/1999"
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
+    keywords:
+      - NLRB
+      - union elections
+      - representation elections
+      - decertification elections
+      - union organizing
+      - certification elections
+      - historical labor data
+    tables:
+      nlrb_representation_1961_1998:
+        description: One row per NLRB representation election held between roughly 1959 and 1999. 224,822 rows. About 87% are RC (certification) petitions, 9% RD (decertification), and 4% RM (employer-filed). Roughly half of elections were won by the petitioning union and half were lost.
+        columns:
+          nlrb_id: NLRB case identifier.
+          region: NLRB regional office, as an integer code (1 through ~32).
+          r_type: Petition type — "RC" (representation certification, petitioned by a union seeking recognition), "RD" (decertification, petitioned by workers seeking to remove an existing union), or "RM" (representation by employer, petitioned by an employer presented with a recognition demand).
+          docket: Docket number within the regional office.
+          sic: 3-digit Standard Industrial Classification code (the pre-NAICS industry coding system).
+          unit: Bargaining-unit category. Standard values are "Production", "Clerical", "Craft", "Drivers", "Guard", "Professional", "Departmental", and "Other".
+          elect_size: Size of the bargaining unit (number of workers).
+          elect_type: NLRB election type code — "R" (stipulated election), "C" (consent election), "E" (expedited), plus less-common "B" and "S" codes whose meanings are not documented in the upstream source.
+          elig_voter: Number of eligible voters in the election.
+          fst_votes: Votes received by the first union on the ballot.
+          fst_union: Name of the first union on the ballot (typically the petitioning union for RC cases).
+          sec_votes: Votes received by the second union, in multi-union elections.
+          sec_union: Name of the second union on the ballot.
+          thr_votes: Votes received by the third union, in three-way elections.
+          thr_union: Name of the third union on the ballot.
+          votes_no: Votes against representation ("no union").
+          challenged: Number of ballots challenged at the polls (challenges resolved after the election).
+          elect_contr: Indicator that the election was contested. Coded numerically; mapping not documented.
+          objection_filed_date: Date an objection to the election was filed, when applicable.
+          obj_party: Numeric code (0–8) for the party that filed the objection. Mapping not documented in upstream source.
+          day_obj_el: Two-character internal NLRB code related to the objection filing. Mapping not documented.
+          ruling_obj: Numeric code for the ruling on the objection. Mapping not documented.
+          day_dec_el: Two-character internal NLRB code related to the decision. Mapping not documented.
+          req_review: Indicator for whether a request for review was filed. Stored as a float.
+          elect_ctrl: NLRB internal control code; mapping not documented.
+          hrngctrl: Hearing control code; mapping not documented.
+          day_el_clo: Two-character internal code related to election closing. Mapping not documented.
+          stg_closin: Single-character code for the stage at which the case closed. Mapping not documented.
+          meth_disp: Method of disposition (numeric code). Mapping not documented.
+          participant: Single-character participant code (A, B, C, D, E, G, H, K). Mapping not documented.
+          incumb_un: Indicator (0/1) for whether an incumbent union was on the ballot (always 1 for RD petitions).
+          recordctrl: Record control code; mapping not documented.
+          t_dt_filed: Filing date as it appeared in the source database, before cleaning.
+          filed_date: Filing date in cleaned ISO 8601 form (YYYY-MM-DD).
+          company: Employer name.
+          address: Employer street address.
+          pet_union: Name of the petitioning union (for RC and RM cases).
+          valid_for: Total valid votes cast in favor of representation (sum across union choices on the ballot).
+          valid_cast: Total valid votes cast.
+          t_dt_elect: Election date as it appeared in the source database, before cleaning.
+          election_date: Election date in cleaned ISO 8601 form (YYYY-MM-DD).
+          won: Election outcome for the petitioning union — "Won" or "Lost".
+          recodemth: Recoding method used during data preparation (0, 1, or 2). Mapping not documented.
+          state: Two-letter US Postal Service state abbreviation.
+          gsacty: GSA city code (numeric).
+          local: Union local number.
+          local_name: Local union name, when supplied.
+          mailballot: Whether the election was conducted by mail ballot — "Yes" or "No".
+          t_dt_closed: Case closure date as it appeared in the source database, before cleaning.
+          closed_date: Case closure date in cleaned ISO 8601 form.
+          zip: ZIP code of the employer or election location.
+          problem: Data-quality problem flag (all rows are 0 in the current data).
+          city_name: City name (typically prefixed with the state abbreviation in the source data).
+          county_name: County name.
+        units:
+          elect_size: persons
+          elig_voter: persons
+          fst_votes: votes
+          sec_votes: votes
+          thr_votes: votes
+          votes_no: votes
+          challenged: ballots
+          valid_for: votes
+          valid_cast: votes
   cats:
     title: NLRB cases, 1999-2011
     source: NLRB files posted to data.gov, archived on archive.org 
