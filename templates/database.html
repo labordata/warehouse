@@ -1,0 +1,6 @@
+{% extends "default:database.html" %}
+
+{% block extra_head %}
+{{- super() -}}
+{% if schema_org_jsonld %}{{ schema_org_jsonld | safe }}{% endif %}
+{% endblock %}

@@ -246,3 +246,12 @@ plugins:
             Disallow: /*?
 
             Sitemap: https://labordata.bunkum.us/sitemap.xml
+    schema-org:
+        creator:
+            "@type": Person
+            name: Forest Gregg
+            url: https://mastodon.social/@fgregg
+        keywords:
+            - labor
+            - labor unions
+            - United States
