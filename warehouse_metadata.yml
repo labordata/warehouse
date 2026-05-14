@@ -198,14 +198,13 @@ databases:
       f7:
         description: One row per F-7 notice filed with FMCS since 1997. Most rows are Renegotiation (advance notice of an existing contract's expiration); smaller shares are Reopener, Initial Contract, and other categories. Notices have been filed by either the employer or the union, indicated in notice_submitted_by.
         columns:
-          id: Surrogate primary key assigned during scraping; not meaningful outside this database.
-          notice_date: Notice date as reported by FMCS. Note that many legacy rows carry the sentinel value 1899-12-29 (Excel/SAS epoch zero) when the source value is missing.
-          initiated_date: Date the F-7 notice was created in the FMCS system (ISO 8601, YYYY-MM-DD). More reliable than notice_date for time-series analysis.
+          notice_date: Notice date as reported by FMCS. (ISO 8601, YYYY-MM-DD)
+          initiated_date: Date the F-7 notice was created in the FMCS system (ISO 8601, YYYY-MM-DD). 
           employer: Employer name as reported on the notice.
           employer_street: Employer street address.
           employer_city: Employer city.
           employer_state: Employer state (two-letter US postal abbreviation or full name; format varies).
-          employer_zip: Employer ZIP code. Stored as text; some rows include a trailing ".0" from the source spreadsheet.
+          employer_zip: Employer ZIP code. 
           employer_representative: Name of the employer's designated contact for bargaining.
           employer_representative_phone: Phone number for the employer representative.
           employer_representative_title: Job title of the employer representative.
@@ -222,7 +221,7 @@ databases:
           affected_location_city: City where the bargaining-unit workers are employed (may differ from employer's headquarters city).
           affected_location_state: State where the bargaining-unit workers are employed.
           affected_location_zip: ZIP code where the bargaining-unit workers are employed.
-          expiration_date: Expiration date of the contract being renegotiated. Format is inconsistent in the source — most rows are ISO dates, but some carry Excel serial numbers or HH:MM:SS strings from upstream spreadsheet exports.
+          expiration_date: Expiration date of the contract being renegotiated. (ISO 8601, YYYY-MM-DD)
           naics: NAICS industry code for the employer (2- to 6-digit, depending on what FMCS captured).
           industry: Human-readable industry name corresponding to the NAICS code.
           bargaining_unit_size: Number of workers in the bargaining unit (the group covered by the collective-bargaining agreement).
