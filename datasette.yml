@@ -19,6 +19,10 @@ plugins:
       isAccessibleForFree: true
       inLanguage: en
       license: https://creativecommons.org/publicdomain/mark/1.0/
+    exclude:
+      - cats
+      - chips
+      - union_names_crosswalk
 
 databases:
   nlrb:
