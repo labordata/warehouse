@@ -79,7 +79,7 @@ databases:
           phone_number: Phone number, when available.
           created_at: Scrape timestamp.
       allegation:
-        description: One row per allegation listed in an unfair-labor-practice charge. C-series cases (CA, CB, etc.) typically include one or more allegations citing specific NLRA section violations (e.g. "8(a)(1) — Coercive Statements", "8(a)(3) — Discharge"). Approximately 720k rows.
+        description: One row per allegation listed in an unfair-labor-practice charge. C-series cases (CA, CB, etc.) typically include one or more allegations citing specific NLRA section violations (e.g. "8(a)(1) — Coercive Statements", "8(a)(3) — Discharge").
         columns:
           case_number: Foreign key to filing.case_number.
           allegation: Text of the allegation as recorded by the NLRB, typically citing an NLRA section subdivision.
