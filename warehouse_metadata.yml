@@ -1412,11 +1412,6 @@ databases:
     title: OSHA Enforcement Data (inspections, citations, accidents)
     description_html: |-
       <p>Every OSHA inspection on record — over 5 million since 1970 — with associated citations, penalties, and accident investigations. Sourced from the federal Occupational Safety and Health Administration's "Integrated Management Information System" (IMIS), the system that captures every enforcement action by federal OSHA offices and the 28 state-plan OSHA programs.</p>
-      <p>The data is built around two parallel record types:</p>
-      <ul>
-        <li><b>Inspection records</b> (the <a href="./osha_enforcement/inspection">inspection</a> table) describe each workplace inspection: the employer, the site, the industry (SIC and NAICS), the inspection's trigger (planned, complaint, accident, referral, etc.), the scope, and union status. Cited <a href="./osha_enforcement/violation">violations</a> link back via <code>activity_nr</code>, each carrying the standard cited, gravity, current penalty, initial penalty, and contest/final-order dates. Penalty histories are tracked in <a href="./osha_enforcement/violation_event">violation_event</a>; general-duty-clause citation text lives in <a href="./osha_enforcement/violation_gen_duty_std">violation_gen_duty_std</a>.</li>
-        <li><b>Accident investigations</b> (the <a href="./osha_enforcement/accident">accident</a> table) describe workplace accidents reported under OSHA's Form 170, with narrative <a href="./osha_enforcement/accident_abstract">abstracts</a> and per-victim <a href="./osha_enforcement/accident_injury">injury</a> details (age, sex, nature of injury, degree, body part, source). Many lookup tables (event_type, body_part, injury, occupation, etc.) carry the human-readable values for the coded fields on accident_injury.</li>
-      </ul>
       <p>The data is downloaded nightly from <a href="https://enforcedata.dol.gov/">DOL's Enforcement Data Catalog</a> (the same upstream source as the WHISARD data); processing scripts live at <a href="https://github.com/labordata/osha-enforcement">labordata/osha-enforcement</a>.</p>
     source: DOL Enforcement Data Catalog, processed
     source_url: https://github.com/labordata/osha-enforcement
