@@ -334,8 +334,129 @@ databases:
           valid_cast: votes
   cats:
     title: NLRB cases, 1999-2011
+    source: NLRB files posted to data.gov, archived on archive.org
+    source_url: https://github.com/labordata/nlrb-cats
+    description_html: |-
+      <p>This data is the publicly-releasable records for the Case Activity Tracking System that the National Labor Relations Board used from around 1999-2011</p>
+    tables:
+      l_blue_book_codes:
+        label_column: description
+      l_case_party:
+        label_column: description
+      l_geographic_division:
+        label_column: description
+      l_geographic_region:
+        label_column: description
+      l_labor_org_code:
+        label_column: labor_org_name
+      l_naics_code:
+        label_column: description
+      l_naics_sector:
+        label_column: description
+      l_nlrb_branch:
+        label_column: description
+      l_nlrb_district:
+        label_column: description
+      l_nlrb_division:
+        label_column: description
+      l_nlrb_office:
+        label_column: description
+      l_nlrb_office_type:
+        label_column: description
+      l_nlrb_region:
+        label_column: description
+      l_organization:
+        label_column: formal_name
+      l_parti_type:
+        label_column: description
+      l_participant_group:
+        label_column: description
+      l_party_scope:
+        label_column: description
+      l_party_type:
+        label_column: description
+      l_r_bargain_unit_code:
+        label_column: description
+      l_r_bargain_unit_scope:
+        label_column: description
+      l_r_block_determination:
+        label_column: description
+      l_r_board_action_code:
+        label_column: description
+      l_r_board_action_src_reason:
+        label_column: description
+      l_r_board_received_reason:
+        label_column: description
+      l_r_case_elect_type:
+        label_column: description
+      l_r_case_group_type:
+        label_column: description
+      l_r_case_type:
+        label_column: description
+      l_r_challenge_act_result:
+        label_column: description
+      l_r_challenge_act_type:
+        label_column: description
+      l_r_challenge_issue:
+        label_column: description
+      l_r_closing_method:
+        label_column: description
+      l_r_closing_stage:
+        label_column: description
+      l_r_elect_agree_type:
+        label_column: description
+      l_r_elect_mode:
+        label_column: description
+      l_r_obj_act_result:
+        label_column: description
+      l_r_obj_act_type:
+        label_column: description
+      l_r_objection_issue:
+        label_column: description
+      l_r_part_role_type:
+        label_column: role_name
+      l_r_postelec_det_eot:
+        label_column: description
+      l_r_postelec_det_p_p:
+        label_column: description
+      l_r_postelec_ho_directed:
+        label_column: description
+      l_r_preelec_det_eot:
+        label_column: description
+      l_r_preelec_hear_det_p_p:
+        label_column: description
+      l_r_preelec_rd_dec_type:
+        label_column: description
+      l_r_preelec_rd_issue_dec:
+        label_column: description
+      l_r_preelec_rd_recon:
+        label_column: description
+      l_r_rd_action_det:
+        label_column: description
+      l_r_rd_action_type:
+        label_column: description
+      l_r_reason_transfer:
+        label_column: description
+      l_r_reopen_reason:
+        label_column: description
+      l_r_status:
+        label_column: description
+      l_r_tally_type:
+        label_column: description
+      l_r_target_description:
+        label_column: description
+      l_r_transfer_type:
+        label_column: description
+      l_blue_book_division:
+        label_column: description
+      l_blue_book_chapter:
+        label_column: description
   chips:
     title: NLRB cases, 1984-2000
+    source: NLRB files archived with the National Archive
+    source_url: https://github.com/labordata/CHIPS
+    description_html: |-
+      <p>The county table was transcribe by Sean Brailey from the <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook</a>.</p>
   opdr:
     title: OLMS Online Public Disclosure Room — Annual LM-2/LM-3/LM-4 Data
     description_html: |-
