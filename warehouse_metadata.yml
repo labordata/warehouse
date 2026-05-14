@@ -2753,3 +2753,324 @@ databases:
           city: City.
           state: State.
           "zip_code_+_4": ZIP+4 code.
+  osha_enforcement:
+    title: OSHA Enforcement Data (inspections, citations, accidents)
+    description_html: |-
+      <p>Every OSHA inspection on record — over 5 million since 1970 — with associated citations, penalties, and accident investigations. Sourced from the federal Occupational Safety and Health Administration's "Integrated Management Information System" (IMIS), the system that captures every enforcement action by federal OSHA offices and the 28 state-plan OSHA programs.</p>
+      <p>The data is built around two parallel record types:</p>
+      <ul>
+        <li><b>Inspection records</b> (the <a href="./osha_enforcement/inspection">inspection</a> table) describe each workplace inspection: the employer, the site, the industry (SIC and NAICS), the inspection's trigger (planned, complaint, accident, referral, etc.), the scope, and union status. Cited <a href="./osha_enforcement/violation">violations</a> link back via <code>activity_nr</code>, each carrying the standard cited, gravity, current penalty, initial penalty, and contest/final-order dates. Penalty histories are tracked in <a href="./osha_enforcement/violation_event">violation_event</a>; general-duty-clause citation text lives in <a href="./osha_enforcement/violation_gen_duty_std">violation_gen_duty_std</a>.</li>
+        <li><b>Accident investigations</b> (the <a href="./osha_enforcement/accident">accident</a> table) describe workplace accidents reported under OSHA's Form 170, with narrative <a href="./osha_enforcement/accident_abstract">abstracts</a> and per-victim <a href="./osha_enforcement/accident_injury">injury</a> details (age, sex, nature of injury, degree, body part, source). Many lookup tables (event_type, body_part, injury, occupation, etc.) carry the human-readable values for the coded fields on accident_injury.</li>
+      </ul>
+      <p>The data is downloaded nightly from <a href="https://enforcedata.dol.gov/">DOL's Enforcement Data Catalog</a> (the same upstream source as the WHISARD data); processing scripts live at <a href="https://github.com/labordata/osha-enforcement">labordata/osha-enforcement</a>.</p>
+    source: DOL Enforcement Data Catalog, processed
+    source_url: https://github.com/labordata/osha-enforcement
+    temporal_coverage: "1970/.."
+    source_organization:
+      "@type": GovernmentOrganization
+      name: U.S. Department of Labor, Occupational Safety and Health Administration
+      url: https://www.osha.gov/
+    keywords:
+      - OSHA
+      - workplace safety
+      - workplace health
+      - occupational injury
+      - workplace fatality
+      - safety citation
+      - workplace inspection
+      - workplace accident
+      - labor enforcement
+    tables:
+      inspection:
+        description: One row per OSHA inspection, ~5.2 million since 1970. Each row identifies the employer (estab_name, site address, NAICS/SIC industry), the inspection trigger (insp_type — accident, complaint, planned, referral, etc.), scope, union status, and the dates the case was opened/modified/closed. Joins to violation, related_activity, optional_info, and strategic_codes via activity_nr.
+        columns:
+          activity_nr: Unique inspection identifier. Primary key.
+          reporting_id: OSHA office or organizational unit responsible for the inspection.
+          state_flag: Indicates the inspection was performed by a state-plan OSHA program rather than federal OSHA. NULL or 1.
+          estab_name: Employer name (may have inconsistent spellings across rows for the same employer).
+          site_address: Street address of the inspected site.
+          site_city: City of the inspected site.
+          site_state: Two-letter state code of the inspected site.
+          site_zip: ZIP code of the inspected site.
+          owner_type: Code for ownership type (private, federal government, state/local government, etc.).
+          owner_code: Numeric owner code, paired with owner_type.
+          adv_notice: Whether advance notice of the inspection was given.
+          safety_hlth: "Inspection focus — \"S\" (safety) or \"H\" (health)."
+          sic_code: 4-digit Standard Industrial Classification code (1987 manual). NULL for inspections coded only with NAICS.
+          naics_code: 6-digit North American Industry Classification System code.
+          insp_type: Code for the impetus that triggered the inspection (planned schedule, accident, complaint, referral, follow-up, etc.).
+          insp_scope: Code for inspection scope — complete, partial, records-only, or no inspection.
+          why_no_insp: If insp_scope indicates no inspection took place, this code explains why.
+          union_status: Code indicating whether the workforce at the site was union-represented at the time of inspection.
+          safety_manuf: "Safety inspection covered manufacturing industries — \"X\" or NULL."
+          safety_const: "Safety inspection covered construction — \"X\" or NULL."
+          safety_marit: "Safety inspection covered maritime — \"X\" or NULL."
+          health_manuf: "Health inspection covered manufacturing — \"X\" or NULL."
+          health_const: "Health inspection covered construction — \"X\" or NULL."
+          health_marit: "Health inspection covered maritime — \"X\" or NULL."
+          migrant: "Flag indicating the inspection involved migrant or seasonal workers — \"X\" or NULL."
+          mail_street: Employer's mailing address — street.
+          mail_city: Mailing address city.
+          mail_state: Mailing address state.
+          mail_zip: Mailing address ZIP.
+          host_est_key: Cross-reference key for inspections at the same establishment (when multiple inspections at one site share an establishment ID).
+          nr_in_estab: Number of employees at the establishment at the time of inspection.
+          open_date: Date the inspection was opened (started).
+          case_mod_date: Date the case was last modified.
+          close_conf_date: Date of the closing conference with the employer.
+          close_case_date: Date the case was administratively closed.
+          ld_dt: Timestamp when this row was loaded into the scraper's database.
+        units:
+          nr_in_estab: persons
+      violation:
+        description: One row per OSHA standard cited on an inspection, ~13.2 million rows. Joins to inspection via activity_nr. Each row carries the cited standard, citation type (serious/willful/repeat/etc.), gravity, the current and initial penalty amounts, and the dates the violation was issued, contested, and reached final order. Failure-to-abate ("fta_*") columns track penalties added for not correcting earlier violations.
+        columns:
+          activity_nr: Foreign key to inspection.activity_nr.
+          citation_id: Citation identifier within the inspection (one inspection can have many citations).
+          delete_flag: Flag indicating the citation was deleted or superseded.
+          standard: OSHA standard cited (e.g., "19260451" for scaffold standard 29 CFR 1926.451).
+          viol_type: "Violation type — \"S\" (serious), \"W\" (willful), \"R\" (repeat), \"O\" (other-than-serious), \"U\" (unclassified), \"FTA\" (failure to abate), etc."
+          issuance_date: Date the citation was issued.
+          abate_date: Date by which the employer was required to abate the violation.
+          abate_complete: Date abatement was verified, or status code.
+          current_penalty: Current penalty amount in dollars (post-settlement, after reductions or increases).
+          initial_penalty: Initial penalty proposed when the citation was issued, in dollars.
+          contest_date: Date the employer formally contested the citation, if applicable.
+          final_order_date: Date the citation became a final order.
+          nr_instances: Number of instances of the violation cited.
+          nr_exposed: Number of employees exposed to the cited hazard.
+          rec: Recordkeeping flag.
+          gravity: Gravity-based penalty severity, an integer rating used by OSHA penalty-calculation guidelines.
+          emphasis: Whether the inspection was part of an emphasis program (NEP/SEP).
+          hazcat: Hazard category code.
+          fta_insp_nr: Inspection number of the prior inspection on which the failure-to-abate is based.
+          fta_issuance_date: Issuance date of the failure-to-abate citation.
+          fta_penalty: Failure-to-abate penalty amount in dollars.
+          fta_contest_date: Contest date for the failure-to-abate citation.
+          fta_final_order_date: Final-order date for the failure-to-abate citation.
+          hazsub1: First hazardous-substance code associated with the violation.
+          hazsub2: Second hazardous-substance code.
+          hazsub3: Third hazardous-substance code.
+          hazsub4: Fourth hazardous-substance code.
+          hazsub5: Fifth hazardous-substance code.
+          load_dt: Timestamp when this row was loaded.
+        units:
+          current_penalty: dollars
+          initial_penalty: dollars
+          fta_penalty: dollars
+          nr_instances: instances
+          nr_exposed: persons
+      violation_event:
+        description: History of changes to a violation's penalty, abatement date, or status — ~11.6 million rows. Each row records a settlement, contest, modification, or other event that altered an earlier-issued violation. Useful for tracking how proposed penalties shrink through the appeals and settlement process.
+        columns:
+          activity_nr: Foreign key to violation.activity_nr.
+          citation_id: Foreign key to violation.citation_id.
+          pen_fta: Flag distinguishing penalty events from failure-to-abate events.
+          hist_event: Type of event (settlement, contest, modification, etc.).
+          hist_date: Date of the event.
+          hist_penalty: Penalty amount after this event, in dollars.
+          hist_abate_date: New abatement date set by this event, if applicable.
+          hist_vtype: New violation type after this event.
+          hist_insp_nr: Related inspection number.
+          load_dt: Timestamp when this row was loaded.
+        units:
+          hist_penalty: dollars
+      violation_gen_duty_std:
+        description: Text of "general duty clause" citations — violations issued under Section 5(a)(1) of the OSH Act, which OSHA uses when no specific standard fits. Each row is one line of the citation narrative. ~2.2 million rows. Join to violation via activity_nr + citation_id.
+        columns:
+          activity_nr: Foreign key to violation.activity_nr.
+          citation_id: Foreign key to violation.citation_id.
+          line_nr: Line number within the citation narrative.
+          line_text: One line of the citation's general-duty-clause narrative text.
+          load_dt: Timestamp when this row was loaded.
+      accident:
+        description: One row per accident investigated by OSHA — ~165,000 since 1972. Sourced from OSHA Form 170 (Accident Investigation). Each row identifies the event date, a short event description (event_desc), and (for construction accidents) the project type, end-use, cost bracket, and number of stories. Joins to accident_abstract for the narrative text and accident_injury for per-victim details.
+        columns:
+          summary_nr: Accident summary number. Primary key.
+          report_id: OSHA reporting unit that handled the investigation.
+          event_date: Date of the accident.
+          event_time: Time of the accident, encoded as HHMM (e.g., 1430 for 2:30pm).
+          event_desc: Short text description of what happened.
+          event_keyword: Keyword classifying the accident type.
+          const_end_use: For construction accidents, the end use of the construction project (FK to end_use).
+          build_stories: For accidents at building sites, number of stories of the building.
+          nonbuild_ht: For accidents at non-building sites, height in feet.
+          project_cost: For construction accidents, cost bracket of the project (FK to cost).
+          project_type: For construction accidents, type of project (FK to project_type).
+          sic_list: SIC codes applicable to the site (comma-separated).
+          fatality: Flag indicating the accident resulted in at least one fatality.
+          state_flag: Indicates the accident was investigated by a state-plan OSHA program.
+          abstract_text: Indicates whether an abstract is available in accident_abstract.
+          load_dt: Timestamp when this row was loaded.
+      accident_abstract:
+        description: Narrative descriptions of accidents — one row per line per accident, ~1.15 million rows. Join to accident via summary_nr. Useful for full-text search; the narratives describe the circumstances of the accident in plain prose.
+        columns:
+          summary_nr: Foreign key to accident.summary_nr.
+          line_nr: Line number within the abstract.
+          abstract_text: One line of the accident narrative.
+          load_dt: Timestamp when this row was loaded.
+      accident_injury:
+        description: One row per injured person per accident — ~232,000 rows. Identifies the victim's age and sex, the nature and degree of the injury, the body part affected, the source of the injury, the human/environmental contributing factors, and (for falls) the fall height and distance. Joins to accident via the rel_insp_nr field (which is the inspection number, FK to inspection.activity_nr) and to the lookup tables for the coded fields.
+        columns:
+          summary_nr: Foreign key to accident.summary_nr.
+          rel_insp_nr: Foreign key to inspection.activity_nr — the inspection associated with this injury.
+          age: Age of the injured person.
+          sex: "Sex of the injured person — \"M\", \"F\", or unknown."
+          nature_of_inj: Nature-of-injury code (FK to injury).
+          part_of_body: Body-part-affected code (FK to body_part).
+          src_of_injury: Source-of-injury code (FK to injury_source).
+          event_type: Event-type code (FK to event_type).
+          evn_factor: Environmental-factor code (FK to environmental).
+          hum_factor: Human-factor code (FK to human).
+          occ_code: Occupation code (FK to occupation).
+          degree_of_inj: Degree-of-injury code (FK to degree_injury — fatal, hospitalized, non-hospitalized, etc.).
+          task_assigned: Task-assigned code (FK to task — what the worker was assigned to do).
+          hazsub: Hazardous-substance code, if a substance was involved.
+          const_op: Construction operation code, if applicable (FK to operator).
+          const_op_cause: Construction operation cause code (FK to operator).
+          fat_cause: For fatalities, the cause code (FK to fatality).
+          fall_distance: For falls, distance fallen in feet.
+          fall_ht: For falls, height of the fall in feet.
+          injury_line_nr: Line number within the accident's injury list.
+          load_dt: Timestamp when this row was loaded.
+        units:
+          age: years
+          fall_distance: feet
+          fall_ht: feet
+      optional_info:
+        description: Generic key/value extension data on inspections — ~1.7 million rows. OSHA uses this table to capture inspection details that didn't fit the structured columns of the inspection table. Join via activity_nr.
+        columns:
+          activity_nr: Foreign key to inspection.activity_nr.
+          opt_type: Type identifier for the extension data.
+          opt_id: Identifier within the type.
+          opt_value: Value of the optional field.
+          opt_info_id: Sub-identifier.
+          load_dt: Timestamp when this row was loaded.
+      related_activity:
+        description: Links inspections to other related inspections — ~2.5 million rows. Used when one inspection triggers another (e.g., a follow-up, referral, or related-establishment inspection). Join the parent via activity_nr; rel_act_nr identifies the related inspection.
+        columns:
+          activity_nr: Foreign key to inspection.activity_nr (the parent inspection).
+          rel_type: Type of relationship (follow-up, referral, related-establishment, etc.).
+          rel_act_nr: Activity number of the related inspection.
+          rel_safety: "Whether the related inspection covered safety — \"X\" or NULL."
+          rel_health: "Whether the related inspection covered health — \"X\" or NULL."
+          load_dt: Timestamp when this row was loaded.
+      strategic_codes:
+        description: Emphasis-program codes attached to inspections — ~2.9 million rows. OSHA targets inspections through National Emphasis Programs (NEPs) and Local Emphasis Programs (LEPs). Each row tags an inspection with one such program. Join via activity_nr.
+        columns:
+          activity_nr: Foreign key to inspection.activity_nr.
+          prog_type: Program-type identifier (e.g., NEP, LEP, SEP).
+          prog_value: Specific program code or name (e.g., the NEP for amputations, trenching, combustible dust).
+          load_dt: Timestamp when this row was loaded.
+      event_type:
+        description: Lookup table for accident_injury.event_type — the kind of event that caused the injury (struck by object, fall from elevation, caught in machinery, etc.). One row per code.
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.event_type).
+          accident_value: Human-readable event description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      fatality:
+        description: Lookup table for accident_injury.fat_cause — the cause of death in fatal accidents.
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.fat_cause).
+          accident_value: Human-readable cause-of-death description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      operator:
+        description: Lookup table for accident_injury.const_op and const_op_cause — the construction operation being performed when the injury occurred (e.g., trenching, welding, scaffold erection).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.const_op / const_op_cause).
+          accident_value: Human-readable operation description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      environmental:
+        description: Lookup table for accident_injury.evn_factor — environmental contributing factors (e.g., poor lighting, weather conditions, slippery surfaces).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.evn_factor).
+          accident_value: Human-readable environmental-factor description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      human:
+        description: Lookup table for accident_injury.hum_factor — human contributing factors (e.g., lack of training, fatigue, failure to use PPE).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.hum_factor).
+          accident_value: Human-readable human-factor description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      injury:
+        description: Lookup table for accident_injury.nature_of_inj — the nature of the injury (e.g., fracture, laceration, amputation, burn).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.nature_of_inj).
+          accident_value: Human-readable injury-nature description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      occupation:
+        description: Lookup table for accident_injury.occ_code — the occupation of the injured worker.
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.occ_code).
+          accident_value: Human-readable occupation description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      body_part:
+        description: Lookup table for accident_injury.part_of_body — which body part was injured (e.g., hand, head, back, eye).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.part_of_body).
+          accident_value: Human-readable body-part description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      injury_source:
+        description: Lookup table for accident_injury.src_of_injury — the source object or substance that caused the injury (e.g., ladder, vehicle, chemical, machinery).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.src_of_injury).
+          accident_value: Human-readable injury-source description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      degree_injury:
+        description: Lookup table for accident_injury.degree_of_inj — the severity of the injury (fatality, hospitalized, non-hospitalized lost-time, first aid, etc.).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.degree_of_inj).
+          accident_value: Human-readable severity description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      task:
+        description: Lookup table for accident_injury.task_assigned — the task the worker was assigned to perform when injured.
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key (referenced by accident_injury.task_assigned).
+          accident_value: Human-readable task description.
+          accident_letter: Sub-letter within the code group.
+          load_dt: Timestamp when this row was loaded.
+      project_type:
+        description: Lookup table for accident.project_type — for construction accidents, the type of project (new construction, alteration, demolition, etc.).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key.
+          accident_value: Human-readable project-type description.
+          accident_letter: Letter key (referenced by accident.project_type).
+          load_dt: Timestamp when this row was loaded.
+      end_use:
+        description: Lookup table for accident.const_end_use — for construction accidents, the end use of the building or facility being constructed (residential, commercial, industrial, highway, etc.).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key.
+          accident_value: Human-readable end-use description.
+          accident_letter: Letter key (referenced by accident.const_end_use).
+          load_dt: Timestamp when this row was loaded.
+      cost:
+        description: Lookup table for accident.project_cost — for construction accidents, the cost bracket of the construction project (e.g., under $50k, $50k-$250k, etc.).
+        columns:
+          accident_code: OSHA-170 form code group.
+          accident_number: Code key.
+          accident_value: Human-readable cost-bracket description.
+          accident_letter: Letter key (referenced by accident.project_cost).
+          load_dt: Timestamp when this row was loaded.
