@@ -11,12 +11,6 @@ databases:
     description_html: |-
       <p>National Labor Relations Board case data from the NLRB's current online case management system. Covers union-representation cases (R petitions — RC certification, RD decertification, RM employer-filed) and unfair-labor-practice cases (C charges — CA against employers, CB against unions, and several less-common subtypes), plus unit-clarification, deauthorization, and related case types.</p>
       <p>The data is organized around a central <a href="./nlrb/filing">filing</a> table (one row per case) with related tables for <a href="./nlrb/participant">participants</a>, <a href="./nlrb/allegation">allegations</a>, <a href="./nlrb/sought_unit">bargaining units sought</a>, <a href="./nlrb/voting_unit">units that voted</a>, <a href="./nlrb/election">elections</a>, <a href="./nlrb/election_result">election results</a>, <a href="./nlrb/tally">tallies</a>, <a href="./nlrb/docket">docket events</a>, and <a href="./nlrb/document">case documents</a>. All linked by <code>case_number</code>.</p>
-      <h2>Data Limitations</h2>
-      <ul>
-        <li>The NLRB's online case system covers cases from roughly 2010 onward. A handful of older legacy cases that remained open into that era also appear. See <a href="./cats">cats</a> for the 1999–2011 predecessor system.</li>
-        <li>The update process downloads a CSV of all cases within a specified time period from nlrb.gov. Repeated requests for the same period return spreadsheets with slightly different contents, so an occasional recent case can be missing or temporarily out of date.</li>
-        <li>The <a href="./nlrb/participant">participant</a> table has known data-quality issues — some rows have street-address text in the <code>subtype</code> column from upstream-data confusion. Filter carefully when analyzing party types.</li>
-      </ul>
     temporal_coverage: "2010/.."
     source_organization:
       "@type": GovernmentOrganization
@@ -34,7 +28,7 @@ databases:
       - labor disputes
     tables:
       filing:
-        description: One row per NLRB case, identified by case_number. The hub of the schema — all other tables reference filing via case_number. Most common case types are CA (~337k, charges against employers), CB (~103k, charges against unions), RC (~42k, certification petitions), and RD (~9k, decertification petitions); smaller categories include RM, CC, CD, CE, CG, CP, UC, UD, AC, and WH.
+        description: One row per NLRB case, identified by case_number. The hub of the schema — all other tables reference filing via case_number. Common case types include CA (charges against employers), CB (charges against unions), RC (certification petitions), RD (decertification petitions), and RM (employer-filed representation), along with smaller categories CC, CD, CE, CG, CP, UC, UD, AC, and WH.
         columns:
           case_number: NLRB case identifier. Format is <region>-<type>-<sequence>, e.g. "01-RC-123456". Primary key.
           name: Case name (typically the employer or charged party).
@@ -54,7 +48,7 @@ databases:
           updated_at: Timestamp when this row was last updated by the scraper.
           last_checked_at: Timestamp of the most recent scrape check against nlrb.gov.
       docket:
-        description: One row per docket-system event for a case — every filing, ruling, order, or document logged on the case's NLRB docket. Approximately 2 million rows.
+        description: One row per docket-system event for a case — every filing, ruling, order, or document logged on the case's NLRB docket.
         columns:
           case_number: Foreign key to filing.case_number.
           date: Date of the docket event (ISO 8601, YYYY-MM-DD).
@@ -70,7 +64,7 @@ databases:
           created_at: Scrape timestamp.
           updated_at: Last-update timestamp.
       participant:
-        description: Parties to each case — petitioners, charged parties, employers, unions, intervenors, and their legal representatives. Approximately 1.9 million rows; many cases have multiple participants. Note that the subtype column is partially polluted by upstream data quality issues (some rows contain street addresses where a subtype code is expected).
+        description: Parties to each case — petitioners, charged parties, employers, unions, intervenors, and their legal representatives. Many cases have multiple participants. Note that the subtype column is partially polluted by upstream data quality issues (some rows contain street addresses where a subtype code is expected).
         columns:
           case_number: Foreign key to filing.case_number.
           participant: Name of the party (organization or individual).
@@ -116,7 +110,7 @@ databases:
           unit_size: Number of workers in the voting unit at the time of the election.
           created_at: Scrape timestamp.
       election_mode:
-        description: Detailed election-mode records sourced from a separate FOIA request to the NLRB (not from the public case scrape that populates the rest of this database). Adds mode-specific timing fields (when ballots were mailed, when they were counted) and per-ballot-choice vote totals beyond what the public website exposes. Approximately 7,000 rows — coverage is limited to the period covered by the FOIA release.
+        description: Detailed election-mode records sourced from a separate FOIA request to the NLRB (not from the public case scrape that populates the rest of this database). Adds mode-specific timing fields (when ballots were mailed, when they were counted) and per-ballot-choice vote totals beyond what the public website exposes. Coverage is limited to the period covered by the FOIA release.
         columns:
           election_id: Foreign key to election.election_id.
           case_number: Foreign key to filing.case_number.
@@ -165,7 +159,7 @@ databases:
           union_to_certify: Name of the union to be certified, if the election produced certification.
           created_at: Scrape timestamp.
       tally:
-        description: Per-ballot-option vote count for each election — one row per option per election. Options include each union on the ballot and "No union". Approximately 68,000 rows across ~33,000 elections.
+        description: Per-ballot-option vote count for each election — one row per option per election. Options include each union on the ballot and "No union".
         columns:
           election_id: Foreign key to election.election_id.
           option: Ballot option name — typically a union name, or "No union" for the no-representation choice.
@@ -266,7 +260,7 @@ databases:
       - historical labor data
     tables:
       nlrb_representation_1961_1998:
-        description: One row per NLRB representation election held between roughly 1959 and 1999. 224,822 rows. About 87% are RC (certification) petitions, 9% RD (decertification), and 4% RM (employer-filed). Roughly half of elections were won by the petitioning union and half were lost.
+        description: One row per NLRB representation election held between roughly 1959 and 1999. Most rows are RC (certification) petitions, with smaller shares of RD (decertification) and RM (employer-filed) cases. Roughly half of elections were won by the petitioning union and half were lost.
         columns:
           nlrb_id: NLRB case identifier.
           region: NLRB regional office, as an integer code (1 through ~32).
@@ -469,7 +463,7 @@ databases:
         <li>Detailed itemized receipts and disbursements above OLMS thresholds — the largest tables here</li>
       </ul>
       <p>The schema is organized around the <a href="./opdr/lm_data">lm_data</a> table (one row per filing, keyed by <code>rpt_id</code>). Most other tables follow the convention <code>ar_&lt;category&gt;_&lt;subcategory&gt;</code> — "ar" for "annual report". Categorical fields foreign-key to <a href="./opdr/ar_erds_codes">ar_erds_codes</a>, a lookup table that expands the OLMS code numbers (account types, disbursement types, fiscal-year-end months, etc.).</p>
-      <p>Roughly 600,000 filings cover 1999 through the present; the largest tables are <a href="./opdr/ar_disbursements_emp_off">ar_disbursements_emp_off</a> (~4.9M officer/employee compensation rows) and <a href="./opdr/ar_disbursements_genrl">ar_disbursements_genrl</a> (~3.1M general disbursement rows).</p>
+      <p>Filings cover 1999 through the present; the largest tables are <a href="./opdr/ar_disbursements_emp_off">ar_disbursements_emp_off</a> (officer/employee compensation) and <a href="./opdr/ar_disbursements_genrl">ar_disbursements_genrl</a> (general disbursements).</p>
     source: OLMS Online Public Disclosure Room
     source_url: https://github.com/labordata/opdr
     temporal_coverage: "1999/.."
@@ -489,7 +483,7 @@ databases:
       - dues and receipts
     tables:
       lm_data:
-        description: One row per union annual financial report. The hub of the schema — all other tables reference lm_data via rpt_id. ~604,000 filings spanning 1999 to present. Includes union identification, the reporting period, summary totals (assets/liabilities/receipts/disbursements), and various yes/no indicators about filing characteristics.
+        description: One row per union annual financial report. The hub of the schema — all other tables reference lm_data via rpt_id. Filings span 1999 to present. Includes union identification, the reporting period, summary totals (assets/liabilities/receipts/disbursements), and various yes/no indicators about filing characteristics.
         columns:
           rpt_id: OLMS report ID. Primary key.
           union_name: Reporting union's name as it appears on the filing.
@@ -555,14 +549,14 @@ databases:
           ttl_disbursements: dollars
           members: persons
       ar_erds_codes:
-        description: Code lookup table. 93 rows. Other ar_ tables foreign-key here for categorical fields. Distinct code_type values include FYE_CODE (12 months), ASSET_CODE (5), DISBURSEMENT_CODE (7), EMP_OFF_CODE (4 officer/employee types), TAX_CODE (26 withholding categories), INVESTMENT_CODE (6), and more.
+        description: Code lookup table. Other ar_ tables foreign-key here for categorical fields. Distinct code_type values include FYE_CODE (fiscal year-end months), ASSET_CODE, DISBURSEMENT_CODE, EMP_OFF_CODE (officer/employee types), TAX_CODE (withholding categories), INVESTMENT_CODE, and more.
         columns:
           code: Numeric code. Primary key.
           code_type: Code category (e.g. "DISBURSEMENT_CODE", "FYE_CODE", "EMP_OFF_CODE").
           name: Short abbreviation for the code value.
           code_description: Human-readable description.
       ar_payer_payee:
-        description: Master list of payers and payees referenced from itemized receipts and disbursements. ~2.2M rows. Each row is one named counterparty per filing — typically a vendor, contractor, employer (for dues check-off), or recipient organization. Referenced by ar_disbursements_genrl, ar_receipts_other, etc., via payer_payee_id.
+        description: Master list of payers and payees referenced from itemized receipts and disbursements. Each row is one named counterparty per filing — typically a vendor, contractor, employer (for dues check-off), or recipient organization. Referenced by ar_disbursements_genrl, ar_receipts_other, etc., via payer_payee_id.
         columns:
           payer_payee_id: Primary key.
           rpt_id: Foreign key to lm_data.rpt_id.
@@ -774,7 +768,7 @@ databases:
           edu_pub_expense: Educational and publicity expense.
           pro_fees: Professional fees.
       ar_disbursements_emp_off:
-        description: Officer and employee compensation detail — Schedule 11 (officers) and Schedule 12 (employees) on the LM-2 form. The largest table in the database at ~4.9M rows. One row per officer or employee per filing, with salary, allowances, official-business expenses, "other" disbursements, and a percentage breakdown of how their time was allocated across representational/political/contribution/general-overhead/administration activities.
+        description: Officer and employee compensation detail — Schedule 11 (officers) and Schedule 12 (employees) on the LM-2 form. The largest table in the database. One row per officer or employee per filing, with salary, allowances, official-business expenses, "other" disbursements, and a percentage breakdown of how their time was allocated across representational/political/contribution/general-overhead/administration activities.
         columns:
           oid: Primary key.
           rpt_id: Foreign key to lm_data.rpt_id.
@@ -807,7 +801,7 @@ databases:
           gen_ovrhd_pct: percent
           admin_pct: percent
       ar_disbursements_genrl:
-        description: General disbursement detail — Schedules 14–19 on the LM-2 form (representational activities, political activities, contributions, general overhead, union administration, and benefits-related disbursements). ~3.1M rows. Each row is one disbursement above OLMS itemization thresholds, with payee, purpose, date, and amount.
+        description: General disbursement detail — Schedules 14–19 on the LM-2 form (representational activities, political activities, contributions, general overhead, union administration, and benefits-related disbursements). Each row is one disbursement above OLMS itemization thresholds, with payee, purpose, date, and amount.
         columns:
           oid: Primary key.
           rpt_id: Foreign key to lm_data.rpt_id.
@@ -968,7 +962,7 @@ databases:
       - civil money penalties
     tables:
       cases:
-        description: One row per closed WHD investigation. ~365,000 cases since 1985. Each row identifies the employer (trade and legal name, address, NAICS industry), the count of violations found, the civil money penalty assessed, back wages agreed to be paid (and the number of employees due those back wages), and the investigation date range. Note that a small number of rows have nonsense dates (year 0200 or 3021) reflecting upstream data-entry errors.
+        description: One row per closed WHD investigation, covering cases from 1985 onward. Each row identifies the employer (trade and legal name, address, NAICS industry), the count of violations found, the civil money penalty assessed, back wages agreed to be paid (and the number of employees due those back wages), and the investigation date range. Note that a small number of rows have nonsense dates (year 0200 or 3021) reflecting upstream data-entry errors.
         columns:
           case_id: WHD case identifier. Primary key.
           trade_nm: Employer's trade name (DBA).
@@ -995,7 +989,7 @@ databases:
           bw_atp_amt: dollars
           ee_atp_cnt: persons
       violations:
-        description: One row per violation type per case — the per-statute breakdown of each investigation's findings. About 542,000 rows. The type column identifies the specific federal labor law violated; the most common are FLSA (general Fair Labor Standards Act), flsa_ot (overtime specifically), flsa_mw (minimum wage), fmla (Family and Medical Leave Act), and dbra (Davis-Bacon Act).
+        description: One row per violation type per case — the per-statute breakdown of each investigation's findings. The type column identifies the specific federal labor law violated; common values include FLSA (general Fair Labor Standards Act), flsa_ot (overtime), flsa_mw (minimum wage), fmla (Family and Medical Leave Act), and dbra (Davis-Bacon Act).
         columns:
           id: Primary key.
           case_id: Foreign key to cases.case_id.
@@ -1045,7 +1039,7 @@ databases:
     tables:
       filer:
         label_column: companyName
-        description: One row per filing entity (the persuader firm or individual). 778 rows. Identified by OLMS's surrogate filer id (srNum).
+        description: One row per filing entity (the persuader firm or individual). Identified by OLMS's surrogate filer id (srNum).
         columns:
           srNum: OLMS surrogate filer ID. Primary key.
           companyName: Persuader's filing name.
@@ -1094,7 +1088,7 @@ databases:
           zip_code: ZIP code.
           ein: Employer Identification Number, when reported.
       employer:
-        description: Employers that hired the persuader. Each LM-20 names the employer that contracted for persuader services; sometimes more than one employer per filing (~13k rows across ~10k LM-20 filings).
+        description: Employers that hired the persuader. Each LM-20 names the employer that contracted for persuader services; sometimes more than one employer per filing.
         columns:
           rptId: Foreign key to filing.rptId.
           empLabOrg: Employer name.
@@ -1104,7 +1098,7 @@ databases:
           termDate: Date the agreement with the persuader was terminated, when applicable.
           amount: Amount paid to the persuader under this agreement.
       lm20:
-        description: LM-20-specific fields — the persuader agreement details. One row per LM-20 filing (3,337 rows). Keyed by rptId.
+        description: LM-20-specific fields — the persuader agreement details. One row per LM-20 filing. Keyed by rptId.
         columns:
           rptId: Foreign key to filing.rptId.
           amended: Amendment flag (numeric).
@@ -1124,7 +1118,7 @@ databases:
           state: State.
           zip_code: ZIP code.
       lm21:
-        description: LM-21-specific fields — the annual receipts and disbursements report (Schedule lines + summary totals). 379 rows. Column names preserve the verbatim formatting from the source export, including some leading-space and abbreviated column names.
+        description: LM-21-specific fields — the annual receipts and disbursements report (Schedule lines + summary totals). Column names preserve the verbatim formatting from the source export, including some leading-space and abbreviated column names.
         columns:
           rptId: Foreign key to filing.rptId.
           period_begin: Beginning of the reporting period.
@@ -1252,7 +1246,7 @@ databases:
     tables:
       filer:
         label_column: companyName
-        description: One row per employer that files LM-10s. 5,879 rows. Identified by OLMS surrogate filer id (srNum).
+        description: One row per employer that files LM-10s. Identified by OLMS surrogate filer id (srNum).
         columns:
           srNum: OLMS surrogate filer ID. Primary key.
           srFilerId: OLMS filer-system identifier (string form).
@@ -1261,7 +1255,7 @@ databases:
           companyCity: City of the filer's reported address.
           companyState: State of the filer's reported address.
       filing:
-        description: One row per LM-10 filing. 14,548 rows. Keyed by rptId. Each filing covers a fiscal year and may disclose multiple reportable activities.
+        description: One row per LM-10 filing. Keyed by rptId. Each filing covers a fiscal year and may disclose multiple reportable activities.
         columns:
           rptId: OLMS report ID. Primary key.
           formFiled: "Form type — always \"LM-10\" in this database."
@@ -1293,7 +1287,7 @@ databases:
           file_checksum: Checksum of the cached file (for change detection).
           file_status: Scraper status indicator for the file fetch.
       lm10:
-        description: LM-10 form-specific fields. One row per filing (2,752 rows). Mostly covers the reporting period and metadata about where the underlying records are kept.
+        description: LM-10 form-specific fields. One row per filing. Mostly covers the reporting period and metadata about where the underlying records are kept.
         columns:
           rptId: Foreign key to filing.rptId.
           file_number: OLMS internal file number.
@@ -1318,7 +1312,7 @@ databases:
           state: State.
           "zip_code_+_4": ZIP+4 code.
       activity:
-        description: Reportable activities — one row per individual payment, agreement, or expenditure the employer must disclose. ~14,500 rows across ~14,500 filings. Each activity is classified by activity_code (which question on the form, 8.a-f) and activity_type (Payment, Agreement, or Both).
+        description: Reportable activities — one row per individual payment, agreement, or expenditure the employer must disclose. Each activity is classified by activity_code (which question on the form, 8.a-f) and activity_type (Payment, Agreement, or Both).
         columns:
           id: Primary key for the activity.
           rptId: Foreign key to filing.rptId.
@@ -1335,7 +1329,7 @@ databases:
           unlisted_agencies: Free-text list of agencies not in the standard dropdown.
           12b_exists: "Indicator (1/0) for whether the Item 12.b. block applies (additional information continuation)."
       reportable_activity:
-        description: One row per Form Item 8.a–8.f question per filing, recording the employer's yes/no answer and (when "Yes") the count of detailed activity rows reported in the activity table. ~16,500 rows.
+        description: One row per Form Item 8.a–8.f question per filing, recording the employer's yes/no answer and (when "Yes") the count of detailed activity rows reported in the activity table.
         columns:
           rptId: Foreign key to filing.rptId.
           code: Question code — "8.a" through "8.f".
@@ -1363,7 +1357,7 @@ databases:
           state: State.
           "zip_code_+_4": ZIP+4 code.
       expenditure:
-        description: Individual expenditure rows under each activity — the line-by-line payments. ~39,400 rows. The kind field is free-text and not normalized ("Check", "check", "Payment by check", "Cash", "Travel Savings", "Meal" / "Meals", etc.).
+        description: Individual expenditure rows under each activity — the line-by-line payments. The kind field is free-text and not normalized ("Check", "check", "Payment by check", "Cash", "Travel Savings", "Meal" / "Meals", etc.).
         columns:
           activity_id: Foreign key to activity.id.
           date: Date of the expenditure (ISO 8601, YYYY-MM-DD).
@@ -1388,7 +1382,7 @@ databases:
           on_date: Date signed.
           telephone_number: Phone number.
       organization:
-        description: Subsidiary and affiliated organizations of the reporting employer. ~33,500 rows — many filings list multiple related corporate entities.
+        description: Subsidiary and affiliated organizations of the reporting employer. Many filings list multiple related corporate entities.
         columns:
           rptId: Foreign key to filing.rptId.
           oID: Organization identifier within OLMS.
@@ -1411,7 +1405,7 @@ databases:
   osha_enforcement:
     title: OSHA Enforcement Data (inspections, citations, accidents)
     description_html: |-
-      <p>Every OSHA inspection on record — over 5 million since 1970 — with associated citations, penalties, and accident investigations. Sourced from the federal Occupational Safety and Health Administration's "Integrated Management Information System" (IMIS), the system that captures every enforcement action by federal OSHA offices and the 28 state-plan OSHA programs.</p>
+      <p>Every OSHA inspection on record since 1970, with associated citations, penalties, and accident investigations. Sourced from the federal Occupational Safety and Health Administration's "Integrated Management Information System" (IMIS), the system that captures every enforcement action by federal OSHA offices and the 28 state-plan OSHA programs.</p>
       <p>The data is downloaded nightly from <a href="https://enforcedata.dol.gov/">DOL's Enforcement Data Catalog</a> (the same upstream source as the WHISARD data); processing scripts live at <a href="https://github.com/labordata/osha-enforcement">labordata/osha-enforcement</a>.</p>
     source: DOL Enforcement Data Catalog, processed
     source_url: https://github.com/labordata/osha-enforcement
@@ -1432,7 +1426,7 @@ databases:
       - labor enforcement
     tables:
       inspection:
-        description: One row per OSHA inspection, ~5.2 million since 1970. Each row identifies the employer (estab_name, site address, NAICS/SIC industry), the inspection trigger (insp_type — accident, complaint, planned, referral, etc.), scope, union status, and the dates the case was opened/modified/closed. Joins to violation, related_activity, optional_info, and strategic_codes via activity_nr.
+        description: One row per OSHA inspection, going back to 1970. Each row identifies the employer (estab_name, site address, NAICS/SIC industry), the inspection trigger (insp_type — accident, complaint, planned, referral, etc.), scope, union status, and the dates the case was opened/modified/closed. Joins to violation, related_activity, optional_info, and strategic_codes via activity_nr.
         columns:
           activity_nr: Unique inspection identifier. Primary key.
           reporting_id: OSHA office or organizational unit responsible for the inspection.
@@ -1473,7 +1467,7 @@ databases:
         units:
           nr_in_estab: persons
       violation:
-        description: One row per OSHA standard cited on an inspection, ~13.2 million rows. Joins to inspection via activity_nr. Each row carries the cited standard, citation type (serious/willful/repeat/etc.), gravity, the current and initial penalty amounts, and the dates the violation was issued, contested, and reached final order. Failure-to-abate ("fta_*") columns track penalties added for not correcting earlier violations.
+        description: One row per OSHA standard cited on an inspection. Joins to inspection via activity_nr. Each row carries the cited standard, citation type (serious/willful/repeat/etc.), gravity, the current and initial penalty amounts, and the dates the violation was issued, contested, and reached final order. Failure-to-abate ("fta_*") columns track penalties added for not correcting earlier violations.
         columns:
           activity_nr: Foreign key to inspection.activity_nr.
           citation_id: Citation identifier within the inspection (one inspection can have many citations).
@@ -1511,7 +1505,7 @@ databases:
           nr_instances: instances
           nr_exposed: persons
       violation_event:
-        description: History of changes to a violation's penalty, abatement date, or status — ~11.6 million rows. Each row records a settlement, contest, modification, or other event that altered an earlier-issued violation. Useful for tracking how proposed penalties shrink through the appeals and settlement process.
+        description: History of changes to a violation's penalty, abatement date, or status. Each row records a settlement, contest, modification, or other event that altered an earlier-issued violation. Useful for tracking how proposed penalties shrink through the appeals and settlement process.
         columns:
           activity_nr: Foreign key to violation.activity_nr.
           citation_id: Foreign key to violation.citation_id.
@@ -1526,7 +1520,7 @@ databases:
         units:
           hist_penalty: dollars
       violation_gen_duty_std:
-        description: Text of "general duty clause" citations — violations issued under Section 5(a)(1) of the OSH Act, which OSHA uses when no specific standard fits. Each row is one line of the citation narrative. ~2.2 million rows. Join to violation via activity_nr + citation_id.
+        description: Text of "general duty clause" citations — violations issued under Section 5(a)(1) of the OSH Act, which OSHA uses when no specific standard fits. Each row is one line of the citation narrative. Join to violation via activity_nr + citation_id.
         columns:
           activity_nr: Foreign key to violation.activity_nr.
           citation_id: Foreign key to violation.citation_id.
@@ -1534,7 +1528,7 @@ databases:
           line_text: One line of the citation's general-duty-clause narrative text.
           load_dt: Timestamp when this row was loaded.
       accident:
-        description: One row per accident investigated by OSHA — ~165,000 since 1972. Sourced from OSHA Form 170 (Accident Investigation). Each row identifies the event date, a short event description (event_desc), and (for construction accidents) the project type, end-use, cost bracket, and number of stories. Joins to accident_abstract for the narrative text and accident_injury for per-victim details.
+        description: One row per accident investigated by OSHA, going back to 1972. Sourced from OSHA Form 170 (Accident Investigation). Each row identifies the event date, a short event description (event_desc), and (for construction accidents) the project type, end-use, cost bracket, and number of stories. Joins to accident_abstract for the narrative text and accident_injury for per-victim details.
         columns:
           summary_nr: Accident summary number. Primary key.
           report_id: OSHA reporting unit that handled the investigation.
@@ -1553,14 +1547,14 @@ databases:
           abstract_text: Indicates whether an abstract is available in accident_abstract.
           load_dt: Timestamp when this row was loaded.
       accident_abstract:
-        description: Narrative descriptions of accidents — one row per line per accident, ~1.15 million rows. Join to accident via summary_nr. Useful for full-text search; the narratives describe the circumstances of the accident in plain prose.
+        description: Narrative descriptions of accidents — one row per line per accident. Join to accident via summary_nr. Useful for full-text search; the narratives describe the circumstances of the accident in plain prose.
         columns:
           summary_nr: Foreign key to accident.summary_nr.
           line_nr: Line number within the abstract.
           abstract_text: One line of the accident narrative.
           load_dt: Timestamp when this row was loaded.
       accident_injury:
-        description: One row per injured person per accident — ~232,000 rows. Identifies the victim's age and sex, the nature and degree of the injury, the body part affected, the source of the injury, the human/environmental contributing factors, and (for falls) the fall height and distance. Joins to accident via the rel_insp_nr field (which is the inspection number, FK to inspection.activity_nr) and to the lookup tables for the coded fields.
+        description: One row per injured person per accident. Identifies the victim's age and sex, the nature and degree of the injury, the body part affected, the source of the injury, the human/environmental contributing factors, and (for falls) the fall height and distance. Joins to accident via the rel_insp_nr field (which is the inspection number, FK to inspection.activity_nr) and to the lookup tables for the coded fields.
         columns:
           summary_nr: Foreign key to accident.summary_nr.
           rel_insp_nr: Foreign key to inspection.activity_nr — the inspection associated with this injury.
@@ -1588,7 +1582,7 @@ databases:
           fall_distance: feet
           fall_ht: feet
       optional_info:
-        description: Generic key/value extension data on inspections — ~1.7 million rows. OSHA uses this table to capture inspection details that didn't fit the structured columns of the inspection table. Join via activity_nr.
+        description: Generic key/value extension data on inspections. OSHA uses this table to capture inspection details that didn't fit the structured columns of the inspection table. Join via activity_nr.
         columns:
           activity_nr: Foreign key to inspection.activity_nr.
           opt_type: Type identifier for the extension data.
@@ -1597,7 +1591,7 @@ databases:
           opt_info_id: Sub-identifier.
           load_dt: Timestamp when this row was loaded.
       related_activity:
-        description: Links inspections to other related inspections — ~2.5 million rows. Used when one inspection triggers another (e.g., a follow-up, referral, or related-establishment inspection). Join the parent via activity_nr; rel_act_nr identifies the related inspection.
+        description: Links inspections to other related inspections. Used when one inspection triggers another (e.g., a follow-up, referral, or related-establishment inspection). Join the parent via activity_nr; rel_act_nr identifies the related inspection.
         columns:
           activity_nr: Foreign key to inspection.activity_nr (the parent inspection).
           rel_type: Type of relationship (follow-up, referral, related-establishment, etc.).
@@ -1606,7 +1600,7 @@ databases:
           rel_health: "Whether the related inspection covered health — \"X\" or NULL."
           load_dt: Timestamp when this row was loaded.
       strategic_codes:
-        description: Emphasis-program codes attached to inspections — ~2.9 million rows. OSHA targets inspections through National Emphasis Programs (NEPs) and Local Emphasis Programs (LEPs). Each row tags an inspection with one such program. Join via activity_nr.
+        description: Emphasis-program codes attached to inspections. OSHA targets inspections through National Emphasis Programs (NEPs) and Local Emphasis Programs (LEPs). Each row tags an inspection with one such program. Join via activity_nr.
         columns:
           activity_nr: Foreign key to inspection.activity_nr.
           prog_type: Program-type identifier (e.g., NEP, LEP, SEP).
