@@ -332,6 +332,10 @@ databases:
           challenged: ballots
           valid_for: votes
           valid_cast: votes
+  cats:
+    title: NLRB cases, 1999-2011
+  chips:
+    title: NLRB cases, 1984-2000
   opdr:
     title: OLMS Online Public Disclosure Room — Annual LM-2/LM-3/LM-4 Data
     description_html: |-
