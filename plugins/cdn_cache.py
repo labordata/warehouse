@@ -2,9 +2,6 @@
 
 Sets Cache-Control (browser, short TTL) and CDN-Cache-Control
 (Cloudflare/CDN, long TTL) on responses that can be served from cache.
-Emits an ETag derived from the database hash plus a digest of the
-request path and query, and short-circuits to 304 Not Modified when
-If-None-Match matches.
 
 Pairs with a deploy-time Cloudflare purge: edge content lives forever
 until a deploy invalidates it. Between deploys, edge serves ~100% of
@@ -15,13 +12,16 @@ datasette-hashed-urls regime: they 301 to the unhashed canonical form.
 External links indexed under old hashes continue to resolve.
 
 Skips:
-  - non-GET requests
+  - non-GET/HEAD requests
   - /-/ admin paths and /static
   - paths that don't resolve to a known database (favicon, etc.)
   - non-2xx responses
+
+No ETag emission: Cloudflare's on-the-fly compression strips ETags
+that aren't matched by an origin-supplied Content-Encoding. The
+browser-side 304 path isn't worth the cost of origin compression.
 """
 
-import hashlib
 import re
 
 from datasette import hookimpl
@@ -42,34 +42,19 @@ def _split_format(first):
     return name, (("." + fmt) if dot else "")
 
 
-def _root_hash(datasette):
-    hashes = sorted(
-        db.hash
-        for name, db in datasette.databases.items()
-        if name not in INTERNAL_DATABASES and db.hash
-    )
-    if not hashes:
-        return None
-    return hashlib.sha1("\n".join(hashes).encode("latin-1")).hexdigest()[:12]
-
-
 def _classify(datasette, path):
-    """Return ('cache', db_hash), ('redirect', new_path), or ('skip', None)."""
+    """Return 'cache', ('redirect', new_path), or 'skip'."""
     first, rest = _split_first(path)
     if not first:
-        h = _root_hash(datasette)
-        return ("cache", h) if h else ("skip", None)
+        return "cache"
 
     name, fmt = _split_format(first)
 
     if name in INTERNAL_DATABASES:
-        return ("skip", None)
+        return "skip"
 
     if name in datasette.databases:
-        db = datasette.databases[name]
-        if not db.hash:
-            return ("skip", None)
-        return ("cache", db.hash[:12])
+        return "cache"
 
     m = _HASH_SUFFIX.search(name)
     if m:
@@ -79,27 +64,14 @@ def _classify(datasette, path):
             new_path = "/" + new_first + (("/" + rest) if rest else "")
             return ("redirect", new_path)
 
-    return ("skip", None)
-
-
-def _make_etag(db_hash, path, query):
-    digest = hashlib.sha1(path.encode("latin-1") + b"?" + query).hexdigest()[:10]
-    return f'W/"{db_hash}-{digest}"'
-
-
-def _request_header(scope, name):
-    target = name.lower().encode("latin-1")
-    for k, v in scope.get("headers", []):
-        if k.lower() == target:
-            return v.decode("latin-1")
-    return None
+    return "skip"
 
 
 _CACHE_HEADERS = (
     (b"cache-control", f"public, max-age={SHORT_MAX_AGE}, must-revalidate".encode()),
     (b"cdn-cache-control", f"public, max-age={LONG_MAX_AGE}".encode()),
 )
-_STRIP = {b"cache-control", b"cdn-cache-control", b"etag"}
+_STRIP = {b"cache-control", b"cdn-cache-control"}
 
 
 async def _send_redirect(send, new_path, query):
@@ -133,31 +105,14 @@ def asgi_wrapper(datasette):
                 await app(scope, receive, send)
                 return
 
-            kind, payload = _classify(datasette, path)
+            verdict = _classify(datasette, path)
 
-            if kind == "redirect":
-                await _send_redirect(send, payload, scope.get("query_string", b""))
+            if isinstance(verdict, tuple) and verdict[0] == "redirect":
+                await _send_redirect(send, verdict[1], scope.get("query_string", b""))
                 return
 
-            if kind == "skip":
+            if verdict != "cache":
                 await app(scope, receive, send)
-                return
-
-            db_hash = payload
-            etag = _make_etag(db_hash, path, scope.get("query_string", b""))
-
-            if _request_header(scope, "if-none-match") == etag:
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 304,
-                        "headers": [
-                            (b"etag", etag.encode("latin-1")),
-                            *_CACHE_HEADERS,
-                        ],
-                    }
-                )
-                await send({"type": "http.response.body", "body": b""})
                 return
 
             async def wrapped_send(message):
@@ -169,7 +124,6 @@ def asgi_wrapper(datasette):
                             for k, v in message.get("headers", [])
                             if k.lower() not in _STRIP
                         ]
-                        headers.append((b"etag", etag.encode("latin-1")))
                         headers.extend(_CACHE_HEADERS)
                         message = {**message, "headers": headers}
                 await send(message)
