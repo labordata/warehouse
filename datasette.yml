@@ -3,6 +3,7 @@ plugins:
     literal: |-
       User-agent: *
       Disallow: /*?
+      Disallow: /*/*/*
 
       Sitemap: https://labordata.bunkum.us/sitemap.xml
   schema-org:
