@@ -88,7 +88,6 @@ jobs:
             --install=datasette-atom==0.10a0 \
             --install=datasette-rure \
             --install=pysqlite3-binary \
-            --install=datasette-hashed-urls \
             --install=datasette-block-robots \
             --install=datasette-pretty-traces \
             --install=https://github.com/fgregg/datasette-schema-org/archive/refs/heads/main.zip \
@@ -116,6 +115,19 @@ jobs:
             --cpu=1 \
             --max-instances=2 \
             --set-env-vars=DATASETTE_SECRET=$(openssl rand -hex 32)
+
+      - name: Purge Cloudflare cache
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          response=$(curl -fsS -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}')
+          echo "$response"
+          echo "$response" | grep -q '"success":true' || { echo "Purge failed"; exit 1; }
 
   workflow-keepalive:
     if: github.event_name == 'schedule'
