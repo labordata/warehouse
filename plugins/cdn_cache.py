@@ -68,7 +68,7 @@ def _classify(datasette, path):
 
 
 _CACHE_HEADERS = (
-    (b"cache-control", f"public, max-age={SHORT_MAX_AGE}, must-revalidate".encode()),
+    (b"cache-control", f"public, max-age={SHORT_MAX_AGE}".encode()),
     (b"cdn-cache-control", f"public, max-age={LONG_MAX_AGE}".encode()),
 )
 _STRIP = {b"cache-control", b"cdn-cache-control"}
