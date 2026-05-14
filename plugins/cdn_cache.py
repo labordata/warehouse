@@ -124,7 +124,7 @@ async def _send_redirect(send, new_path, query):
 def asgi_wrapper(datasette):
     def wrap(app):
         async def inner(scope, receive, send):
-            if scope.get("type") != "http" or scope.get("method") != "GET":
+            if scope.get("type") != "http" or scope.get("method") not in ("GET", "HEAD"):
                 await app(scope, receive, send)
                 return
 
