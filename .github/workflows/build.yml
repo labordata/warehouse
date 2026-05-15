@@ -129,6 +129,13 @@ jobs:
           echo "$response"
           echo "$response" | grep -q '"success":true' || { echo "Purge failed"; exit 1; }
 
+      - name: Warm cache from sitemap
+        run: |
+          curl -fsS https://labordata.bunkum.us/sitemap.xml \
+            | grep -oE '<loc>[^<]+</loc>' \
+            | sed 's|<loc>\(.*\)</loc>|\1|' \
+            | xargs -P 10 -n 1 curl -fsS -o /dev/null
+
   workflow-keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
