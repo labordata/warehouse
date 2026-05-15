@@ -14,6 +14,7 @@ opdr.db : opdr.db.zip
 	unzip $<
 	rm $<
 	sqlite-utils enable-fts $@ lm_data union_name aff_abbr unit_name desiq_pre desig_num desig_suf street_adr city state zip
+	sqlite-utils index-foreign-keys $@
 	sqlite-utils query $@ "analyze"
 	sqlite-utils query $@ "vacuum"
 
@@ -21,12 +22,14 @@ cats.db : nlrb.sqlite.zip
 	unzip $<
 	rm $<
 	mv nlrb.sqlite $@
+	sqlite-utils index-foreign-keys $@
 	sqlite-utils query $@ "analyze"
 	sqlite-utils query $@ "vacuum"
 
 %.db : %.db.zip
 	unzip $<
 	rm $<
+	sqlite-utils index-foreign-keys $@
 	sqlite-utils query $@ "analyze"
 	sqlite-utils query $@ "vacuum"
 
