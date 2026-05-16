@@ -16,9 +16,16 @@ External links indexed under old hashes continue to resolve.
 
 Skips:
   - non-GET/HEAD requests
-  - /-/ admin paths and /static
+  - /-/ admin paths (except /-/static/* — see below)
   - paths that don't resolve to a known database (favicon, etc.)
   - non-2xx responses
+
+Also caches a small set of zone-static paths with the same edge TTL
+but keyed to the running Datasette version rather than a database
+hash: /-/static/* (JS, CSS, fonts), /robots.txt, /sitemap.xml. These
+change only across deploys, which already purge the CF zone, so
+caching them aggressively eliminates ~1.7k bypass requests/day to
+origin.
 
 ETag format: strong ("<db-hash>-<digest>"), not weak. Cloudflare's
 on-the-fly Brotli compression transforms strong ETags to weak by
@@ -31,12 +38,24 @@ rule so this conversion is allowed to happen.
 import hashlib
 import re
 
+import datasette as _datasette_pkg
 from datasette import hookimpl
 
 INTERNAL_DATABASES = {"_internal", "_memory"}
 SHORT_MAX_AGE = 60
 LONG_MAX_AGE = 31_536_000
 _HASH_SUFFIX = re.compile(r"-[a-f0-9]{6,16}$")
+
+# Zone-static paths cached with the running Datasette version as their key.
+STATIC_EXACT_PATHS = frozenset({"/robots.txt", "/sitemap.xml"})
+STATIC_PREFIXES = ("/-/static/",)
+_DATASETTE_VERSION_TOKEN = re.sub(r"[^a-zA-Z0-9]+", "-", _datasette_pkg.__version__)[:16]
+
+
+def _is_static_path(path):
+    if path in STATIC_EXACT_PATHS:
+        return True
+    return any(path.startswith(p) for p in STATIC_PREFIXES)
 
 
 def _split_first(path):
@@ -61,7 +80,10 @@ def _root_hash(datasette):
 
 
 def _classify(datasette, path):
-    """Return ('cache', db_hash), ('redirect', new_path), or 'skip'."""
+    """Return ('cache', token), ('redirect', new_path), or 'skip'."""
+    if _is_static_path(path):
+        return ("cache", _DATASETTE_VERSION_TOKEN)
+
     first, rest = _split_first(path)
     if not first:
         h = _root_hash(datasette)
@@ -144,7 +166,7 @@ def asgi_wrapper(datasette):
                 return
 
             path = scope.get("path", "/")
-            if path.startswith("/-/") or path.startswith("/static/"):
+            if (path.startswith("/-/") or path.startswith("/static/")) and not _is_static_path(path):
                 await app(scope, receive, send)
                 return
 
