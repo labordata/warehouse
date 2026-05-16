@@ -49,7 +49,8 @@ jobs:
         run: |
           # Pre-compute per-table row counts + schema hashes so datasette
           # doesn't have to do it at startup on every machine restart.
-          datasette inspect *.db -o inspect-data.json
+          # `datasette inspect` writes JSON to stdout.
+          datasette inspect *.db > inspect-data.json
           ls -lh inspect-data.json
 
       - name: Compress databases for transfer
