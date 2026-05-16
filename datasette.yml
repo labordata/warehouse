@@ -4,6 +4,10 @@ plugins:
       User-agent: *
       Disallow: /*?
       Disallow: /*/*/*
+      Disallow: /*/sqlite_*
+      Disallow: /*/_*
+      Disallow: /*/*_fts
+      Disallow: /*/*_fts_*
 
       User-agent: Claude-User
       Disallow:
@@ -36,6 +40,9 @@ plugins:
 
 databases:
   nlrb:
+    tables:
+      sqlite_sequence:
+        hidden: true
     queries:
       new_rc_cases:
         title: New petitions for representation elections
