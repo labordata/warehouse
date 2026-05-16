@@ -7,6 +7,12 @@
 # first, the post-deploy health check would hit cold mmap with no inspect
 # data — and /-/databases.json would never return in time.
 #
+# Data transport: built .db files + inspect-data.json are pushed to an R2
+# bucket from the runner (parallel multi-stream HTTPS, ~50-100 MB/s), then
+# the Fly machine pulls them in-network (~118 MB/s observed) via urllib.
+# No compression — gzip/gunzip on shared-cpu-1x decompressed at only ~9
+# MB/s, which was slower than the transfer itself.
+#
 # Runs on every push to fly-volumes, on schedule, and on manual dispatch.
 # Once we're confident, we'll merge to main and retire build.yml.
 
@@ -22,6 +28,8 @@ on:
 
 env:
   FLY_APP: warehouse
+  R2_BUCKET: labordata-warehouse-staging
+  R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}  # e.g. https://pub-XXXX.r2.dev
 
 jobs:
   deploy:
@@ -51,28 +59,29 @@ jobs:
         run: |
           # Pre-compute per-table row counts + schema hashes so datasette
           # doesn't have to do it at startup on every machine restart.
-          # `datasette inspect` writes JSON to stdout.
           datasette inspect *.db > inspect-data.json
           ls -lh inspect-data.json
 
-      - name: Compress databases for transfer
+      - name: Upload databases to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL_S3: ${{ secrets.R2_ENDPOINT }}  # https://<acct>.r2.cloudflarestorage.com
+          AWS_DEFAULT_REGION: auto
         run: |
-          # SFTP through `flyctl` tops out at ~5 MB/s and does not compress
-          # on the wire. Gzipping ~10 GB of .db files down to ~3-4 GB roughly
-          # halves the upload time. pigz is preinstalled on GH ubuntu
-          # runners; fall back to gzip if it isn't.
-          if command -v pigz >/dev/null; then
-            pigz -f *.db
-          else
-            gzip -f *.db
-          fi
-          ls -lh *.db.gz
+          # `aws s3 sync` does parallel multi-stream uploads and is
+          # idempotent on retry. We restrict the include set to just the
+          # files we care about so junk in the workspace doesn't leak.
+          aws s3 sync . "s3://$R2_BUCKET/nightly/" \
+            --exclude "*" \
+            --include "*.db" \
+            --include "inspect-data.json" \
+            --no-progress
 
       - name: Install flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      # DATA path — upload first, while the old image is still serving.
-      - name: Ensure machine is running before SFTP
+      - name: Ensure machine is running before pull
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
@@ -82,37 +91,17 @@ jobs:
             | xargs -I{} flyctl machine start {} --app "$FLY_APP" || true
           sleep 10
 
-      - name: Upload databases to Fly volume
+      - name: Pull databases from R2 to Fly volume
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # `flyctl ssh console -C` does not interpret shell operators — it
-          # passes the rest of the line as argv to the first binary. Wrap
-          # multi-step commands in `sh -c`.
+          # Derive the asset list from inspect-data.json so we can't drift
+          # between the inspect file and what the machine actually fetches.
+          ASSETS=$(python -c "import json; print(' '.join(k+'.db' for k in json.load(open('inspect-data.json')).keys()))")
+          ASSETS="$ASSETS inspect-data.json"
+          echo "Pulling: $ASSETS"
           flyctl ssh console --app "$FLY_APP" -C \
-            "sh -c 'rm -rf /data/incoming && mkdir /data/incoming'"
-          (
-            for f in *.db.gz; do
-              echo "put $f /data/incoming/$f"
-            done
-            echo "put inspect-data.json /data/incoming/inspect-data.json"
-          ) | flyctl ssh sftp shell --app "$FLY_APP"
-
-      - name: Decompress databases on the volume
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          # Free up /data/previous (from the last successful swap) before
-          # decompressing. Otherwise peak usage is live (10 GB) + previous
-          # (10 GB) + decompressed incoming (10 GB) = 30 GB, which overflows
-          # the 25 GB volume. swap-data.sh also clears previous, but that
-          # runs *after* this step — too late.
-          #
-          # gunzip removes the .gz when it succeeds, so /data/incoming ends
-          # up with the same shape swap-data.sh expects (plain .db files +
-          # inspect-data.json).
-          flyctl ssh console --app "$FLY_APP" -C \
-            "sh -c 'rm -f /data/previous/*.db /data/previous/inspect-data.json && gunzip /data/incoming/*.db.gz && ls -la /data/incoming'"
+            "/app/scripts/pull-from-r2.sh $R2_PUBLIC_BASE/nightly $ASSETS"
 
       - name: Swap databases atomically
         env:
