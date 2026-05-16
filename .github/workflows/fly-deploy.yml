@@ -138,10 +138,3 @@ jobs:
             --data '{"purge_everything":true}')
           echo "$response"
           echo "$response" | grep -q '"success":true' || { echo "Purge failed"; exit 1; }
-
-      - name: Warm cache from sitemap
-        run: |
-          curl -fsS https://labordata.bunkum.us/sitemap.xml \
-            | grep -oE '<loc>[^<]+</loc>' \
-            | sed 's|<loc>\(.*\)</loc>|\1|' \
-            | xargs -P 2 -n 1 curl -fsS -o /dev/null
