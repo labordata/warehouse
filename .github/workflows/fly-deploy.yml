@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 env:
-  FLY_APP: labordata-warehouse
+  FLY_APP: warehouse
 
 jobs:
   build-crosswalk:
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
+      - run: pip install sqlite-utils csvs-to-sqlite labor-union-parser
       - name: Build crosswalk databases
         run: |
           make union_names_crosswalk.db
