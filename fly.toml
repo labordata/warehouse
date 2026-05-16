@@ -5,14 +5,14 @@
 # Volume mounted at /data and are updated out-of-band via SFTP rather than
 # baked into image layers.
 
-app = "labordata-warehouse"
+app = "warehouse"
 primary_region = "iad"
 
 [build]
   # Use the Dockerfile in the repo root.
 
 [mounts]
-  source = "labordata_data"
+  source = "dbs"
   destination = "/data"
   initial_size = "20gb"
 
