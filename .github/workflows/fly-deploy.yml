@@ -57,7 +57,12 @@ jobs:
           df -h
 
       - name: Install Python deps for the build
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          # labor-union-parser is needed if `make` decides to rebuild
+          # union_names_crosswalk.db; the artifact's mtime doesn't always
+          # convince make that the target is up to date.
+          pip install labor-union-parser
 
       - uses: actions/download-artifact@v4
         with:
