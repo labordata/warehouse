@@ -5,6 +5,15 @@ plugins:
       Disallow: /*?
       Disallow: /*/*/*
 
+      User-agent: Claude-User
+      Disallow:
+
+      User-agent: ChatGPT-User
+      Disallow:
+
+      User-agent: Perplexity-User
+      Disallow:
+
       Sitemap: https://labordata.bunkum.us/sitemap.xml
   schema-org:
     creator:
