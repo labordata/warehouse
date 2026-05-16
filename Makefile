@@ -22,6 +22,12 @@ cats.db : nlrb.sqlite.zip
 	unzip $<
 	rm $<
 	mv nlrb.sqlite $@
+	# r_transfer_history ships with a broken FK
+	# (r_case_number -> r_case.former_case_number); r_case has no such column,
+	# which 500s the table view. Drop both FKs on r_case_number then re-add
+	# only the valid one.
+	sqlite-utils transform $@ r_transfer_history --drop-foreign-key r_case_number
+	sqlite-utils add-foreign-key $@ r_transfer_history r_case_number r_case r_case_number
 	sqlite-utils index-foreign-keys $@
 	sqlite-utils query $@ "analyze"
 	sqlite-utils query $@ "vacuum"
