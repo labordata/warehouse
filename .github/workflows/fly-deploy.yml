@@ -1,11 +1,11 @@
 # Fly.io deploy pipeline — parallel to the Cloud Run pipeline in build.yml.
 #
-# Two decoupled paths:
-#   - code change: only "Deploy app to Fly" runs (fast, ~30s)
-#   - data change: "Upload databases" + "Swap" run, code stays put
+# Two decoupled paths within one job:
+#   - Image build + flyctl deploy (code change path; fast)
+#   - .db build + SFTP upload + swap (data change path)
 #
-# For now, both run on every push to the fly-volumes branch and every
-# scheduled run. Once we're confident, we'll merge to main and retire
+# Both run on every push to the fly-volumes branch, on schedule, and on
+# manual dispatch. Once we're confident, we'll merge to main and retire
 # build.yml.
 
 name: Fly Deploy
@@ -15,33 +15,14 @@ on:
     branches:
       - fly-volumes
   schedule:
-    - cron: "0 7 * * *"  # daily, after the upstream data sources update
+    - cron: "0 7 * * *"  # daily, after upstream data sources update
   workflow_dispatch:
 
 env:
   FLY_APP: warehouse
 
 jobs:
-  build-crosswalk:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install sqlite-utils csvs-to-sqlite labor-union-parser
-      - name: Build crosswalk databases
-        run: |
-          make union_names_crosswalk.db
-      - name: Zip
-        run: zip crosswalk-databases.zip union_names_crosswalk.db
-      - uses: actions/upload-artifact@v4
-        with:
-          name: crosswalk-databases
-          path: crosswalk-databases.zip
-
   deploy:
-    needs: build-crosswalk
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,20 +37,12 @@ jobs:
                        /opt/hostedtoolcache/CodeQL || true
           df -h
 
-      - name: Install Python deps for the build
+      - name: Install build dependencies
         run: |
           pip install -r requirements.txt
-          # labor-union-parser is needed if `make` decides to rebuild
-          # union_names_crosswalk.db; the artifact's mtime doesn't always
-          # convince make that the target is up to date.
           pip install labor-union-parser
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: crosswalk-databases
-      - run: unzip crosswalk-databases.zip && rm crosswalk-databases.zip
-
-      - name: Build databases
+      - name: Build all databases
         run: make
 
       - name: Install flyctl
@@ -88,10 +61,7 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Ensure incoming/ is empty
           flyctl ssh console --app "$FLY_APP" -C 'rm -rf /data/incoming && mkdir /data/incoming'
-
-          # SFTP put each .db file. flyctl ssh sftp shell accepts a here-doc.
           (
             for db in *.db; do
               echo "put $db /data/incoming/$db"
@@ -108,7 +78,6 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Restart the machine so datasette re-mmaps the new .db files.
           flyctl machine restart --app "$FLY_APP"
 
       - name: Purge Cloudflare cache
