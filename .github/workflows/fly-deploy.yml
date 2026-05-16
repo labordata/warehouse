@@ -100,8 +100,14 @@ jobs:
           ASSETS=$(python -c "import json; print(' '.join(k+'.db' for k in json.load(open('inspect-data.json')).keys()))")
           ASSETS="$ASSETS inspect-data.json"
           echo "Pulling: $ASSETS"
+          # Bootstrap the script onto the running container via SFTP — the
+          # live image may predate /app/scripts/pull-from-r2.sh (we update
+          # data before redeploying the image). Sourcing from /tmp keeps
+          # this step independent of the image generation that's running.
+          echo "put scripts/pull-from-r2.sh /tmp/pull-from-r2.sh" \
+            | flyctl ssh sftp shell --app "$FLY_APP"
           flyctl ssh console --app "$FLY_APP" -C \
-            "/app/scripts/pull-from-r2.sh $R2_PUBLIC_BASE/nightly $ASSETS"
+            "sh /tmp/pull-from-r2.sh $R2_PUBLIC_BASE/nightly $ASSETS"
 
       - name: Swap databases atomically
         env:
