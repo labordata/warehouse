@@ -19,8 +19,9 @@ primary_region = "iad"
 [[services]]
   protocol = "tcp"
   internal_port = 8080
-  auto_stop_machines = false  # always-on; the SQLite mmap working set is the
-  auto_start_machines = true  # whole point and we don't want repeated cold-starts
+  auto_stop_machines = "off"      # always-on; we don't want repeated cold-starts
+  auto_start_machines = true      # of the 10GB SQLite mmap working set
+  min_machines_running = 1        # keep at least one machine up
 
   [[services.ports]]
     port = 80
