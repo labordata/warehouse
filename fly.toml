@@ -14,7 +14,10 @@ primary_region = "iad"
 [mounts]
   source = "dbs"
   destination = "/data"
-  initial_size = "20gb"
+  initial_size = "25gb"
+  # 25 GB headroom for the swap pattern: peak usage is the current
+  # 10 GB working set in /data + a fresh 10 GB uncompressed set being
+  # built in /data/incoming. A 20 GB volume runs out of space mid-gunzip.
 
 [[services]]
   protocol = "tcp"
