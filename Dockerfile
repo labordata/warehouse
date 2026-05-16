@@ -30,12 +30,12 @@ WORKDIR /app
 # Plugins and config — these change with code, not data.
 COPY plugins/ /app/plugins/
 COPY datasette.yml warehouse_metadata.yml /app/
-COPY scripts/serve.sh /app/serve.sh
-RUN chmod +x /app/serve.sh
+COPY scripts/ /app/scripts/
+RUN chmod +x /app/scripts/*.sh
 
 # Databases live on a Fly Volume mounted here.
 VOLUME /data
 
 EXPOSE 8080
 
-CMD ["/app/serve.sh"]
+CMD ["/app/scripts/serve.sh"]
