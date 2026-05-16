@@ -1,0 +1,50 @@
+# Fly.io configuration for labordata.bunkum.us
+#
+# Architecture: the Docker image contains only Datasette + plugins + config.
+# The actual SQLite databases (~10 GB across 13 .db files) live on a Fly
+# Volume mounted at /data and are updated out-of-band via SFTP rather than
+# baked into image layers.
+
+app = "labordata-warehouse"
+primary_region = "iad"
+
+[build]
+  # Use the Dockerfile in the repo root.
+
+[mounts]
+  source = "labordata_data"
+  destination = "/data"
+  initial_size = "20gb"
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  auto_stop_machines = false  # always-on; the SQLite mmap working set is the
+  auto_start_machines = true  # whole point and we don't want repeated cold-starts
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "requests"
+    soft_limit = 60
+    hard_limit = 100
+
+  [[services.http_checks]]
+    interval = "30s"
+    grace_period = "30s"
+    method = "get"
+    path = "/-/databases.json"
+    protocol = "http"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "2gb"
+  cpus = 1

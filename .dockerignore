@@ -1,0 +1,12 @@
+# Don't copy the .db files into the image — they live on a Fly volume.
+*.db
+*.db.zip
+*.csv
+
+# Build artifacts and local clutter.
+__pycache__/
+*.pyc
+.venv/
+.git/
+.github/
+inspect-data.json
