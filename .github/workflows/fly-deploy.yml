@@ -73,7 +73,11 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          flyctl ssh console --app "$FLY_APP" -C 'rm -rf /data/incoming && mkdir /data/incoming'
+          # `flyctl ssh console -C` does not interpret shell operators — it
+          # passes the rest of the line as argv to the first binary. Wrap
+          # multi-step commands in `sh -c`.
+          flyctl ssh console --app "$FLY_APP" -C \
+            "sh -c 'rm -rf /data/incoming && mkdir /data/incoming'"
           (
             for db in *.db; do
               echo "put $db /data/incoming/$db"
