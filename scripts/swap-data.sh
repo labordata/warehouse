@@ -22,7 +22,7 @@ if [ ! -d "$INCOMING" ]; then
   exit 1
 fi
 
-# Sanity: make sure every expected DB is present in incoming
+# Sanity: make sure every expected DB and the inspect file are present
 EXPECTED="osha_enforcement nlrb opdr whisard lm10 lm20 chips cats f7 work_stoppages nlrb_rc_elections_1961_1998 voluntary_recognitions union_names_crosswalk"
 for name in $EXPECTED; do
   if [ ! -f "$INCOMING/$name.db" ]; then
@@ -30,15 +30,21 @@ for name in $EXPECTED; do
     exit 1
   fi
 done
+if [ ! -f "$INCOMING/inspect-data.json" ]; then
+  echo "missing $INCOMING/inspect-data.json; aborting swap" >&2
+  exit 1
+fi
 
 # Move old files out of the way, move new ones in. Datasette holds open
 # file descriptors, so this is safe — the old files are unlinked from the
 # namespace but stay accessible to the running process until restart.
 mkdir -p "$DATA/previous"
-rm -rf "$DATA/previous"/*.db 2>/dev/null || true
+rm -rf "$DATA/previous"/*.db "$DATA/previous"/inspect-data.json 2>/dev/null || true
 mv "$DATA"/*.db "$DATA/previous"/ 2>/dev/null || true
+mv "$DATA"/inspect-data.json "$DATA/previous"/ 2>/dev/null || true
 mv "$INCOMING"/*.db "$DATA"/
+mv "$INCOMING"/inspect-data.json "$DATA"/
 rmdir "$INCOMING"
 
-echo "swap complete; databases in $DATA:"
-ls -la "$DATA"/*.db
+echo "swap complete; contents of $DATA:"
+ls -la "$DATA"/*.db "$DATA"/inspect-data.json

@@ -45,6 +45,26 @@ jobs:
       - name: Build all databases
         run: make
 
+      - name: Build inspect-data.json
+        run: |
+          # Pre-compute per-table row counts + schema hashes so datasette
+          # doesn't have to do it at startup on every machine restart.
+          datasette inspect *.db -o inspect-data.json
+          ls -lh inspect-data.json
+
+      - name: Compress databases for transfer
+        run: |
+          # SFTP through `flyctl` tops out at ~5 MB/s and does not compress
+          # on the wire. Gzipping ~10 GB of .db files down to ~3-4 GB roughly
+          # halves the upload time. pigz is preinstalled on GH ubuntu
+          # runners; fall back to gzip if it isn't.
+          if command -v pigz >/dev/null; then
+            pigz -f *.db
+          else
+            gzip -f *.db
+          fi
+          ls -lh *.db.gz
+
       - name: Install flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
@@ -79,10 +99,21 @@ jobs:
           flyctl ssh console --app "$FLY_APP" -C \
             "sh -c 'rm -rf /data/incoming && mkdir /data/incoming'"
           (
-            for db in *.db; do
-              echo "put $db /data/incoming/$db"
+            for f in *.db.gz; do
+              echo "put $f /data/incoming/$f"
             done
+            echo "put inspect-data.json /data/incoming/inspect-data.json"
           ) | flyctl ssh sftp shell --app "$FLY_APP"
+
+      - name: Decompress databases on the volume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # gunzip removes the .gz when it succeeds, so /data/incoming ends
+          # up with the same shape swap-data.sh expects (plain .db files +
+          # inspect-data.json).
+          flyctl ssh console --app "$FLY_APP" -C \
+            "sh -c 'gunzip /data/incoming/*.db.gz && ls -la /data/incoming'"
 
       - name: Swap databases atomically
         env:

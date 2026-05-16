@@ -21,9 +21,17 @@ else
   echo "no .db files in $DATA_DIR yet — starting datasette without any databases" >&2
 fi
 
-# shellcheck disable=SC2086  # $IMMUTABLE_ARGS is intentionally word-split
+# Use the pre-computed inspect file when present so datasette skips its
+# startup scan (per-table row counts, schema hashes) on every machine boot.
+INSPECT_ARGS=""
+if [ -f "$DATA_DIR/inspect-data.json" ]; then
+  INSPECT_ARGS="--inspect-file $DATA_DIR/inspect-data.json"
+fi
+
+# shellcheck disable=SC2086  # args are intentionally word-split
 exec datasette serve \
   $IMMUTABLE_ARGS \
+  $INSPECT_ARGS \
   -h 0.0.0.0 -p 8080 \
   -c /app/datasette.yml \
   -m /app/warehouse_metadata.yml \
