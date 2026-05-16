@@ -38,12 +38,18 @@ primary_region = "iad"
     hard_limit = 100
 
   [[services.http_checks]]
+    # /-/versions.json is constant-time and doesn't touch SQLite. Using
+    # /-/databases.json instead triggers datasette's per-table inspect scan
+    # on cold mmap, which on a 10 GB working set blows past any reasonable
+    # health-check timeout. --inspect-file makes /-/databases.json fast at
+    # steady state, but the file is uploaded *after* this deploy step, so
+    # the check has to survive the first boot without it.
     interval = "30s"
-    grace_period = "30s"
+    grace_period = "120s"
     method = "get"
-    path = "/-/databases.json"
+    path = "/-/versions.json"
     protocol = "http"
-    timeout = "5s"
+    timeout = "30s"
 
 [[vm]]
   size = "shared-cpu-1x"
