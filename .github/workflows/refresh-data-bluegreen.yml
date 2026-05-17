@@ -1,0 +1,193 @@
+# Blue/green data refresh POC (issue #24).
+#
+# Stage-2 deliverable from the issue's order-of-work: exercises the
+# create-staging-and-smoke-test path WITHOUT promoting. Each run:
+#
+#   1. Builds the .db files (as today) and pushes them to R2
+#   2. Creates a fresh empty 15 GB volume in iad
+#   3. Creates a new machine on it, attached to the *current* machine's
+#      image, with role=staging metadata and no public ports
+#   4. SFTPs `pull-from-r2-direct.sh` into /tmp on the new machine and
+#      runs it (populates /data directly, no /data/incoming dance)
+#   5. Restarts the new machine so datasette mmaps the fresh files
+#   6. Smoke-tests datasette on its private IP via flyctl ssh
+#   7. Tears the new machine + volume down
+#
+# Manual dispatch only — does NOT touch the production machine or
+# volume. Shares the `warehouse-deploy` concurrency group so it
+# can't race with the real refresh-data or deploy workflows.
+
+name: Refresh data (blue/green POC)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: warehouse-deploy
+  cancel-in-progress: false
+
+env:
+  FLY_APP: warehouse
+  FLY_REGION: iad
+  R2_BUCKET: labordata-warehouse-staging
+  R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
+  STAGING_VOL_GB: 15
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                       /opt/hostedtoolcache/CodeQL || true
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install labor-union-parser
+
+      - name: Build all databases
+        run: make
+
+      - name: Build inspect-data.json
+        run: datasette inspect *.db > inspect-data.json
+
+      - name: Upload databases to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL_S3: ${{ secrets.R2_ENDPOINT }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          aws s3 sync . "s3://$R2_BUCKET/nightly/" \
+            --exclude "*" --include "*.db" --include "inspect-data.json" \
+            --no-progress
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Discover current image
+        id: img
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Use the image from whichever machine currently has role=current
+          # (or the only machine, in the pre-blue/green steady state).
+          IMG=$(flyctl machine list --app "$FLY_APP" --json \
+            | jq -r '
+              (map(select(.config.metadata.role == "current"))
+               | .[0]
+               // .[0]) | .config.image')
+          if [ -z "$IMG" ] || [ "$IMG" = "null" ]; then
+            echo "Could not resolve current image" >&2
+            exit 1
+          fi
+          echo "image=$IMG" >> $GITHUB_OUTPUT
+          echo "Using image: $IMG"
+
+      - name: Create staging volume
+        id: vol
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Volume name has to be a valid identifier; GITHUB_RUN_ID is numeric.
+          NAME="dbs_stage_${GITHUB_RUN_ID}"
+          VOL_ID=$(flyctl volumes create "$NAME" \
+            --app "$FLY_APP" \
+            --size "$STAGING_VOL_GB" \
+            --region "$FLY_REGION" \
+            --yes \
+            --json \
+            | jq -r '.id')
+          echo "id=$VOL_ID" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "Created staging volume: $NAME ($VOL_ID)"
+
+      - name: Create staging machine
+        id: mach
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # No --port flags — staging machine has no public services.
+          # role=staging metadata so future promotion logic can find it.
+          MID=$(flyctl machine run "${{ steps.img.outputs.image }}" \
+            --app "$FLY_APP" \
+            --region "$FLY_REGION" \
+            --volume "${{ steps.vol.outputs.id }}:/data" \
+            --metadata role=staging \
+            --metadata refresh_run="$GITHUB_RUN_ID" \
+            --vm-cpu-kind shared \
+            --vm-cpus 1 \
+            --vm-memory 2048 \
+            --json \
+            | jq -r '.id')
+          echo "id=$MID" >> $GITHUB_OUTPUT
+          echo "Created staging machine: $MID"
+          # Give the machine and sshd a moment to be reachable.
+          sleep 15
+
+      - name: Populate staging /data from R2
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          ASSETS=$(python -c "import json; print(' '.join(k+'.db' for k in json.load(open('inspect-data.json')).keys()))")
+          ASSETS="$ASSETS inspect-data.json"
+          echo "Pulling: $ASSETS"
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C "rm -f /tmp/pull-from-r2-direct.sh"
+          echo "put scripts/pull-from-r2-direct.sh /tmp/pull-from-r2-direct.sh" \
+            | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE/nightly $ASSETS"
+
+      - name: Restart staging to mmap fresh data
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Datasette was started by the entrypoint at machine creation
+          # against an empty /data — the "no .db files in /data yet"
+          # branch of serve.sh. Restart so it picks up what we just
+          # downloaded.
+          flyctl machine restart "${{ steps.mach.outputs.id }}" --app "$FLY_APP"
+          sleep 20
+
+      - name: Smoke test datasette on staging
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C 'python -c "
+import urllib.request, json, sys, time
+def get(path):
+    s = time.time()
+    body = urllib.request.urlopen(f\"http://localhost:8080{path}\", timeout=30).read()
+    return len(body), time.time() - s
+n, t = get(\"/-/versions.json\")
+print(f\"/-/versions.json   200  {n} bytes  in {t*1000:.0f}ms\")
+n, t = get(\"/-/databases.json\")
+print(f\"/-/databases.json  200  {n} bytes  in {t*1000:.0f}ms\")
+import json as j
+dbs = j.loads(urllib.request.urlopen(\"http://localhost:8080/-/databases.json\", timeout=30).read())
+print(f\"  databases attached: {len(dbs)}: {sorted(d[\"name\"] for d in dbs)}\")
+"'
+
+      - name: Tear down staging (POC — no promotion)
+        if: always()
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -n "${{ steps.mach.outputs.id }}" ]; then
+            flyctl machine destroy "${{ steps.mach.outputs.id }}" \
+              --app "$FLY_APP" --force || true
+          fi
+          if [ -n "${{ steps.vol.outputs.id }}" ]; then
+            flyctl volumes destroy "${{ steps.vol.outputs.id }}" -y || true
+          fi
