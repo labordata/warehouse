@@ -20,6 +20,12 @@
 name: Refresh data (blue/green POC)
 
 on:
+  # Trigger on every push to the development branch so we can iterate
+  # without dispatching by hand. Drop the `push` trigger before merging
+  # to main — prod data refresh stays on `refresh-data.yml`'s schedule.
+  push:
+    branches:
+      - bluegreen-poc
   workflow_dispatch:
 
 concurrency:
