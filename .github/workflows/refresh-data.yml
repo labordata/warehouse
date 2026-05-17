@@ -125,3 +125,16 @@ jobs:
             --data '{"purge_everything":true}')
           echo "$response"
           echo "$response" | grep -q '"success":true' || { echo "Purge failed"; exit 1; }
+
+      - name: Clean up R2 staging
+        # Only run if everything above succeeded — if a step failed we
+        # may want to inspect the staged files. The data is already
+        # mounted on the Fly volume by the time we get here, so the
+        # staging copy in R2 has no further purpose.
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL_S3: ${{ secrets.R2_ENDPOINT }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          aws s3 rm "s3://$R2_BUCKET/nightly/" --recursive
