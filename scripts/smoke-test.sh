@@ -18,6 +18,21 @@ def get(path, timeout=30):
     body = urllib.request.urlopen(BASE + path, timeout=timeout).read()
     return body, (time.time() - s) * 1000
 
+# Wait for uvicorn to be listening. Datasette's startup is bounded by
+# how long it takes to mmap ~10 GB of .db files on a cold volume, which
+# can be tens of seconds on shared-cpu-1x. Retry the cheapest endpoint
+# every 2 s for up to 2 minutes before giving up.
+deadline = time.time() + 120
+while True:
+    try:
+        urllib.request.urlopen(BASE + "/-/versions.json", timeout=5).read()
+        break
+    except (urllib.error.URLError, ConnectionRefusedError) as e:
+        if time.time() > deadline:
+            print(f"datasette never became ready: {e}", file=sys.stderr)
+            sys.exit(1)
+        time.sleep(2)
+
 versions_body, t = get("/-/versions.json")
 print(f"/-/versions.json   {len(versions_body):>7} bytes  {t:>6.0f} ms")
 
