@@ -27,6 +27,11 @@ on:
     branches:
       - bluegreen-poc
   workflow_dispatch:
+    inputs:
+      promote:
+        description: "Promote staging to current after smoke (destroys current machine + volume)"
+        type: boolean
+        default: false
 
 concurrency:
   group: warehouse-deploy
@@ -38,6 +43,9 @@ env:
   R2_BUCKET: labordata-warehouse-staging
   R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
   STAGING_VOL_GB: 15
+  # push-triggered runs never promote; only workflow_dispatch with the
+  # promote input set to true does the real cutover.
+  PROMOTE: ${{ github.event_name == 'workflow_dispatch' && inputs.promote == true && 'true' || 'false' }}
 
 jobs:
   refresh:
@@ -80,25 +88,33 @@ jobs:
       - name: Install flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Discover current image
-        id: img
+      - name: Discover current machine + volume
+        id: cur
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           # Prefer a machine tagged role=current; fall back to the first
-          # machine (the pre-blue/green steady state has just one machine
-          # with no role metadata yet).
-          IMG=$(flyctl machine list --app "$FLY_APP" --json | jq -r '
-            ([.[] | select(.config.metadata.role == "current")] | first | .config.image)
-            // (.[0].config.image)
+          # machine. Captures image (for the staging machine), machine ID
+          # (to cordon + destroy on promote), and the volume ID (to
+          # destroy on promote).
+          JSON=$(flyctl machine list --app "$FLY_APP" --json)
+          ROW=$(echo "$JSON" | jq '
+            [.[] | select(.config.metadata.role == "current")][0]
+            // .[0]
           ')
+          IMG=$(echo "$ROW" | jq -r '.config.image')
+          MID=$(echo "$ROW" | jq -r '.id')
+          VOL=$(echo "$ROW" | jq -r '.config.mounts[0].volume')
           if [ -z "$IMG" ] || [ "$IMG" = "null" ]; then
-            echo "Could not resolve current image" >&2
-            flyctl machine list --app "$FLY_APP" --json | jq '.[]|{id,image:.config.image,meta:.config.metadata}' >&2
+            echo "Could not resolve current machine" >&2
+            echo "$JSON" | jq '.[]|{id,image:.config.image,meta:.config.metadata}' >&2
             exit 1
           fi
           echo "image=$IMG" >> $GITHUB_OUTPUT
-          echo "Using image: $IMG"
+          echo "machine=$MID" >> $GITHUB_OUTPUT
+          echo "volume=$VOL" >> $GITHUB_OUTPUT
+          echo "Current:  machine=$MID  volume=$VOL  image=$IMG"
+          echo "Promote?  $PROMOTE"
 
       - name: Create staging volume
         id: vol
@@ -127,7 +143,7 @@ jobs:
           # role=staging metadata so future promotion logic can find it.
           # `flyctl machine run` has no --json flag; parse stdout for
           # the "Machine ID: XXX" line.
-          OUT=$(flyctl machine run "${{ steps.img.outputs.image }}" \
+          OUT=$(flyctl machine run "${{ steps.cur.outputs.image }}" \
             --app "$FLY_APP" \
             --region "$FLY_REGION" \
             --volume "${{ steps.vol.outputs.id }}:/data" \
@@ -183,8 +199,58 @@ jobs:
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
             -C "sh /tmp/smoke-test.sh"
 
-      - name: Tear down staging (POC — no promotion)
-        if: always()
+      # ─── Promote path (only when explicitly requested) ──────────────
+
+      - name: Promote staging to current
+        if: env.PROMOTE == 'true'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -eu
+          NEW="${{ steps.mach.outputs.id }}"
+          OLD="${{ steps.cur.outputs.machine }}"
+
+          # 1. Put services on the staging machine so Fly's proxy routes
+          #    traffic to it. Ports/handlers match fly.toml's [[services]]
+          #    block. flyctl machine update auto-stops, applies, restarts;
+          #    the new container then comes up with services + warm data
+          #    (mmap was done on the previous restart we already did).
+          flyctl machine update "$NEW" --app "$FLY_APP" --yes \
+            --port "80:8080/http:force_https=true" \
+            --port "443:8080/tls:http"
+
+          # 2. Cordon old machine: stops accepting new connections.
+          #    Existing connections drain naturally.
+          flyctl machine cordon "$OLD" --app "$FLY_APP"
+
+          # 3. Drain window. Fly's default request timeout + HTTP keep-alive
+          #    bound is ~30s; give it a bit more.
+          sleep 45
+
+          # 4. Promote metadata: future runs find the new machine as
+          #    role=current.
+          flyctl machine update "$NEW" --app "$FLY_APP" --yes \
+            --metadata role=current
+
+      - name: Destroy old current
+        if: env.PROMOTE == 'true'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          OLD="${{ steps.cur.outputs.machine }}"
+          OLDVOL="${{ steps.cur.outputs.volume }}"
+          flyctl machine destroy "$OLD" --app "$FLY_APP" --force
+          if [ -n "$OLDVOL" ] && [ "$OLDVOL" != "null" ]; then
+            flyctl volumes destroy "$OLDVOL" -y
+          fi
+
+      # ─── Teardown of staging in POC mode + failure-safety net ────────
+
+      - name: Tear down staging
+        # POC mode: always tear down. Promote mode: tear down only if
+        # something failed before we successfully promoted (staging will
+        # have already been kept by virtue of the steps above succeeding).
+        if: always() && (env.PROMOTE != 'true' || failure())
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
