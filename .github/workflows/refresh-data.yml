@@ -38,6 +38,13 @@ concurrency:
   group: warehouse-deploy
   cancel-in-progress: false
 
+# Public repo. GITHUB_TOKEN defaults to permissive on push/schedule
+# events; lock it down so a compromised step can't write to
+# issues/PRs/contents. Only `contents: read` is needed for
+# actions/checkout.
+permissions:
+  contents: read
+
 env:
   FLY_APP: warehouse
   FLY_REGION: iad
@@ -51,6 +58,9 @@ env:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    # Cap total wall time. A hung flyctl ssh or R2 stall otherwise burns
+    # the 6-hour GH default.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -87,7 +97,9 @@ jobs:
             --no-progress
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        # Pinned to v1.6 commit SHA. `@master` would let an upstream
+        # compromise run with our FLY_API_TOKEN. Bump intentionally.
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1  # v1.6
 
       - name: Discover current machine + volume
         id: cur
@@ -108,7 +120,11 @@ jobs:
           VOL=$(echo "$ROW" | jq -r '.config.mounts[0].volume')
           if [ -z "$IMG" ] || [ "$IMG" = "null" ]; then
             echo "Could not resolve current machine" >&2
-            echo "$JSON" | jq '.[]|{id,image:.config.image,meta:.config.metadata}' >&2
+            # Public-repo run logs are world-readable. Show only the
+            # bare minimum (ids + role) — image hashes and metadata
+            # are unnecessary recon for an attacker, more useful to
+            # us only when actually debugging via SSH.
+            echo "$JSON" | jq '[.[]|{id,role:.config.metadata.role}]' >&2
             exit 1
           fi
           echo "image=$IMG" >> $GITHUB_OUTPUT

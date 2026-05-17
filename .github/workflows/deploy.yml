@@ -20,17 +20,26 @@ concurrency:
   group: warehouse-deploy
   cancel-in-progress: false
 
+# Public repo. GITHUB_TOKEN defaults to permissive on push events; lock
+# it down so a compromised step can't write to issues/PRs/contents.
+# Only `contents: read` is needed for actions/checkout.
+permissions:
+  contents: read
+
 env:
   FLY_APP: warehouse
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        # Pinned to v1.6 commit SHA. `@master` would let an upstream
+        # compromise run with our FLY_API_TOKEN. Bump intentionally.
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1  # v1.6
 
       - name: Build image
         id: build
