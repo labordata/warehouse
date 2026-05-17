@@ -1,38 +1,32 @@
-# Fly.io deploy pipeline — parallel to the Cloud Run pipeline in build.yml.
+# Data-only refresh.
 #
-# Order matters: data goes on the volume *before* the image redeploys. That
-# way the new container boots with both the new .db files and the new
-# inspect-data.json already in /data, and datasette starts up with
-# --inspect-file pointing at a real, current file. If we deployed the image
-# first, the post-deploy health check would hit cold mmap with no inspect
-# data — and /-/databases.json would never return in time.
+# Rebuilds the SQLite databases from upstream sources, uploads them to
+# R2, has the warehouse machine pull them in-network, swaps them onto
+# the volume, then RESTARTS the machine to pick them up — no image
+# redeploy, no new image build.
 #
-# Data transport: built .db files + inspect-data.json are pushed to an R2
-# bucket from the runner (parallel multi-stream HTTPS, ~50-100 MB/s), then
-# the Fly machine pulls them in-network (~118 MB/s observed) via urllib.
-# No compression — gzip/gunzip on shared-cpu-1x decompressed at only ~9
-# MB/s, which was slower than the transfer itself.
-#
-# Runs on every push to fly-volumes, on schedule, and on manual dispatch.
-# Once we're confident, we'll merge to main and retire build.yml.
+# Triggers: daily cron after upstream data sources update + manual
+# dispatch. Shares a concurrency group with `deploy.yml` so a deploy
+# and a refresh never race.
 
-name: Fly Deploy
+name: Refresh data
 
 on:
-  push:
-    branches:
-      - fly-volumes
   schedule:
-    - cron: "0 7 * * *"  # daily, after upstream data sources update
+    - cron: "0 7 * * *"
   workflow_dispatch:
+
+concurrency:
+  group: warehouse-deploy
+  cancel-in-progress: false
 
 env:
   FLY_APP: warehouse
   R2_BUCKET: labordata-warehouse-staging
-  R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}  # e.g. https://pub-XXXX.r2.dev
+  R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
 
 jobs:
-  deploy:
+  refresh:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,12 +60,9 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_ENDPOINT_URL_S3: ${{ secrets.R2_ENDPOINT }}  # https://<acct>.r2.cloudflarestorage.com
+          AWS_ENDPOINT_URL_S3: ${{ secrets.R2_ENDPOINT }}
           AWS_DEFAULT_REGION: auto
         run: |
-          # `aws s3 sync` does parallel multi-stream uploads and is
-          # idempotent on retry. We restrict the include set to just the
-          # files we care about so junk in the workspace doesn't leak.
           aws s3 sync . "s3://$R2_BUCKET/nightly/" \
             --exclude "*" \
             --include "*.db" \
@@ -85,7 +76,6 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Idempotent: starts the machine if it's stopped, no-op otherwise.
           flyctl machine list --app "$FLY_APP" --json \
             | jq -r '.[].id' \
             | xargs -I{} flyctl machine start {} --app "$FLY_APP" || true
@@ -95,17 +85,11 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Derive the asset list from inspect-data.json so we can't drift
-          # between the inspect file and what the machine actually fetches.
           ASSETS=$(python -c "import json; print(' '.join(k+'.db' for k in json.load(open('inspect-data.json')).keys()))")
           ASSETS="$ASSETS inspect-data.json"
           echo "Pulling: $ASSETS"
-          # Bootstrap the script onto the running container via SFTP — the
-          # live image may predate /app/scripts/pull-from-r2.sh (we update
-          # data before redeploying the image). Sourcing from /tmp keeps
-          # this step independent of the image generation that's running.
           # `flyctl ssh sftp put` refuses to overwrite, so clear any prior
-          # copy first or we'll silently re-run the previous version.
+          # copy before SFTPing the helper into /tmp.
           flyctl ssh console --app "$FLY_APP" -C "rm -f /tmp/pull-from-r2.sh"
           echo "put scripts/pull-from-r2.sh /tmp/pull-from-r2.sh" \
             | flyctl ssh sftp shell --app "$FLY_APP"
@@ -116,19 +100,18 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Moves /data/incoming/*.db + inspect-data.json into /data/.
-          # Old container keeps serving from FDs open on the now-unlinked
-          # /data/previous/*.db until the next step restarts it.
           flyctl ssh console --app "$FLY_APP" -C '/app/scripts/swap-data.sh'
 
-      # CODE path — image redeploy, which also restarts every machine and
-      # picks up the freshly-swapped /data + inspect-data.json.
-      - name: Deploy app to Fly
+      - name: Restart datasette to load new data
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          flyctl deploy --remote-only --app "$FLY_APP" \
-            --image-label "build-$GITHUB_RUN_NUMBER"
+          # Data refresh, not a code change — bounce the machine to
+          # re-mmap the new files. `flyctl machine restart` skips the
+          # image push that `flyctl deploy` would do.
+          flyctl machine list --app "$FLY_APP" --json \
+            | jq -r '.[].id' \
+            | xargs -I{} flyctl machine restart {} --app "$FLY_APP"
 
       - name: Purge Cloudflare cache
         env:

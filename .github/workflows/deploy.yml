@@ -1,0 +1,53 @@
+# App-only deploy.
+#
+# Push the warehouse image to Fly. Data on the volume is untouched —
+# the new container boots into whatever's already in /data.
+#
+# Triggers: every push to main (intended for code/plugin/config
+# changes that land via PR merge) and manual dispatch. The
+# `refresh-data.yml` workflow handles data updates; the two share a
+# concurrency group so they serialize.
+
+name: Deploy app
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: warehouse-deploy
+  cancel-in-progress: false
+
+env:
+  FLY_APP: warehouse
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy image to Fly
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy --remote-only --app "$FLY_APP" \
+            --image-label "build-$GITHUB_RUN_NUMBER"
+
+      - name: Purge Cloudflare cache
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          response=$(curl -fsS -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}')
+          echo "$response"
+          echo "$response" | grep -q '"success":true' || { echo "Purge failed"; exit 1; }
