@@ -185,8 +185,22 @@ jobs:
           # against an empty /data — the "no .db files in /data yet"
           # branch of serve.sh. Restart so it picks up what we just
           # downloaded.
-          flyctl machine restart "${{ steps.mach.outputs.id }}" --app "$FLY_APP"
-          sleep 20
+          MID="${{ steps.mach.outputs.id }}"
+          flyctl machine restart "$MID" --app "$FLY_APP"
+          # `flyctl machine restart` returns before the machine has
+          # finished restarting; poll until state=started before letting
+          # later steps try to ssh in. Cap at 3 minutes.
+          for i in $(seq 1 90); do
+            state=$(flyctl machine list --app "$FLY_APP" --json \
+              | jq -r --arg id "$MID" '.[] | select(.id == $id) | .state')
+            echo "  attempt $i: state=$state"
+            if [ "$state" = "started" ]; then break; fi
+            sleep 2
+          done
+          if [ "$state" != "started" ]; then
+            echo "Machine never reached started state" >&2
+            exit 1
+          fi
 
       - name: Smoke test datasette on staging
         env:
