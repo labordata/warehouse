@@ -32,12 +32,45 @@ jobs:
       - name: Install flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Deploy image to Fly
+      - name: Build image
+        id: build
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          flyctl deploy --remote-only --app "$FLY_APP" \
-            --image-label "build-$GITHUB_RUN_NUMBER"
+          # `flyctl deploy` without --build-only reconciles the running
+          # machines against fly.toml's services config, and when our
+          # current machine doesn't look "deployed" enough to it (because
+          # it was created out-of-band by refresh-data.yml, services
+          # were added via `machine update --port`, etc.) it spins up
+          # extra empty machines as siblings. That makes Fly proxy
+          # round-robin to a data-less machine — outage. Build the
+          # image only; we roll it out with `flyctl machine update`
+          # below, which never creates machines.
+          TAG="build-$GITHUB_RUN_NUMBER"
+          flyctl deploy --build-only --remote-only --app "$FLY_APP" \
+            --image-label "$TAG" \
+            --push
+          echo "image=registry.fly.io/$FLY_APP:$TAG" >> $GITHUB_OUTPUT
+
+      - name: Roll image onto the current machine
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Update only the role=current machine. Anything tagged
+          # role=staging is in the middle of a refresh-data.yml run and
+          # shouldn't be touched here.
+          MID=$(flyctl machine list --app "$FLY_APP" --json | jq -r '
+            [.[] | select(.config.metadata.role == "current")] | first | .id
+          ')
+          if [ -z "$MID" ] || [ "$MID" = "null" ]; then
+            echo "No machine has role=current" >&2
+            flyctl machine list --app "$FLY_APP" --json \
+              | jq '.[]|{id,role:.config.metadata.role}' >&2
+            exit 1
+          fi
+          echo "Rolling ${{ steps.build.outputs.image }} onto $MID"
+          flyctl machine update "$MID" --app "$FLY_APP" --yes \
+            --image "${{ steps.build.outputs.image }}"
 
       - name: Purge Cloudflare cache
         env:
