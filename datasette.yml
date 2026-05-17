@@ -3,7 +3,6 @@ plugins:
     literal: |-
       User-agent: *
       Disallow: /*?
-      Disallow: /*/*/*
       Disallow: /*/sqlite_*
       Disallow: /*/_*
       Disallow: /*/*_fts
