@@ -104,6 +104,9 @@ jobs:
           # live image may predate /app/scripts/pull-from-r2.sh (we update
           # data before redeploying the image). Sourcing from /tmp keeps
           # this step independent of the image generation that's running.
+          # `flyctl ssh sftp put` refuses to overwrite, so clear any prior
+          # copy first or we'll silently re-run the previous version.
+          flyctl ssh console --app "$FLY_APP" -C "rm -f /tmp/pull-from-r2.sh"
           echo "put scripts/pull-from-r2.sh /tmp/pull-from-r2.sh" \
             | flyctl ssh sftp shell --app "$FLY_APP"
           flyctl ssh console --app "$FLY_APP" -C \
