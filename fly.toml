@@ -11,13 +11,18 @@ primary_region = "iad"
 [build]
   # Use the Dockerfile in the repo root.
 
-[mounts]
-  source = "dbs"
-  destination = "/data"
-  initial_size = "25gb"
-  # 25 GB headroom for the swap pattern: peak usage is the current
-  # 10 GB working set in /data + a fresh 10 GB uncompressed set being
-  # built in /data/incoming. A 20 GB volume runs out of space mid-gunzip.
+# NB: no [mounts] block.
+#
+# Volumes are managed entirely by refresh-data.yml — each refresh
+# creates a new ephemeral volume (dbs_stage_<run_id>) and the old one
+# is destroyed at promotion time. Re-adding `[mounts] source = "dbs"`
+# here would make `flyctl deploy` create a second machine attached to
+# a brand-new empty 25 GB volume whenever no volume named "dbs"
+# exists — which is exactly what happened on the first post-cutover
+# deploy and broke the homepage for half the requests.
+#
+# The mount path is set on each machine at creation time via the
+# `flyctl machine run --volume <id>:/data` flag in refresh-data.yml.
 
 [[services]]
   protocol = "tcp"
