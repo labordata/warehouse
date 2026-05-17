@@ -170,20 +170,11 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
-            -C 'python -c "
-import urllib.request, json, sys, time
-def get(path):
-    s = time.time()
-    body = urllib.request.urlopen(f\"http://localhost:8080{path}\", timeout=30).read()
-    return len(body), time.time() - s
-n, t = get(\"/-/versions.json\")
-print(f\"/-/versions.json   200  {n} bytes  in {t*1000:.0f}ms\")
-n, t = get(\"/-/databases.json\")
-print(f\"/-/databases.json  200  {n} bytes  in {t*1000:.0f}ms\")
-import json as j
-dbs = j.loads(urllib.request.urlopen(\"http://localhost:8080/-/databases.json\", timeout=30).read())
-print(f\"  databases attached: {len(dbs)}: {sorted(d[\"name\"] for d in dbs)}\")
-"'
+            -C "rm -f /tmp/smoke-test.sh"
+          echo "put scripts/smoke-test.sh /tmp/smoke-test.sh" \
+            | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C "sh /tmp/smoke-test.sh"
 
       - name: Tear down staging (POC — no promotion)
         if: always()
