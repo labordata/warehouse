@@ -85,15 +85,16 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Use the image from whichever machine currently has role=current
-          # (or the only machine, in the pre-blue/green steady state).
-          IMG=$(flyctl machine list --app "$FLY_APP" --json \
-            | jq -r '
-              (map(select(.config.metadata.role == "current"))
-               | .[0]
-               // .[0]) | .config.image')
+          # Prefer a machine tagged role=current; fall back to the first
+          # machine (the pre-blue/green steady state has just one machine
+          # with no role metadata yet).
+          IMG=$(flyctl machine list --app "$FLY_APP" --json | jq -r '
+            ([.[] | select(.config.metadata.role == "current")] | first | .config.image)
+            // (.[0].config.image)
+          ')
           if [ -z "$IMG" ] || [ "$IMG" = "null" ]; then
             echo "Could not resolve current image" >&2
+            flyctl machine list --app "$FLY_APP" --json | jq '.[]|{id,image:.config.image,meta:.config.metadata}' >&2
             exit 1
           fi
           echo "image=$IMG" >> $GITHUB_OUTPUT
