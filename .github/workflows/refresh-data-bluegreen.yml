@@ -211,13 +211,15 @@ jobs:
           OLD="${{ steps.cur.outputs.machine }}"
 
           # 1. Put services on the staging machine so Fly's proxy routes
-          #    traffic to it. Ports/handlers match fly.toml's [[services]]
-          #    block. flyctl machine update auto-stops, applies, restarts;
+          #    traffic to it. Ports + handlers match fly.toml's
+          #    [[services]] block; force_https is handled by Cloudflare's
+          #    always_use_https setting so we don't need to express it
+          #    here. flyctl machine update auto-stops, applies, restarts;
           #    the new container then comes up with services + warm data
           #    (mmap was done on the previous restart we already did).
           flyctl machine update "$NEW" --app "$FLY_APP" --yes \
-            --port "80:8080/http:force_https=true" \
-            --port "443:8080/tls:http"
+            --port "80:8080/tcp:http" \
+            --port "443:8080/tcp:tls:http"
 
           # 2. Cordon old machine: stops accepting new connections.
           #    Existing connections drain naturally.
