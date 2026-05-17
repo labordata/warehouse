@@ -125,7 +125,9 @@ jobs:
         run: |
           # No --port flags — staging machine has no public services.
           # role=staging metadata so future promotion logic can find it.
-          MID=$(flyctl machine run "${{ steps.img.outputs.image }}" \
+          # `flyctl machine run` has no --json flag; parse stdout for
+          # the "Machine ID: XXX" line.
+          OUT=$(flyctl machine run "${{ steps.img.outputs.image }}" \
             --app "$FLY_APP" \
             --region "$FLY_REGION" \
             --volume "${{ steps.vol.outputs.id }}:/data" \
@@ -133,9 +135,13 @@ jobs:
             --metadata refresh_run="$GITHUB_RUN_ID" \
             --vm-cpu-kind shared \
             --vm-cpus 1 \
-            --vm-memory 2048 \
-            --json \
-            | jq -r '.id')
+            --vm-memory 2048 2>&1)
+          echo "$OUT"
+          MID=$(echo "$OUT" | grep -oE 'Machine ID: [a-f0-9]+' | head -1 | awk '{print $3}')
+          if [ -z "$MID" ]; then
+            echo "Could not parse machine ID from flyctl output" >&2
+            exit 1
+          fi
           echo "id=$MID" >> $GITHUB_OUTPUT
           echo "Created staging machine: $MID"
           # Give the machine and sshd a moment to be reachable.
