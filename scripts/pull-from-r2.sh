@@ -27,8 +27,19 @@ cd /data/incoming
 
 for name in "$@"; do
   echo "Pulling $BASE/$name"
-  python -c "import urllib.request,sys,os; urllib.request.urlretrieve(sys.argv[1], os.path.basename(sys.argv[1]))" \
-    "$BASE/$name"
+  # Set a real UA — Cloudflare's Browser Integrity Check on the
+  # bunkum.us zone returns error 1010 to clients that look like
+  # bots (Python-urllib/3.x by default), and the staging bucket
+  # is on a custom domain inside that zone.
+  python -c "
+import urllib.request, sys, os
+req = urllib.request.Request(sys.argv[1], headers={'User-Agent': 'warehouse-fly-pull/1.0'})
+with urllib.request.urlopen(req) as r, open(os.path.basename(sys.argv[1]), 'wb') as f:
+    while True:
+        chunk = r.read(1 << 20)
+        if not chunk: break
+        f.write(chunk)
+" "$BASE/$name"
 done
 
 ls -la /data/incoming
