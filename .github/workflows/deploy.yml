@@ -56,9 +56,13 @@ jobs:
           # image only; we roll it out with `flyctl machine update`
           # below, which never creates machines.
           TAG="build-$GITHUB_RUN_NUMBER"
+          # --build-arg GIT_SHA invalidates the COPY layers in the
+          # Dockerfile per commit. The apt-get + pip install layers
+          # above it remain cached. See Dockerfile for context.
           flyctl deploy --build-only --remote-only --app "$FLY_APP" \
             --image-label "$TAG" \
-            --push
+            --push \
+            --build-arg "GIT_SHA=$GITHUB_SHA"
           echo "image=registry.fly.io/$FLY_APP:$TAG" >> $GITHUB_OUTPUT
 
       - name: Roll image onto the current machine

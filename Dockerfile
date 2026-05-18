@@ -25,6 +25,19 @@ RUN pip install --no-cache-dir \
     datasette-pretty-traces \
     https://github.com/fgregg/datasette-schema-org/archive/refs/heads/main.zip
 
+# Cache-busting sentinel. Without this, Fly's remote builder occasionally
+# reuses the cached COPY layers below across commits even when the
+# source files have changed — we hit this exactly once and shipped a
+# build that still had the pre-cutover scripts/ layout and a stale
+# datasette.yml. This RUN consumes GIT_SHA, so its cache key changes
+# every commit, forcing every COPY beneath it to re-execute with
+# current sources. The apt-get + pip install layers above stay
+# cached, so this only costs ~5s on the cheap layers.
+#
+# deploy.yml passes --build-arg GIT_SHA=$GITHUB_SHA.
+ARG GIT_SHA=unknown
+RUN echo "$GIT_SHA" > /etc/build-sha
+
 WORKDIR /app
 
 # Plugins and config — these change with code, not data.
