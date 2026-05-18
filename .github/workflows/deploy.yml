@@ -56,19 +56,22 @@ jobs:
           # image only; we roll it out with `flyctl machine update`
           # below, which never creates machines.
           TAG="build-$GITHUB_RUN_NUMBER"
-          # We deliberately did NOT pass --no-cache here. We saw one
-          # cached-but-stale image yesterday during the cutover chaos
-          # (5+ deploys in 30 min, mid-sibling-machine fiasco) but a
-          # controlled reproducer afterwards — change a file, build
-          # with cache, check the post-COPY sha — showed BuildKit
-          # invalidating correctly. The Dockerfile has a diagnostic
-          # `RUN sha256sum` at the bottom whose output lands in this
-          # build log; if a future build ever ships a stale image,
-          # the sha in the log won't match the file in git and we'll
-          # see it immediately.
+          # --no-cache is required. The bug we hit on build-7 came
+          # back on build-12 even with the GIT_SHA sentinel. The diag
+          # RUN at the end of the Dockerfile showed the build itself
+          # seeing correct file content (good shas, no `/*/*/*` in
+          # datasette.yml's head output), but the resulting container
+          # had stale content (missing /etc/build-sha, old
+          # datasette.yml). So the bug isn't BuildKit's metadata-hash
+          # being wrong — it's somewhere downstream of the build
+          # finishing successfully. Layer manifest dedup against a
+          # poisoned-but-stale layer in the registry seems most likely.
+          # Whatever it is, --no-cache is the only knob that reliably
+          # avoids it. Costs ~2 min per build.
           flyctl deploy --build-only --remote-only --app "$FLY_APP" \
             --image-label "$TAG" \
             --push \
+            --no-cache \
             --build-arg "GIT_SHA=$GITHUB_SHA"
           echo "image=registry.fly.io/$FLY_APP:$TAG" >> $GITHUB_OUTPUT
 
