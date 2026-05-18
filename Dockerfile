@@ -45,6 +45,16 @@ COPY plugins/ /app/plugins/
 COPY datasette.yml warehouse_metadata.yml /app/
 COPY scripts/ /app/scripts/
 RUN chmod +x /app/scripts/*.sh
+# DIAG: print staged content of key files at build time so we can compare
+# them against what ends up in the running container. Remove after the
+# Depot-builder cache-staleness investigation is done.
+RUN echo "--- DIAG: /app/datasette.yml ---" \
+ && sha256sum /app/datasette.yml /app/warehouse_metadata.yml \
+ && head -8 /app/datasette.yml \
+ && echo "--- DIAG: /app/scripts/ ---" \
+ && ls -la /app/scripts/ \
+ && echo "--- DIAG: GIT_SHA from sentinel ---" \
+ && cat /etc/build-sha
 
 # Databases live on a Fly Volume mounted here.
 VOLUME /data
