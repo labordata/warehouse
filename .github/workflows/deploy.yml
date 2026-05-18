@@ -89,8 +89,22 @@ jobs:
             exit 1
           fi
           echo "Rolling ${{ steps.build.outputs.image }} onto $MID"
-          flyctl machine update "$MID" --app "$FLY_APP" --yes \
-            --image "${{ steps.build.outputs.image }}"
+          # Fly's registry sometimes returns 404 on the manifest for a
+          # few seconds after `flyctl deploy --push` completes — the
+          # push reports success before the manifest is globally
+          # readable. Retry up to ~30s.
+          for i in 1 2 3 4 5; do
+            if flyctl machine update "$MID" --app "$FLY_APP" --yes \
+                 --image "${{ steps.build.outputs.image }}"; then
+              break
+            fi
+            echo "retry $i: machine update failed, sleeping..." >&2
+            sleep $((i * 5))
+            if [ "$i" = "5" ]; then
+              echo "machine update kept failing" >&2
+              exit 1
+            fi
+          done
 
       - name: Purge Cloudflare cache
         env:
