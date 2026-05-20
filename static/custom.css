@@ -1,21 +1,22 @@
-/* Labor Data — vintage pamphlet flavor.
-   Inspired by 19th-c. labor printing: cream paper, deep ink, a single red rule. */
+/* Labor Data — blocking sans, SEIU-adjacent type hierarchy.
+   Compressed bold caps for display, sans for body, single red accent. */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-  --paper: #f4ecd8;
-  --paper-edge: #e8dcbf;
-  --ink: #1a1410;
-  --ink-soft: #3d2f24;
-  --ink-mute: #6b5a47;
-  --rule: #b8a37a;
-  --rule-soft: #d8c8a6;
-  --red: #b3121f;
-  --red-deep: #7a0a13;
+  --paper: #fafaf7;
+  --paper-edge: #ededed;
+  --ink: #15110d;
+  --ink-soft: #3a3a36;
+  --ink-mute: #8a8a8a;
+  --rule: #d4d4d0;
+  --rule-soft: #e6e6e3;
+  --red: #c0023e;
+  --red-deep: #8e0029;
 
-  --serif-body: "Source Serif 4", "Source Serif Pro", "Hoefler Text", "Iowan Old Style", Georgia, serif;
-  --serif-display: "DM Serif Display", "Old Standard TT", "Hoefler Text", Georgia, serif;
+  --display: "Geist", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --sans-body: "Geist", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  --sans-label: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* Page surface ----------------------------------------------------------- */
@@ -23,15 +24,10 @@
 html, body {
   background: var(--paper);
   color: var(--ink);
-  font-family: var(--serif-body);
+  font-family: var(--sans-body);
   font-size: 17px;
   line-height: 1.55;
-}
-
-body {
-  background-image:
-    radial-gradient(rgba(120, 90, 50, 0.04) 1px, transparent 1px);
-  background-size: 3px 3px;
+  -webkit-font-smoothing: antialiased;
 }
 
 .not-footer {
@@ -44,14 +40,13 @@ body {
 
 header.hd {
   border-top: 6px solid var(--red);
-  border-bottom: 1px solid var(--ink);
-  box-shadow: 0 3px 0 var(--paper), 0 4px 0 var(--ink);
-  padding: 1.1rem 1.5rem 0.9rem;
-  margin-bottom: 1.5rem;
-  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  padding: 0.9rem 1.5rem 0.85rem;
+  margin-bottom: 2rem;
+  background: var(--paper-edge);
   background-image: none;
   color: var(--ink);
-  font-family: var(--serif-display);
+  font-family: var(--sans-label);
   letter-spacing: 0.01em;
   min-height: 0;
 }
@@ -69,12 +64,13 @@ header.hd a:active {
   color: var(--red);
 }
 
-/* Breadcrumbs — small caps trail */
+/* Breadcrumbs — uppercase tracked label */
 .crumbs {
-  font-family: var(--serif-body);
-  font-variant: small-caps;
-  letter-spacing: 0.08em;
-  font-size: 0.85rem;
+  font-family: var(--sans-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.72rem;
   color: var(--ink-mute);
 }
 
@@ -84,38 +80,46 @@ header.hd a:active {
 
 /* Headings --------------------------------------------------------------- */
 
-h1, h2, h3, .page-header h1 {
-  font-family: var(--serif-display);
+h1, h2, .page-header h1 {
+  font-family: var(--display);
   color: var(--ink);
-  line-height: 1.15;
-  font-weight: 400;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 h1 {
-  font-size: 2.4rem;
-  margin: 0.4rem 0 0.6rem;
+  font-size: 3rem;
+  margin: 0.3rem 0 0.7rem;
 }
 
 h1::after {
   content: "";
   display: block;
-  width: 3.5rem;
-  height: 3px;
-  margin-top: 0.55rem;
+  width: 3rem;
+  height: 4px;
+  margin-top: 0.7rem;
   background: var(--red);
 }
 
 h2 {
-  font-size: 1.5rem;
-  margin: 1.6rem 0 0.6rem;
-  padding-bottom: 0.25rem;
+  font-size: 1.6rem;
+  margin: 1.8rem 0 0.6rem;
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--rule);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
+/* h3 — section-label treatment, EPI-style red sans bold */
 h3 {
-  font-size: 1.15rem;
-  margin: 1.2rem 0 0.4rem;
-  font-style: italic;
+  font-family: var(--sans-label);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  margin: 1.4rem 0 0.5rem;
 }
 
 /* Links ------------------------------------------------------------------ */
@@ -170,7 +174,11 @@ a:active {
 .index h2 {
   border: none;
   margin: 0 0 0.3rem;
-  font-family: var(--serif-display);
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: none;
 }
 
 .metadata-description {
@@ -181,7 +189,7 @@ a:active {
 /* Tables — keep them legible, just dress the edges --------------------- */
 
 table {
-  background: #fbf6e8;
+  background: #ffffff;
   border: 1px solid var(--rule);
   border-collapse: collapse;
   font-size: 0.92rem;
@@ -190,10 +198,14 @@ table {
 th {
   background: var(--paper-edge);
   border-bottom: 2px solid var(--ink);
-  font-family: var(--serif-display);
-  font-weight: 400;
+  font-family: var(--sans-label);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   text-align: left;
-  padding: 0.5rem 0.7rem;
+  padding: 0.55rem 0.7rem;
+  color: var(--ink);
 }
 
 td {
@@ -202,7 +214,7 @@ td {
 }
 
 tr:nth-child(even) td {
-  background: rgba(184, 163, 122, 0.06);
+  background: rgba(21, 17, 13, 0.035);
 }
 
 /* Code & SQL ------------------------------------------------------------- */
@@ -213,8 +225,8 @@ pre, code, .cm-editor, .sql {
 }
 
 pre, .sql.core {
-  background: #2b2218;
-  color: #f4ecd8;
+  background: #1a1612;
+  color: var(--paper);
   border: 1px solid var(--ink);
   border-left: 4px solid var(--red);
   padding: 0.75rem 1rem;
@@ -230,9 +242,10 @@ footer.ft {
   box-shadow: 0 -3px 0 var(--paper), 0 -4px 0 var(--red);
   background: var(--paper);
   background-image: none;
-  font-variant: small-caps;
-  letter-spacing: 0.08em;
-  font-size: 0.85rem;
+  font-family: var(--sans-label);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   color: var(--ink-mute);
   text-align: center;
   min-height: 0;
@@ -252,9 +265,9 @@ footer.ft a:focus {
 /* Forms / inputs --------------------------------------------------------- */
 
 input[type=text], input[type=search], textarea, select {
-  background: #fbf6e8;
+  background: #ffffff;
   border: 1px solid var(--rule);
-  font-family: var(--serif-body);
+  font-family: var(--sans-body);
   padding: 0.35rem 0.5rem;
 }
 
@@ -268,7 +281,7 @@ input.core[type=submit] {
   border: 1px solid var(--ink);
   border-radius: 0;
   padding: 0.45rem 1rem;
-  font-family: var(--serif-display);
+  font-family: var(--sans-label);
   font-size: 0.95rem;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -292,7 +305,7 @@ button.core[type=button] {
   border: 1px solid var(--ink);
   border-radius: 0;
   padding: 0.45rem 1rem;
-  font-family: var(--serif-display);
+  font-family: var(--sans-label);
   font-size: 0.95rem;
   letter-spacing: 0.04em;
   cursor: pointer;
