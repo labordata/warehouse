@@ -1,3 +1,6 @@
+extra_css_urls:
+  - /static/custom.css
+
 plugins:
   datasette-block-robots:
     literal: |-

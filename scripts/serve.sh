@@ -36,6 +36,7 @@ exec datasette serve \
   -c /app/datasette.yml \
   -m /app/warehouse_metadata.yml \
   --plugins-dir /app/plugins \
+  --static static:/app/static \
   --crossdb \
   --cors \
   --setting sql_time_limit_ms 100000 \

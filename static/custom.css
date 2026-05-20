@@ -1,0 +1,306 @@
+/* Labor Data — vintage pamphlet flavor.
+   Inspired by 19th-c. labor printing: cream paper, deep ink, a single red rule. */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+:root {
+  --paper: #f4ecd8;
+  --paper-edge: #e8dcbf;
+  --ink: #1a1410;
+  --ink-soft: #3d2f24;
+  --ink-mute: #6b5a47;
+  --rule: #b8a37a;
+  --rule-soft: #d8c8a6;
+  --red: #b3121f;
+  --red-deep: #7a0a13;
+
+  --serif-body: "Source Serif 4", "Source Serif Pro", "Hoefler Text", "Iowan Old Style", Georgia, serif;
+  --serif-display: "DM Serif Display", "Old Standard TT", "Hoefler Text", Georgia, serif;
+}
+
+/* Page surface ----------------------------------------------------------- */
+
+html, body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif-body);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+body {
+  background-image:
+    radial-gradient(rgba(120, 90, 50, 0.04) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+.not-footer {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Masthead --------------------------------------------------------------- */
+
+header.hd {
+  border-top: 6px solid var(--red);
+  border-bottom: 1px solid var(--ink);
+  box-shadow: 0 3px 0 var(--paper), 0 4px 0 var(--ink);
+  padding: 1.1rem 1.5rem 0.9rem;
+  margin-bottom: 1.5rem;
+  background: var(--paper);
+  background-image: none;
+  color: var(--ink);
+  font-family: var(--serif-display);
+  letter-spacing: 0.01em;
+  min-height: 0;
+}
+
+header.hd a,
+header.hd a:link,
+header.hd a:visited {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+header.hd a:hover,
+header.hd a:focus,
+header.hd a:active {
+  color: var(--red);
+}
+
+/* Breadcrumbs — small caps trail */
+.crumbs {
+  font-family: var(--serif-body);
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  color: var(--ink-mute);
+}
+
+.crumbs a {
+  color: var(--ink-soft);
+}
+
+/* Headings --------------------------------------------------------------- */
+
+h1, h2, h3, .page-header h1 {
+  font-family: var(--serif-display);
+  color: var(--ink);
+  line-height: 1.15;
+  font-weight: 400;
+}
+
+h1 {
+  font-size: 2.4rem;
+  margin: 0.4rem 0 0.6rem;
+}
+
+h1::after {
+  content: "";
+  display: block;
+  width: 3.5rem;
+  height: 3px;
+  margin-top: 0.55rem;
+  background: var(--red);
+}
+
+h2 {
+  font-size: 1.5rem;
+  margin: 1.6rem 0 0.6rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+h3 {
+  font-size: 1.15rem;
+  margin: 1.2rem 0 0.4rem;
+  font-style: italic;
+}
+
+/* Links ------------------------------------------------------------------ */
+
+a,
+a:link {
+  color: var(--red-deep);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+a:visited {
+  color: var(--red-deep);
+  opacity: 0.78;
+}
+
+a:hover,
+a:focus,
+a:active {
+  color: var(--red);
+}
+
+/* Database-index headings carry the link; keep them ink-black with the
+   accent on hover. The colored db-slug bar at left is provided by
+   app.css and we leave it alone. */
+.index h2 a,
+.index h2 a:link,
+.index h2 a:visited {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.index h2 a:hover {
+  color: var(--red);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* Index of databases ----------------------------------------------------- */
+
+.index {
+  list-style: none;
+  padding: 0;
+}
+
+.index li {
+  border-bottom: 1px dotted var(--rule);
+  padding: 0.9rem 0;
+}
+
+.index h2 {
+  border: none;
+  margin: 0 0 0.3rem;
+  font-family: var(--serif-display);
+}
+
+.metadata-description {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+/* Tables — keep them legible, just dress the edges --------------------- */
+
+table {
+  background: #fbf6e8;
+  border: 1px solid var(--rule);
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+th {
+  background: var(--paper-edge);
+  border-bottom: 2px solid var(--ink);
+  font-family: var(--serif-display);
+  font-weight: 400;
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+}
+
+td {
+  border-bottom: 1px dotted var(--rule);
+  padding: 0.45rem 0.7rem;
+}
+
+tr:nth-child(even) td {
+  background: rgba(184, 163, 122, 0.06);
+}
+
+/* Code & SQL ------------------------------------------------------------- */
+
+pre, code, .cm-editor, .sql {
+  font-family: "Iosevka", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88rem;
+}
+
+pre, .sql.core {
+  background: #2b2218;
+  color: #f4ecd8;
+  border: 1px solid var(--ink);
+  border-left: 4px solid var(--red);
+  padding: 0.75rem 1rem;
+  border-radius: 0;
+}
+
+/* Footer ----------------------------------------------------------------- */
+
+footer.ft {
+  margin-top: 3rem;
+  padding: 1.2rem 1.5rem;
+  border-top: 1px solid var(--ink);
+  box-shadow: 0 -3px 0 var(--paper), 0 -4px 0 var(--red);
+  background: var(--paper);
+  background-image: none;
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  color: var(--ink-mute);
+  text-align: center;
+  min-height: 0;
+}
+
+footer.ft a,
+footer.ft a:link,
+footer.ft a:visited {
+  color: var(--ink-soft);
+}
+
+footer.ft a:hover,
+footer.ft a:focus {
+  color: var(--red);
+}
+
+/* Forms / inputs --------------------------------------------------------- */
+
+input[type=text], input[type=search], textarea, select {
+  background: #fbf6e8;
+  border: 1px solid var(--rule);
+  font-family: var(--serif-body);
+  padding: 0.35rem 0.5rem;
+}
+
+button,
+input[type=submit],
+.core input[type=submit],
+input.core[type=submit] {
+  background: var(--ink);
+  background-image: none;
+  color: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 0.45rem 1rem;
+  font-family: var(--serif-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+button:hover,
+input[type=submit]:hover,
+.core input[type=submit]:hover,
+input.core[type=submit]:hover {
+  background: var(--red);
+  background-image: none;
+  border-color: var(--red);
+}
+
+/* "Ghost" buttons (Format SQL etc.) — inverted */
+.core button[type=button],
+button.core[type=button] {
+  background: var(--paper);
+  background-image: none;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 0.45rem 1rem;
+  font-family: var(--serif-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.core button[type=button]:hover,
+button.core[type=button]:hover {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}

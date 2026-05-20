@@ -42,6 +42,7 @@ WORKDIR /app
 
 # Plugins and config — these change with code, not data.
 COPY plugins/ /app/plugins/
+COPY static/ /app/static/
 COPY datasette.yml warehouse_metadata.yml /app/
 COPY scripts/ /app/scripts/
 RUN chmod +x /app/scripts/*.sh
