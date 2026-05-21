@@ -65,46 +65,28 @@ jobs:
           # BuildKit / registry-layer-dedup issue and fought with
           # --no-cache — which was never the cure).
           TAG="build-$GITHUB_RUN_NUMBER"
+          # Tee the output so we can grep the manifest digest out of
+          # buildkit's progress lines (it prints
+          # "pushing manifest for registry.fly.io/foo:tag@sha256:..."
+          # right when the push lands). Pinning the machine to that
+          # digest is what bypasses Fly's tag→digest cache; the
+          # registry HTTP API would also work but FLY_API_TOKEN is a
+          # deploy-scoped token and read-via-HTTP-Basic returns 404
+          # for it.
+          set -o pipefail
           flyctl deploy --build-only --remote-only --app "$FLY_APP" \
             --image-label "$TAG" \
             --push \
-            --build-arg "GIT_SHA=$GITHUB_SHA"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve pushed image digest
-        id: digest
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          # Pin the machine to the manifest digest, not the tag, so
-          # Fly's control-plane tag→digest cache can't hand us back a
-          # stale digest. (Fly staff confirm the cache on the forum:
-          # https://community.fly.io/t/flyctl-machine-run-hitting-manifest-unknown-for-a-tag-that-exists-possible-control-plane-cache-issue/26246)
-          #
-          # Use `docker manifest inspect` because FLY_API_TOKEN is a
-          # deploy token; raw HTTP Basic auth against
-          # https://registry.fly.io/v2/.../manifests/TAG returns 404
-          # for it (consistent with read-scope not being granted on
-          # that path). Docker's standard auth-challenge → bearer
-          # exchange does work.
-          TAG="${{ steps.build.outputs.tag }}"
-          echo "$FLY_API_TOKEN" | docker login registry.fly.io -u x --password-stdin
-          DIGEST=""
-          for i in $(seq 1 12); do
-            DIGEST=$(docker manifest inspect --verbose \
-                       "registry.fly.io/$FLY_APP:$TAG" 2>/dev/null \
-                     | jq -r '.Descriptor.digest // ""')
-            if [ -n "$DIGEST" ]; then
-              break
-            fi
-            echo "retry $i: manifest not yet readable, sleeping 15s..." >&2
-            sleep 15
-          done
+            --build-arg "GIT_SHA=$GITHUB_SHA" \
+            2>&1 | tee /tmp/build.log
+          DIGEST=$(grep -oE "pushing manifest for [^ ]*@sha256:[0-9a-f]+" /tmp/build.log \
+                   | grep -oE "sha256:[0-9a-f]+" | tail -1)
           if [ -z "$DIGEST" ]; then
-            echo "could not resolve digest for $TAG after ~3 min" >&2
+            echo "Could not extract manifest digest from build output." >&2
             exit 1
           fi
           echo "Resolved $TAG → $DIGEST"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "image=registry.fly.io/$FLY_APP@$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Roll image onto the current machine
@@ -123,9 +105,9 @@ jobs:
               | jq '.[]|{id,role:.config.metadata.role}' >&2
             exit 1
           fi
-          echo "Rolling ${{ steps.digest.outputs.image }} onto $MID"
+          echo "Rolling ${{ steps.build.outputs.image }} onto $MID"
           flyctl machine update "$MID" --app "$FLY_APP" --yes \
-            --image "${{ steps.digest.outputs.image }}"
+            --image "${{ steps.build.outputs.image }}"
 
       - name: Verify running rootfs matches commit
         env:
