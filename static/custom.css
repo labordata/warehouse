@@ -223,6 +223,50 @@ a:active {
   overflow-wrap: anywhere;
 }
 
+/* Datasette's default mobile stylesheet reflows tables into
+   card-per-row at <=576px (display: block on every element, thead
+   pushed off-screen, td:::before pulling the column name in). HCI
+   research on result-set tables (NN/g, the search-UI literature)
+   explicitly warns against responsive-collapse to cards — it
+   destroys the find/scan task that's the whole point. Keep the
+   real table on small viewports too; the .table-wrapper still
+   horizontal-scrolls when the columns don't fit. */
+@media only screen and (max-width: 576px) {
+  table.rows-and-columns,
+  .rows-and-columns thead,
+  .rows-and-columns tbody,
+  .rows-and-columns tr,
+  .rows-and-columns th,
+  .rows-and-columns td {
+    display: revert;
+  }
+
+  .rows-and-columns thead tr {
+    position: static;
+    top: auto;
+    left: auto;
+  }
+
+  table.rows-and-columns tr {
+    border: none;
+    margin-bottom: 0;
+    border-radius: 0;
+    background-color: transparent;
+    padding: 0;
+  }
+
+  table.rows-and-columns td {
+    border: none;
+    border-right: 1px solid var(--rule-soft);
+    padding: 0.45rem 0.75rem;
+  }
+
+  table.rows-and-columns td:before {
+    content: none;
+    display: none;
+  }
+}
+
 /* Tables — HCI-grounded result-set table design.
    References: Few (Show Me the Numbers); Enders 2008 (zebra striping for wide
    tables); Rutter / Ström on numeric vs. ID alignment; NN/g on sticky headers
