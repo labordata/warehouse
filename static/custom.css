@@ -347,6 +347,54 @@ table.rows-and-columns th[class*="total"] {
   text-align: right;
 }
 
+/* Download-this-data card — bordered block to pull the eye toward
+   the CSV/JSON downloads after a long result set. */
+.download-card {
+  margin: 2rem 0 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-edge);
+}
+
+.download-card h3 {
+  margin: 0 0 0.5rem;
+  color: var(--ink); /* override the red h3-label treatment here */
+}
+
+.download-card p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.download-card .download-link {
+  font-weight: 700;
+}
+
+/* Collapsible table schema — keep the CREATE TABLE definition out of
+   the way unless someone explicitly opens it. */
+.schema-details {
+  margin: 2rem 0;
+}
+
+.schema-details > summary {
+  cursor: pointer;
+  font-family: var(--sans-label);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  padding: 0.4rem 0;
+}
+
+.schema-details > summary:hover {
+  color: var(--red);
+}
+
+.schema-details[open] > summary {
+  margin-bottom: 0.5rem;
+}
+
 /* Advanced db-page links (schema, download) — separated from the table
    list above by a short hairline rule echoing the h1/h2 ::after partials. */
 .advanced-db-links {
