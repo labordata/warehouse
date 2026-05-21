@@ -88,6 +88,14 @@ h1, h2, .page-header h1 {
   letter-spacing: -0.02em;
 }
 
+/* Drop the per-db colored swatch beside table/db titles — the breadcrumbs
+   and heading already identify which database we're in, and the swatch is
+   just a hash-derived color with no semantic meaning. */
+.page-header {
+  border-left: none;
+  padding-left: 0;
+}
+
 h1 {
   font-size: 3rem;
   margin: 0.3rem 0 0.7rem;
@@ -172,7 +180,8 @@ a:active {
 }
 
 .index h2 {
-  border: none;
+  border: none !important; /* override Datasette's inline per-db swatch */
+  padding-left: 0 !important;
   margin: 0 0 0.3rem;
   font-family: var(--display);
   font-size: 1.5rem;
