@@ -36,6 +36,7 @@ exec datasette serve \
   -c /app/datasette.yml \
   -m /app/warehouse_metadata.yml \
   --plugins-dir /app/plugins \
+  --template-dir /app/templates \
   --static static:/app/static \
   --crossdb \
   --cors \

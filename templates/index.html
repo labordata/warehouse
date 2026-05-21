@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}{{ metadata.title or "Datasette" }}: {% for database in databases %}{{ database.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% endblock %}
+
+{% block extra_head %}
+{% if noindex %}<meta name="robots" content="noindex">{% endif %}
+{% endblock %}
+
+{% block body_class %}index{% endblock %}
+
+{% block content %}
+<h1>{{ metadata.title or "Datasette" }}{% if private %} 🔒{% endif %}</h1>
+
+{% set action_links, action_title = homepage_actions, "Homepage actions" %}
+{% include "_action_menu.html" %}
+
+{{ top_homepage() }}
+
+{% block description_source_license %}{% include "_description_source_license.html" %}{% endblock %}
+
+{% macro render_db(database) %}
+    {% set db_title = (db_titles or {}).get(database.name) or database.name %}
+    <h2><a href="{{ urls.database(database.name) }}">{{ db_title }}</a>{% if database.private %} 🔒{% endif %}</h2>
+    <p>
+        {% if database.show_table_row_counts %}{{ "{:,}".format(database.table_rows_sum) }} rows in {% endif %}{{ database.tables_count }} table{% if database.tables_count != 1 %}s{% endif %}{% if database.hidden_tables_count %}, {% endif -%}
+        {% if database.hidden_tables_count -%}
+            {% if database.show_table_row_counts %}{{ "{:,}".format(database.hidden_table_rows_sum) }} rows in {% endif %}{{ database.hidden_tables_count }} hidden table{% if database.hidden_tables_count != 1 %}s{% endif -%}
+        {% endif -%}
+        {% if database.views_count -%}
+            {% if database.tables_count or database.hidden_tables_count %}, {% endif -%}
+            {{ "{:,}".format(database.views_count) }} view{% if database.views_count != 1 %}s{% endif %}
+        {% endif %}
+    </p>
+    <p>{% for table in database.tables_and_views_truncated %}<a href="{{ urls.table(database.name, table.name) }}"{% if table.count %} title="{{ table.count }} rows"{% endif %}>{{ table.name }}</a>{% if table.private %} 🔒{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% if database.tables_and_views_more %}, <a href="{{ urls.database(database.name) }}">...</a>{% endif %}</p>
+{% endmacro %}
+
+{# System dbs (names starting with "_", e.g. _memory) render last. #}
+{% for database in databases if not database.name.startswith('_') %}{{ render_db(database) }}{% endfor %}
+{% for database in databases if database.name.startswith('_') %}{{ render_db(database) }}{% endfor %}
+
+{% endblock %}

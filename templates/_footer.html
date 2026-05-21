@@ -1,0 +1,27 @@
+{# Page-specific footer bits first (data source / license / about / query
+   timing — only present on pages that have them), then the always-on
+   project line. #}
+{% if metadata and (metadata.source or metadata.source_url) %}
+<p>Data source:
+    {% if metadata.source_url %}<a href="{{ metadata.source_url }}">{{ metadata.source or metadata.source_url }}</a>
+    {% else %}{{ metadata.source }}{% endif %}
+</p>
+{% endif %}
+
+{% if metadata and (metadata.license or metadata.license_url) %}
+<p>Data license:
+    {% if metadata.license_url %}<a href="{{ metadata.license_url }}">{{ metadata.license or metadata.license_url }}</a>
+    {% else %}{{ metadata.license }}{% endif %}
+</p>
+{% endif %}
+
+{% if metadata and (metadata.about or metadata.about_url) %}
+<p>About:
+    {% if metadata.about_url %}<a href="{{ metadata.about_url }}">{{ metadata.about or metadata.about_url }}</a>
+    {% else %}{{ metadata.about }}{% endif %}
+</p>
+{% endif %}
+
+{% if query_ms %}<p>Queries took {{ query_ms|round(3) }}ms</p>{% endif %}
+
+<p>A project of <a href="https://bsky.app/profile/bunkum.us">Forest Gregg</a>. Read about project updates on <a href="https://notes.labordata.bunkum.us/">Notes on Labor Data</a>.</p>

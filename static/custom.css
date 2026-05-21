@@ -39,16 +39,27 @@ html, body {
 /* Masthead --------------------------------------------------------------- */
 
 header.hd {
-  border-top: 6px solid var(--red);
-  border-bottom: 1px solid var(--rule);
+  /* Mirror the footer's trim: at the top of the viewport, an ink hairline;
+     under the masthead, an ink + paper-gap + red ornament identical to the
+     footer's top trim (just inverted). */
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  box-shadow: 0 3px 0 var(--paper), 0 4px 0 var(--red);
   padding: 0.9rem 1.5rem 0.85rem;
+  margin-top: 0;
   margin-bottom: 2rem;
-  background: var(--paper-edge);
+  background: var(--paper);
   background-image: none;
   color: var(--ink);
   font-family: var(--sans-label);
   letter-spacing: 0.01em;
   min-height: 0;
+
+  /* Break out of .not-footer's 1100px max-width so the masthead spans the
+     full viewport like the footer does, while keeping its content column
+     aligned with the rest of the page. */
+  margin-inline: calc(50% - 50vw);
+  padding-inline: max(1.5rem, calc(50vw - 50% + 1.5rem));
 }
 
 header.hd a,
@@ -160,11 +171,10 @@ a:active {
   text-decoration: none;
 }
 
-.index h2 a:hover {
+.index h2 a:hover,
+.index h2 a:focus {
   color: var(--red);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
+  text-decoration: none; /* the h2::after rule below carries the hover state */
 }
 
 /* Index of databases ----------------------------------------------------- */
@@ -188,6 +198,21 @@ a:active {
   font-weight: 700;
   letter-spacing: -0.01em;
   text-transform: none;
+  display: inline-block; /* shrink to text width so ::after can expand to match */
+}
+
+.index h2::after {
+  content: "";
+  display: block;
+  width: 1.75rem;
+  height: 2px;
+  margin-top: 0.4rem;
+  background: var(--red);
+  transition: width 0.18s ease;
+}
+
+.index h2:hover::after {
+  width: 100%;
 }
 
 .metadata-description {
