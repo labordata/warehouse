@@ -81,9 +81,12 @@ jobs:
           # stale digest. (Fly staff confirm the cache on the forum:
           # https://community.fly.io/t/flyctl-machine-run-hitting-manifest-unknown-for-a-tag-that-exists-possible-control-plane-cache-issue/26246)
           TAG="${{ steps.build.outputs.tag }}"
-          # The registry may take a few seconds to make the manifest
-          # readable after --push reports success; retry.
-          for i in 1 2 3 4 5; do
+          # Fly's registry takes anywhere from a few seconds to a few
+          # minutes after --push completes before the manifest is
+          # readable. Empirically saw a 4-minute delay once; retry
+          # for up to ~5 minutes.
+          DIGEST=""
+          for i in $(seq 1 20); do
             DIGEST=$(curl -fsS -I \
               -u "x:$FLY_API_TOKEN" \
               -H "Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json" \
@@ -93,11 +96,11 @@ jobs:
             if [ -n "$DIGEST" ]; then
               break
             fi
-            echo "retry $i: manifest not yet readable, sleeping..." >&2
-            sleep $((i * 5))
+            echo "retry $i: manifest not yet readable, sleeping 15s..." >&2
+            sleep 15
           done
           if [ -z "$DIGEST" ]; then
-            echo "could not resolve digest for $TAG" >&2
+            echo "could not resolve digest for $TAG after ~5 min" >&2
             exit 1
           fi
           echo "Resolved $TAG → $DIGEST"
