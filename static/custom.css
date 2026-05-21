@@ -280,10 +280,27 @@ th {
   color: var(--ink);
 }
 
-td {
+td,
+table.rows-and-columns td {
   padding: 0.45rem 0.75rem;
   border: none;
+  border-right: 1px solid var(--rule-soft);
   overflow: hidden;
+}
+
+tr td:last-child,
+table.rows-and-columns tr td:last-child {
+  border-right: none;
+}
+
+/* Match column separators on the header row too. */
+th,
+table.rows-and-columns th {
+  border-right: 1px solid var(--rule-soft);
+}
+tr th:last-child,
+table.rows-and-columns tr th:last-child {
+  border-right: none;
 }
 
 /* Light zebra (Enders 2008): the stripe carries row tracking on wide tables,
@@ -323,7 +340,7 @@ table.rows-and-columns tbody td:first-child {
   left: 0;
   z-index: 1;
   background: #ffffff;
-  border-right: 1px solid var(--rule);
+  border-right: 1px solid var(--rule-soft);
 }
 
 table.rows-and-columns tbody tr:nth-child(even) td:first-child {

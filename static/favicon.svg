@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- tbody background -->
+  <rect x="0" y="0" width="32" height="32" fill="#ffffff"/>
+  <!-- thead bar -->
+  <rect x="0" y="0" width="32" height="6" fill="#d8d8d3"/>
+  <!-- thead ink underrule -->
+  <rect x="0" y="6" width="32" height="1" fill="#15110d"/>
+  <!-- Zebra tint on the first body row (lighter than the header) -->
+  <rect x="0" y="7" width="32" height="6" fill="#15110d" fill-opacity="0.07"/>
+  <!-- Pinkish highlight on the third body row (not the first) -->
+  <rect x="0" y="19" width="32" height="6" fill="#c0023e" fill-opacity="0.12"/>
+  <!-- Column hairlines (3 internal verticals → 4 columns) -->
+  <line x1="8" y1="0" x2="8" y2="32" stroke="#d4d4d0" stroke-width="1"/>
+  <line x1="16" y1="0" x2="16" y2="32" stroke="#d4d4d0" stroke-width="1"/>
+  <line x1="24" y1="0" x2="24" y2="32" stroke="#d4d4d0" stroke-width="1"/>
+  <!-- Outer medium-grey border -->
+  <rect x="0.5" y="0.5" width="31" height="31" fill="none" stroke="#8a8a8a" stroke-width="1"/>
+</svg>
