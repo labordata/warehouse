@@ -86,8 +86,16 @@ jobs:
             exit 1
           fi
           echo "Resolved $TAG → $DIGEST"
+          # flyctl machine update has a bug where passing
+          # `repo@sha256:DIGEST` makes it append the digest a second
+          # time (`repo@sha256:DIGEST@sha256:DIGEST`), which Fly's API
+          # then rejects as "invalid image identifier". Workaround
+          # documented on the community forum: include the tag too,
+          # i.e. `repo:tag@sha256:DIGEST`. The digest is still what
+          # binds; the tag is decorative for flyctl's parser.
+          # https://community.fly.io/t/fly-machine-run-duplicates-sha256-digest-when-image-ref-is-digest-form-rejects-as-invalid-image-identifier/27679
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "image=registry.fly.io/$FLY_APP@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "image=registry.fly.io/$FLY_APP:$TAG@$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Roll image onto the current machine
         env:
