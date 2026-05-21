@@ -55,25 +55,53 @@ jobs:
           # round-robin to a data-less machine — outage. Build the
           # image only; we roll it out with `flyctl machine update`
           # below, which never creates machines.
+          #
+          # We pass GIT_SHA so the Dockerfile can bake it into
+          # /etc/build-sha; the Verify step below SSHes into the
+          # running machine and checks it matches $GITHUB_SHA. That's
+          # how we detect Fly's control-plane tag→digest cache
+          # serving a stale digest after machine update (the
+          # long-running pain that was previously misdiagnosed as a
+          # BuildKit / registry-layer-dedup issue and fought with
+          # --no-cache — which was never the cure).
           TAG="build-$GITHUB_RUN_NUMBER"
-          # --no-cache is required. The bug we hit on build-7 came
-          # back on build-12 even with the GIT_SHA sentinel. The diag
-          # RUN at the end of the Dockerfile showed the build itself
-          # seeing correct file content (good shas, no `/*/*/*` in
-          # datasette.yml's head output), but the resulting container
-          # had stale content (missing /etc/build-sha, old
-          # datasette.yml). So the bug isn't BuildKit's metadata-hash
-          # being wrong — it's somewhere downstream of the build
-          # finishing successfully. Layer manifest dedup against a
-          # poisoned-but-stale layer in the registry seems most likely.
-          # Whatever it is, --no-cache is the only knob that reliably
-          # avoids it. Costs ~2 min per build.
           flyctl deploy --build-only --remote-only --app "$FLY_APP" \
             --image-label "$TAG" \
             --push \
-            --no-cache \
             --build-arg "GIT_SHA=$GITHUB_SHA"
-          echo "image=registry.fly.io/$FLY_APP:$TAG" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve pushed image digest
+        id: digest
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Pin the machine to the manifest digest, not the tag, so
+          # Fly's control-plane tag→digest cache can't hand us back a
+          # stale digest. (Fly staff confirm the cache on the forum:
+          # https://community.fly.io/t/flyctl-machine-run-hitting-manifest-unknown-for-a-tag-that-exists-possible-control-plane-cache-issue/26246)
+          TAG="${{ steps.build.outputs.tag }}"
+          # The registry may take a few seconds to make the manifest
+          # readable after --push reports success; retry.
+          for i in 1 2 3 4 5; do
+            DIGEST=$(curl -fsS -I \
+              -u "x:$FLY_API_TOKEN" \
+              -H "Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json" \
+              "https://registry.fly.io/v2/$FLY_APP/manifests/$TAG" \
+              | awk -F': *' 'tolower($1)=="docker-content-digest"{print $2}' \
+              | tr -d '\r\n') || DIGEST=""
+            if [ -n "$DIGEST" ]; then
+              break
+            fi
+            echo "retry $i: manifest not yet readable, sleeping..." >&2
+            sleep $((i * 5))
+          done
+          if [ -z "$DIGEST" ]; then
+            echo "could not resolve digest for $TAG" >&2
+            exit 1
+          fi
+          echo "Resolved $TAG → $DIGEST"
+          echo "image=registry.fly.io/$FLY_APP@$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Roll image onto the current machine
         env:
@@ -91,23 +119,34 @@ jobs:
               | jq '.[]|{id,role:.config.metadata.role}' >&2
             exit 1
           fi
-          echo "Rolling ${{ steps.build.outputs.image }} onto $MID"
-          # Fly's registry sometimes returns 404 on the manifest for a
-          # few seconds after `flyctl deploy --push` completes — the
-          # push reports success before the manifest is globally
-          # readable. Retry up to ~30s.
+          echo "Rolling ${{ steps.digest.outputs.image }} onto $MID"
+          flyctl machine update "$MID" --app "$FLY_APP" --yes \
+            --image "${{ steps.digest.outputs.image }}"
+
+      - name: Verify running rootfs matches commit
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Read /etc/build-sha from the actual running container
+          # (baked in by the Dockerfile's ARG GIT_SHA). If it doesn't
+          # match GITHUB_SHA, Fly handed us a different rootfs than
+          # we asked for — fail loudly instead of declaring success.
           for i in 1 2 3 4 5; do
-            if flyctl machine update "$MID" --app "$FLY_APP" --yes \
-                 --image "${{ steps.build.outputs.image }}"; then
+            RUNNING_SHA=$(flyctl ssh console --app "$FLY_APP" \
+              -C "cat /etc/build-sha" 2>/dev/null \
+              | tr -d '\r\n' | grep -Eo '[0-9a-f]{40}' | head -1) || RUNNING_SHA=""
+            if [ -n "$RUNNING_SHA" ]; then
               break
             fi
-            echo "retry $i: machine update failed, sleeping..." >&2
+            echo "retry $i: ssh/build-sha read failed, sleeping..." >&2
             sleep $((i * 5))
-            if [ "$i" = "5" ]; then
-              echo "machine update kept failing" >&2
-              exit 1
-            fi
           done
+          if [ "$RUNNING_SHA" != "$GITHUB_SHA" ]; then
+            echo "::error::Running rootfs SHA ($RUNNING_SHA) does not match GITHUB_SHA ($GITHUB_SHA)."
+            echo "::error::Fly machine update reported success but the new image isn't actually running."
+            exit 1
+          fi
+          echo "Verified: running rootfs SHA = $RUNNING_SHA"
 
       - name: Purge Cloudflare cache
         env:

@@ -25,16 +25,14 @@ RUN pip install --no-cache-dir \
     datasette-pretty-traces \
     https://github.com/fgregg/datasette-schema-org/archive/f846e99176a666496a8d342b010304696834d80e.zip
 
-# Cache-busting sentinel. Without this, Fly's remote builder occasionally
-# reuses the cached COPY layers below across commits even when the
-# source files have changed — we hit this exactly once and shipped a
-# build that still had the pre-cutover scripts/ layout and a stale
-# datasette.yml. This RUN consumes GIT_SHA, so its cache key changes
-# every commit, forcing every COPY beneath it to re-execute with
-# current sources. The apt-get + pip install layers above stay
-# cached, so this only costs ~5s on the cheap layers.
-#
-# deploy.yml passes --build-arg GIT_SHA=$GITHUB_SHA.
+# Bake the commit SHA into the rootfs so the deploy workflow can SSH
+# into the running machine and verify it matches $GITHUB_SHA. Fly's
+# control-plane tag→digest cache occasionally hands a machine a stale
+# digest after `flyctl machine update --image …:tag` — the API
+# reports success but /proc/1/root is on the wrong rootfs. The Verify
+# step in deploy.yml compares this file to the expected SHA and fails
+# the run if they don't match. deploy.yml also pins by digest, which
+# bypasses the cache; this is the second line of defence.
 ARG GIT_SHA=unknown
 RUN echo "$GIT_SHA" > /etc/build-sha
 
@@ -47,16 +45,6 @@ COPY templates/ /app/templates/
 COPY datasette.yml warehouse_metadata.yml /app/
 COPY scripts/ /app/scripts/
 RUN chmod +x /app/scripts/*.sh
-# DIAG: print staged content of key files at build time so we can compare
-# them against what ends up in the running container. Remove after the
-# Depot-builder cache-staleness investigation is done.
-RUN echo "--- DIAG: /app/datasette.yml ---" \
- && sha256sum /app/datasette.yml /app/warehouse_metadata.yml \
- && head -8 /app/datasette.yml \
- && echo "--- DIAG: /app/scripts/ ---" \
- && ls -la /app/scripts/ \
- && echo "--- DIAG: GIT_SHA from sentinel ---" \
- && cat /etc/build-sha
 
 # Databases live on a Fly Volume mounted here.
 VOLUME /data
