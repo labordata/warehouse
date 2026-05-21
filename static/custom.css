@@ -123,11 +123,20 @@ h1::after {
 
 h2 {
   font-size: 1.6rem;
-  margin: 1.8rem 0 0.6rem;
-  padding-bottom: 0.3rem;
-  border-bottom: 1px solid var(--rule);
+  margin: 1.8rem 0 0.5rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+  display: inline-block; /* shrink-wrap so the rule below matches the text */
+}
+
+h2::after {
+  content: "";
+  display: block;
+  width: 1.75rem;
+  height: 2px;
+  margin-top: 0.4rem;
+  background: var(--red);
+  transition: width 0.18s ease;
 }
 
 /* h3 — section-label treatment, EPI-style red sans bold */
@@ -193,24 +202,10 @@ a:active {
   border: none !important; /* override Datasette's inline per-db swatch */
   padding-left: 0 !important;
   margin: 0 0 0.3rem;
-  font-family: var(--display);
   font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-transform: none;
-  display: inline-block; /* shrink to text width so ::after can expand to match */
 }
 
-.index h2::after {
-  content: "";
-  display: block;
-  width: 1.75rem;
-  height: 2px;
-  margin-top: 0.4rem;
-  background: var(--red);
-  transition: width 0.18s ease;
-}
-
+/* On the index, each h2 wraps a link — expand the rule on hover. */
 .index h2:hover::after {
   width: 100%;
 }
@@ -352,6 +347,27 @@ table.rows-and-columns th[class*="total"] {
   text-align: right;
 }
 
+/* Advanced db-page links (schema, download) — separated from the table
+   list above by a short hairline rule echoing the h1/h2 ::after partials. */
+.advanced-db-links {
+  margin-top: 2.5rem;
+  font-size: 0.9rem;
+}
+
+.advanced-db-links::before {
+  content: "";
+  display: block;
+  width: 3.5rem;
+  height: 1px;
+  margin-bottom: 1rem;
+  background: var(--rule);
+}
+
+.download-sqlite {
+  font-size: 0.9rem;
+  margin-top: 0.3rem;
+}
+
 /* Code & SQL ------------------------------------------------------------- */
 
 pre, code, .cm-editor, .sql {
@@ -359,12 +375,13 @@ pre, code, .cm-editor, .sql {
   font-size: 0.88rem;
 }
 
+/* Treat .sql.core (and pre blocks) as a card on a slightly darker
+   background, not a black slab. */
 pre, .sql.core {
-  background: #1a1612;
-  color: var(--paper);
-  border: 1px solid var(--ink);
-  border-left: 4px solid var(--red);
-  padding: 0.75rem 1rem;
+  background: var(--paper-edge);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 0.85rem 1rem;
   border-radius: 0;
 }
 
