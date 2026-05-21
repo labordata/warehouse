@@ -220,13 +220,56 @@ a:active {
   font-size: 0.95rem;
 }
 
-/* Tables — keep them legible, just dress the edges --------------------- */
+/* Tables — HCI-grounded result-set table design.
+   References: Few (Show Me the Numbers); Enders 2008 (zebra striping for wide
+   tables); Rutter / Ström on numeric vs. ID alignment; NN/g on sticky headers
+   and frozen identifier columns; tabular figures via OpenType "tnum"/"lnum". */
+
+/* Sticky thead is delivered by static/sticky-thead.js (a fixed-position
+   <thead> clone with widths kept in sync). The wrapper keeps Datasette's
+   default horizontal scroll. The frozen leftmost column below stays put
+   within the wrapper's horizontal-scroll context. */
+.table-wrapper {
+  border: 1px solid var(--rule);
+}
+
+/* The JS-injected clone overlay — overflow-x: auto so the cloned first-th's
+   `position: sticky; left: 0` actually has a scroll container. We programmatically
+   keep its scrollLeft synced to the real wrapper. Scrollbars hidden. */
+.sticky-thead-clone {
+  position: fixed;
+  top: 0;
+  z-index: 50;
+  overflow-x: auto;
+  overflow-y: hidden;
+  pointer-events: none;
+  scrollbar-width: none;
+  background: var(--paper-edge);
+  box-shadow: 0 1px 0 var(--rule);
+}
+.sticky-thead-clone::-webkit-scrollbar { display: none; }
+.sticky-thead-clone table {
+  margin: 0;
+  background: transparent;
+}
+
 
 table {
   background: #ffffff;
-  border: 1px solid var(--rule);
+  border: none;
   border-collapse: collapse;
   font-size: 0.92rem;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Sticky column headers — biggest UX win on long tables.
+   .table-wrapper has overflow-x: auto and overflow-y: visible, so sticky-top
+   tracks the document's vertical scroll. */
+table.rows-and-columns thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 th {
@@ -243,12 +286,70 @@ th {
 }
 
 td {
-  border-bottom: 1px dotted var(--rule);
-  padding: 0.45rem 0.7rem;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  overflow: hidden;
 }
 
-tr:nth-child(even) td {
+/* Light zebra (Enders 2008): the stripe carries row tracking on wide tables,
+   so we drop the per-row horizontal rule to keep the page quiet. */
+tbody tr:nth-child(even) td {
   background: rgba(21, 17, 13, 0.035);
+}
+
+tbody tr:hover td {
+  background: rgba(192, 2, 62, 0.06);
+}
+
+/* Frozen leftmost (primary-key) column — preserves row identity on
+   horizontal scroll. Must repaint a background or the scrolling cells
+   show through. */
+table.rows-and-columns thead th:first-child,
+table.rows-and-columns tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #ffffff;
+  border-right: 1px solid var(--rule);
+}
+
+table.rows-and-columns tbody tr:nth-child(even) td:first-child {
+  background: #f3eee9; /* near-paper, slightly stronger than the row stripe */
+}
+
+table.rows-and-columns tbody tr:hover td:first-child {
+  background: #f4d6de;
+}
+
+table.rows-and-columns thead th:first-child {
+  background: var(--paper-edge);
+  z-index: 3; /* corner cell: above both row-sticky and column-sticky */
+}
+
+/* Alignment — Ström/Rutter: right-align quantitative numerics; leave
+   identifiers, codes, ZIPs, years, dates left-aligned. Datasette's
+   type-int / type-real type classes don't distinguish ID from quantity,
+   so we right-align type-real (almost always quantitative) and use
+   column-name substring matching for known quantitative integer columns. */
+table.rows-and-columns td.type-real,
+table.rows-and-columns th.col-amount,
+table.rows-and-columns td[class*="size"],
+table.rows-and-columns td[class*="count"],
+table.rows-and-columns td[class*="number_of"],
+table.rows-and-columns td[class*="votes"],
+table.rows-and-columns td[class*="amount"],
+table.rows-and-columns td[class*="total"] {
+  text-align: right;
+}
+
+table.rows-and-columns th.col-amount,
+table.rows-and-columns th[class*="size"],
+table.rows-and-columns th[class*="count"],
+table.rows-and-columns th[class*="number_of"],
+table.rows-and-columns th[class*="votes"],
+table.rows-and-columns th[class*="amount"],
+table.rows-and-columns th[class*="total"] {
+  text-align: right;
 }
 
 /* Code & SQL ------------------------------------------------------------- */
