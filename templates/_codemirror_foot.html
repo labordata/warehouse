@@ -1,0 +1,44 @@
+{# Local override: treat <textarea readonly id="sql-editor"> as a read-only
+   CodeMirror editor so canned-query SQL gets the same syntax highlighting
+   as the editable SQL textarea, without letting users type into it. #}
+<script>
+  {% if table_columns %}
+  const schema = {{ table_columns|tojson(2) }};
+  {% else %}
+  const schema = {};
+  {% endif %}
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const sqlFormat = document.querySelector("button#sql-format");
+    const sqlInput = document.querySelector("textarea#sql-editor");
+    const isReadOnly = sqlInput && sqlInput.hasAttribute("readonly");
+
+    if (sqlFormat && !isReadOnly) {
+      sqlFormat.hidden = false;
+    }
+
+    if (sqlInput) {
+      var editor = (window.editor = cm.editorFromTextArea(sqlInput, { schema }));
+
+      if (isReadOnly) {
+        // Lock the editor visually + functionally.
+        const cmEditor = editor.contentDOM.closest(".cm-editor");
+        if (cmEditor) cmEditor.classList.add("cm-readonly");
+        editor.contentDOM.setAttribute("contenteditable", "false");
+        editor.contentDOM.setAttribute("aria-readonly", "true");
+        if (sqlFormat) sqlFormat.hidden = true;
+      } else if (sqlFormat) {
+        sqlFormat.addEventListener("click", (ev) => {
+          const formatted = sqlFormatter.format(editor.state.doc.toString());
+          editor.dispatch({
+            changes: {
+              from: 0,
+              to: editor.state.doc.length,
+              insert: formatted,
+            },
+          });
+        });
+      }
+    }
+  });
+</script>

@@ -296,6 +296,24 @@ tbody tr:hover td {
   background: rgba(192, 2, 62, 0.06);
 }
 
+/* Row detail page has a single-row table — the hover tint, the frozen
+   leftmost column, and the sticky-thead clone are all noise when there's
+   nothing to scroll through. */
+body.row tbody tr:hover td,
+body.row table.rows-and-columns tbody tr:hover td:first-child {
+  background: inherit;
+}
+
+body.row table.rows-and-columns thead th:first-child,
+body.row table.rows-and-columns tbody td:first-child {
+  position: static;
+  border-right: none;
+}
+
+body.row .sticky-thead-clone {
+  display: none;
+}
+
 /* Frozen leftmost (primary-key) column — preserves row identity on
    horizontal scroll. Must repaint a background or the scrolling cells
    show through. */
@@ -345,6 +363,14 @@ table.rows-and-columns th[class*="votes"],
 table.rows-and-columns th[class*="amount"],
 table.rows-and-columns th[class*="total"] {
   text-align: right;
+}
+
+/* Error pages — let the heading + a calm body paragraph do the work,
+   no angry red-bordered div. */
+.error-message {
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+  margin: 1rem 0 1.5rem;
 }
 
 /* Download-this-data card — bordered block to pull the eye toward
@@ -418,7 +444,9 @@ table.rows-and-columns th[class*="total"] {
 
 /* Code & SQL ------------------------------------------------------------- */
 
-pre, code, .cm-editor, .sql {
+/* Mono only on actual code, not on the .sql form wrapper (otherwise its
+   Run SQL / Edit SQL buttons inherit Iosevka and look out of place). */
+pre, code, .cm-editor, .sql.core pre, .sql.core textarea {
   font-family: "Iosevka", "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.88rem;
 }
@@ -431,6 +459,42 @@ pre, .sql.core {
   border: 1px solid var(--rule);
   padding: 0.85rem 1rem;
   border-radius: 0;
+  margin-bottom: 1.5rem;
+}
+
+/* The "Edit SQL" link on a canned query is a navigation action equal in
+   weight to "Run SQL" — render it as a ghost button to match. */
+a.canned-query-edit-sql,
+a.canned-query-edit-sql:link,
+a.canned-query-edit-sql:visited {
+  display: inline-block;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 0.45rem 1rem;
+  font-family: var(--sans-label);
+  font-size: 0.95rem;
+  line-height: 1; /* match the button/input default so heights align */
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  vertical-align: middle; /* match input[type=submit] */
+  cursor: pointer;
+}
+
+a.canned-query-edit-sql:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* CodeMirror editor: subtle look-and-feel adjustments for the read-only
+   variant so it doesn't invite typing. */
+.cm-editor.cm-readonly {
+  background: #ffffff;
+  opacity: 0.95;
+}
+.cm-editor.cm-readonly .cm-cursor {
+  display: none !important;
 }
 
 /* Footer ----------------------------------------------------------------- */

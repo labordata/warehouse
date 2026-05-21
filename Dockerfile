@@ -17,13 +17,13 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir \
-    datasette==1.0a29 \
+    https://github.com/fgregg/datasette/archive/1331ffc505c6a146aabcb8ea094b8469a4457827.zip \
     datasette-atom==0.10a0 \
     datasette-rure \
     pysqlite3-binary \
     datasette-block-robots \
     datasette-pretty-traces \
-    https://github.com/fgregg/datasette-schema-org/archive/refs/heads/main.zip
+    https://github.com/fgregg/datasette-schema-org/archive/f846e99176a666496a8d342b010304696834d80e.zip
 
 # Cache-busting sentinel. Without this, Fly's remote builder occasionally
 # reuses the cached COPY layers below across commits even when the

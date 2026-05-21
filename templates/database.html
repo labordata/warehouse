@@ -48,11 +48,12 @@
 
 {% if queries %}
     <h2 id="queries">Queries</h2>
-    <ul class="bullets">
-        {% for query in queries %}
-            <li><a href="{{ urls.query(database, query.name) }}{% if query.fragment %}#{{ query.fragment }}{% endif %}" title="{{ query.description or query.sql }}">{{ query.title or query.name }}</a>{% if query.private %} 🔒{% endif %}</li>
-        {% endfor %}
-    </ul>
+    {% for query in queries %}
+    <div class="db-query">
+        <h3><a href="{{ urls.query(database, query.name) }}{% if query.fragment %}#{{ query.fragment }}{% endif %}">{{ query.title or query.name }}</a>{% if query.private %} 🔒{% endif %}</h3>
+        {% if query.description %}<p>{{ query.description }}</p>{% endif %}
+    </div>
+    {% endfor %}
 {% endif %}
 
 {% if tables %}

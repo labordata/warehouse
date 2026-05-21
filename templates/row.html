@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ database }}: {{ table }}{% endblock %}
+
+{% block extra_head %}
+{{- super() -}}
+<style>
+@media only screen and (max-width: 576px) {
+{% for column in columns %}
+    .rows-and-columns td:nth-of-type({{ loop.index }}):before { content: "{{ column|escape_css_string }}"; }
+{% endfor %}
+}
+</style>
+{% endblock %}
+
+{% block body_class %}row db-{{ database|to_css_class }} table-{{ table|to_css_class }}{% endblock %}
+
+{% block crumbs %}
+{{ crumbs.nav(request=request, database=database, table=table) }}
+{% endblock %}
+
+{% block content %}
+<h1>{{ table }}: {{ ', '.join(primary_key_values) }}{% if private %} 🔒{% endif %}</h1>
+
+{% set action_links, action_title = row_actions, "Row actions" %}
+{% include "_action_menu.html" %}
+
+{{ top_row() }}
+
+{% block description_source_license %}{% include "_description_source_license.html" %}{% endblock %}
+
+{% include custom_table_templates %}
+
+{% if foreign_key_tables %}
+    <h2>Links from other tables</h2>
+    <ul>
+        {% for other in foreign_key_tables %}
+            <li>
+                <a href="{{ other.link }}">
+                    {{ "{:,}".format(other.count) }} row{% if other.count == 1 %}{% else %}s{% endif %}</a>
+                from {{ other.other_column }} in {{ other.other_table }}
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<div class="download-card">
+    <h3>Download this data</h3>
+    <p>{% for name, url in renderers.items() %}<a class="download-link" href="{{ url }}">{{ name|upper }}</a>{{ " &middot; " if not loop.last }}{% endfor %}</p>
+</div>
+
+{% endblock %}
