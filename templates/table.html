@@ -165,7 +165,12 @@ window._setColumnTypeData = {{ set_column_type_ui|tojson }};
 {% if display_rows %}
 <div class="download-card">
     <h3>Download this data</h3>
-    <p><a class="download-link" href="{{ url_csv }}{{ '&' if '?' in url_csv else '?' }}_dl=1">CSV</a> &middot; <a class="download-link" href="{{ renderers['json'] }}">JSON</a></p>
+    <p>
+        <a class="download-link" href="{{ url_csv }}{{ '&' if '?' in url_csv else '?' }}_dl=1">CSV</a>
+        {%- for name, url in renderers.items() -%}
+            &nbsp;&middot;&nbsp;<a class="download-link" href="{{ url }}">{{ name|upper }}</a>
+        {%- endfor -%}
+    </p>
 </div>
 {% endif %}
 
