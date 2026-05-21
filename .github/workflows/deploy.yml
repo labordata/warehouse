@@ -114,8 +114,20 @@ jobs:
             exit 1
           fi
           echo "Rolling ${{ steps.build.outputs.image }} onto $MID"
-          flyctl machine update "$MID" --app "$FLY_APP" --yes \
-            --image "${{ steps.build.outputs.image }}"
+          # Fly's registry can return 404 on the manifest for a few
+          # seconds-to-minutes after `flyctl deploy --push` completes
+          # — push reports success before the manifest is globally
+          # readable. Retry up to ~5 min.
+          for i in $(seq 1 20); do
+            if flyctl machine update "$MID" --app "$FLY_APP" --yes \
+                 --image "${{ steps.build.outputs.image }}"; then
+              exit 0
+            fi
+            echo "retry $i: machine update failed, sleeping 15s..." >&2
+            sleep 15
+          done
+          echo "machine update kept failing for ~5 min" >&2
+          exit 1
 
       - name: Verify running rootfs matches commit
         env:
