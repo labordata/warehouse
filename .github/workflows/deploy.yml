@@ -80,19 +80,20 @@ jobs:
           # Fly's control-plane tag→digest cache can't hand us back a
           # stale digest. (Fly staff confirm the cache on the forum:
           # https://community.fly.io/t/flyctl-machine-run-hitting-manifest-unknown-for-a-tag-that-exists-possible-control-plane-cache-issue/26246)
+          #
+          # Use `docker manifest inspect` because FLY_API_TOKEN is a
+          # deploy token; raw HTTP Basic auth against
+          # https://registry.fly.io/v2/.../manifests/TAG returns 404
+          # for it (consistent with read-scope not being granted on
+          # that path). Docker's standard auth-challenge → bearer
+          # exchange does work.
           TAG="${{ steps.build.outputs.tag }}"
-          # Fly's registry takes anywhere from a few seconds to a few
-          # minutes after --push completes before the manifest is
-          # readable. Empirically saw a 4-minute delay once; retry
-          # for up to ~5 minutes.
+          echo "$FLY_API_TOKEN" | docker login registry.fly.io -u x --password-stdin
           DIGEST=""
-          for i in $(seq 1 20); do
-            DIGEST=$(curl -fsS -I \
-              -u "x:$FLY_API_TOKEN" \
-              -H "Accept: application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json" \
-              "https://registry.fly.io/v2/$FLY_APP/manifests/$TAG" \
-              | awk -F': *' 'tolower($1)=="docker-content-digest"{print $2}' \
-              | tr -d '\r\n') || DIGEST=""
+          for i in $(seq 1 12); do
+            DIGEST=$(docker manifest inspect --verbose \
+                       "registry.fly.io/$FLY_APP:$TAG" 2>/dev/null \
+                     | jq -r '.Descriptor.digest // ""')
             if [ -n "$DIGEST" ]; then
               break
             fi
@@ -100,7 +101,7 @@ jobs:
             sleep 15
           done
           if [ -z "$DIGEST" ]; then
-            echo "could not resolve digest for $TAG after ~5 min" >&2
+            echo "could not resolve digest for $TAG after ~3 min" >&2
             exit 1
           fi
           echo "Resolved $TAG → $DIGEST"
