@@ -215,6 +215,14 @@ a:active {
   font-size: 0.95rem;
 }
 
+/* The column-list line under each table heading is a single long
+   underscore_separated string. Let it wrap on narrow viewports —
+   otherwise it pushes the document wider than the viewport on
+   mobile and the masthead/footer line-art runs short. */
+.db-table em {
+  overflow-wrap: anywhere;
+}
+
 /* Tables — HCI-grounded result-set table design.
    References: Few (Show Me the Numbers); Enders 2008 (zebra striping for wide
    tables); Rutter / Ström on numeric vs. ID alignment; NN/g on sticky headers
