@@ -17,7 +17,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir \
-    https://github.com/fgregg/datasette/archive/1331ffc505c6a146aabcb8ea094b8469a4457827.zip \
+    https://github.com/fgregg/datasette/archive/d9e31738fb1eed8aae1c524f036f002b7c127264.zip \
     datasette-atom==0.10a0 \
     datasette-rure \
     pysqlite3-binary \
