@@ -219,6 +219,29 @@ jobs:
             exit 1
           fi
 
+      - name: Wait for SSH (hallpass) on staging
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # `state=started` from Fly means the VM init is up — it does not
+          # guarantee that hallpass (the SSH daemon on :22) has finished
+          # binding. Probe with a no-op `flyctl ssh console -C true` until
+          # it succeeds; otherwise the very next step races hallpass and
+          # gets "connection refused" (seen on run 26282389917 where
+          # `state=started` was true on poll attempt 1, leaving no dwell
+          # time). Cap at ~60s.
+          MID="${{ steps.mach.outputs.id }}"
+          for i in $(seq 1 30); do
+            if flyctl ssh console --app "$FLY_APP" --machine "$MID" \
+                 -C "true" >/dev/null 2>&1; then
+              echo "  ssh ready on attempt $i"
+              break
+            fi
+            echo "  attempt $i: ssh not ready"
+            sleep 2
+          done
+          flyctl ssh console --app "$FLY_APP" --machine "$MID" -C "true"
+
       - name: Smoke test datasette on staging
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
