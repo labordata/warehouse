@@ -5,7 +5,7 @@ databases:
   nlrb:
     title: NLRB cases since 2010
     source: National Labor Relations Board website, scraped
-    source_url: https://github.com/labordata/nlrb-data
+    code_repository: https://github.com/labordata/nlrb-data
     description_html: |-
       <p>National Labor Relations Board case data from the NLRB's current online case management system. Covers union-representation cases (R petitions — RC certification, RD decertification, RM employer-filed) and unfair-labor-practice cases (C charges — CA against employers, CB against unions, and several less-common subtypes), plus unit-clarification, deauthorization, and related case types.</p>
       <p>The data is organized around a central <a href="./nlrb/filing">filing</a> table (one row per case) with related tables for <a href="./nlrb/participant">participants</a>, <a href="./nlrb/allegation">allegations</a>, <a href="./nlrb/sought_unit">bargaining units sought</a>, <a href="./nlrb/voting_unit">units that voted</a>, <a href="./nlrb/election">elections</a>, <a href="./nlrb/election_result">election results</a>, <a href="./nlrb/tally">tallies</a>, <a href="./nlrb/docket">docket events</a>, and <a href="./nlrb/document">case documents</a>. All linked by <code>case_number</code>.</p>
@@ -176,7 +176,8 @@ databases:
     title: Collective Bargaining Notice (F-7) Data since 1997
     description: Notices to Mediation Agencies (Form F-7) filed with the Federal Mediation and Conciliation Service. Under Section 8(d) of the National Labor Relations Act, parties to an expiring private-sector collective-bargaining agreement must notify FMCS at least 30 days before expiration (60 days for healthcare establishments). Each row is one notice — an advance signal of bargaining activity.
     source: Federal Mediation and Conciliation Service, scraped
-    source_url: https://github.com/labordata/fmcs-f7
+    source_url: "https://www.fmcs.gov/resources/documents-and-data/#tab-d3d7f5344cef9bab4d3"
+    code_repository: https://github.com/labordata/fmcs-f7
     description_html: |-
       <p>Notices to Mediation Agencies (<a href="https://www.fmcs.gov/resources/documents-and-data/#tab-d3d7f5344cef9bab4d3">Form F-7</a>) filed with the Federal Mediation and Conciliation Service. Under <a href="https://www.law.cornell.edu/uscode/text/29/158">Section 8(d) of the National Labor Relations Act</a>, parties to an expiring private-sector collective-bargaining agreement must notify FMCS at least 30 days before the contract ends (60 days for healthcare establishments); newly-formed bargaining relationships also file an Initial Contract notice. Each row is one notice — naming the employer, the union, the bargaining unit's affected location and size, the industry (NAICS), and the type of notice (Renegotiation, Reopener, Initial Contract, etc.).</p>
       <p>Data scraped nightly from the FMCS website. FMCS itself only refreshes its data monthly, so a 1–4 week lag is expected. Some legacy rows have unreliable date fields — see column descriptions.</p>
@@ -326,7 +327,7 @@ databases:
   cats:
     title: NLRB cases, 1999-2011
     source: NLRB files posted to data.gov, archived on archive.org
-    source_url: https://github.com/labordata/nlrb-cats
+    code_repository: https://github.com/labordata/nlrb-cats
     description_html: |-
       <p>This data is the publicly-releasable records for the Case Activity Tracking System that the National Labor Relations Board used from around 1999-2011</p>
     tables:
@@ -445,7 +446,7 @@ databases:
   chips:
     title: NLRB cases, 1984-2000
     source: NLRB files archived with the National Archive
-    source_url: https://github.com/labordata/CHIPS
+    code_repository: https://github.com/labordata/CHIPS
     description_html: |-
       <p>The county table was transcribe by Sean Brailey from the <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook</a>.</p>
   opdr:
@@ -462,7 +463,8 @@ databases:
       <p>The schema is organized around the <a href="./opdr/lm_data">lm_data</a> table (one row per filing, keyed by <code>rpt_id</code>). Most other tables follow the convention <code>ar_&lt;category&gt;_&lt;subcategory&gt;</code> — "ar" for "annual report". Categorical fields foreign-key to <a href="./opdr/ar_erds_codes">ar_erds_codes</a>, a lookup table that expands the OLMS code numbers (account types, disbursement types, fiscal-year-end months, etc.).</p>
       <p>Filings cover 1999 through the present; the largest tables are <a href="./opdr/ar_disbursements_emp_off">ar_disbursements_emp_off</a> (officer/employee compensation) and <a href="./opdr/ar_disbursements_genrl">ar_disbursements_genrl</a> (general disbursements).</p>
     source: OLMS Online Public Disclosure Room
-    source_url: https://github.com/labordata/opdr
+    source_url: https://olmsapps.dol.gov/olpdr/
+    code_repository: https://github.com/labordata/opdr
     temporal_coverage: "1999/.."
     source_organization:
       "@type": GovernmentOrganization
@@ -855,7 +857,7 @@ databases:
       <p>Voluntary recognitions of unions by private-sector employers, as reported to the National Labor Relations Board. Under Section 9 of the National Labor Relations Act, employers may voluntarily recognize a union for collective bargaining without an election; when they do, they notify the NLRB using <a href="https://www.nlrb.gov/sites/default/files/attachments/pages/node-195/5581_7-20.pdf">Form NLRB-5581</a> and the agency posts a public notice during which other parties may challenge the recognition.</p>
       <p>Each row is a single recognition: the employer, the union, the bargaining unit (description and headcount), the NLRB regional office, and the relevant procedural dates (recognition, notice, posting, and any subsequent representation-case petition). The data was obtained from the NLRB via Freedom of Information Act requests and covers 2002 through 2024.</p>
     source: NLRB, Public Records Requests
-    source_url: https://github.com/labordata/nlrb-voluntary-recognitions
+    code_repository: https://github.com/labordata/nlrb-voluntary-recognitions
     temporal_coverage: "2002/2024"
     source_organization:
       "@type": GovernmentOrganization
@@ -897,7 +899,8 @@ databases:
       <p>Strikes, lockouts, and other work stoppages in the United States that the Federal Mediation and Conciliation Service tracked in its case management system. Each row is a single stoppage with the employer, the union and local involved, the bargaining unit, location, industry (NAICS), number of workers idled, start and end dates, and duration in days.</p>
       <p>The FMCS stopped publishing this data at the end of 2020 and removed the archival files from its website. This database is built from the <a href="https://web.archive.org/web/20210105232710/https://www.fmcs.gov/resources/documents-and-data/">Internet Archive's copy of the FMCS pages</a>, with the date and numeric fields standardized.</p>
     source: FMCS website, archived by the Internet Archive
-    source_url: https://github.com/labordata/fmcs-work-stoppage
+    source_url: https://web.archive.org/web/20210105232710/https://www.fmcs.gov/resources/documents-and-data/
+    code_repository: https://github.com/labordata/fmcs-work-stoppage
     temporal_coverage: "1984/2020"
     source_organization:
       "@type": GovernmentOrganization
@@ -941,6 +944,7 @@ databases:
       <p>The data is scraped from the <a href="https://enforcedata.dol.gov/views/data_summary.php">DOL Enforcement Data Catalog</a>. WHD refreshes their dataset roughly quarterly; the scraper checks for updates daily and re-imports when WHD publishes a new snapshot.</p>
     source: U.S. DOL Wage and Hour Division enforcement data (Enforcement Data Catalog)
     source_url: https://enforcedata.dol.gov/views/data_summary.php
+    code_repository: https://github.com/labordata/whd-compliance
     temporal_coverage: "1985/.."
     date_modified_sql: select max(load_dt) from cases
     date_published: "2022-10-22"
@@ -1023,7 +1027,8 @@ databases:
       </ul>
       <p>The data is scraped nightly from the OLMS <a href="https://olms.dol-esa.gov/olpdr/">Online Public Disclosure Room</a>. Filings are organized around a central <a href="./lm20/filing">filing</a> table keyed by <code>rptId</code>; related tables describe the employer that hired the persuader, the people performing the work, the specific activities described, and (for LM-21s) the persuader's financials.</p>
     source: OLMS website, scraped
-    source_url: https://github.com/labordata/lm20
+    source_url: https://olms.dol-esa.gov/olpdr/
+    code_repository: https://github.com/labordata/lm20
     temporal_coverage: "2001/.."
     source_organization:
       "@type": GovernmentOrganization
@@ -1231,7 +1236,8 @@ databases:
       <p>Form <a href="https://www.dol.gov/agencies/olms/sites/dolgov/files/migrated/regs/compliance/forms-instructions/LM-10.pdf">LM-10</a> is filed by the <em>employer</em>; the matched <a href="./lm20">LM-20</a> is filed by the consultant. Joining the two via the employer name and approximate dates is the standard analytical workflow.</p>
       <p>The data is scraped nightly from the OLMS <a href="https://olms.dol-esa.gov/olpdr/">Online Public Disclosure Room</a>. Organized around a central <a href="./lm10/filing">filing</a> table keyed by <code>rptId</code>; activities are in <a href="./lm10/activity">activity</a> keyed by <code>id</code> with counterparty, contact, and expenditure detail in joined tables.</p>
     source: OLMS website, scraped
-    source_url: https://github.com/labordata/lm10
+    source_url: https://olms.dol-esa.gov/olpdr/
+    code_repository: https://github.com/labordata/lm10
     temporal_coverage: "2001/.."
     source_organization:
       "@type": GovernmentOrganization
@@ -1410,7 +1416,8 @@ databases:
       <p>Every OSHA inspection on record since 1970, with associated citations, penalties, and accident investigations. Sourced from the federal Occupational Safety and Health Administration's "Integrated Management Information System" (IMIS), the system that captures every enforcement action by federal OSHA offices and the 28 state-plan OSHA programs.</p>
       <p>The data is downloaded nightly from <a href="https://enforcedata.dol.gov/">DOL's Enforcement Data Catalog</a> (the same upstream source as the WHISARD data); processing scripts live at <a href="https://github.com/labordata/osha-enforcement">labordata/osha-enforcement</a>.</p>
     source: DOL Enforcement Data Catalog, processed
-    source_url: https://github.com/labordata/osha-enforcement
+    source_url: https://enforcedata.dol.gov/
+    code_repository: https://github.com/labordata/osha-enforcement
     temporal_coverage: "1970/.."
     source_organization:
       "@type": GovernmentOrganization
