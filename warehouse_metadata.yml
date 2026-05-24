@@ -939,8 +939,8 @@ databases:
       <p>The DOL Wage and Hour Division's "WHISARD" (Wage-Hour Investigative Support and Reporting Database) — every closed WHD investigation. Each case names the employer, the location and industry, and the workers affected; the matched <a href="./whisard/violations">violations</a> table lists each statute violated with counts, back wages owed, and civil money penalties.</p>
       <p>WHD enforces a wide range of federal labor laws: the Fair Labor Standards Act (minimum wage, overtime, child labor, recordkeeping); the Family and Medical Leave Act; the Davis-Bacon Act and Service Contract Act (prevailing-wage rules on federal contracts); the Migrant and Seasonal Agricultural Worker Protection Act; H-1B, H-2A, and H-2B visa worker protections; the Employee Polygraph Protection Act; and others. The <code>type</code> column on the violations table identifies which statute was violated.</p>
       <p>The data is scraped from the <a href="https://enforcedata.dol.gov/views/data_summary.php">DOL Enforcement Data Catalog</a>. WHD refreshes their dataset roughly quarterly; the scraper checks for updates daily and re-imports when WHD publishes a new snapshot.</p>
-    source: Department of Labor Enforcement Data Catalog, scraped
-    source_url: https://github.com/labordata/whd-compliance
+    source: U.S. DOL Wage and Hour Division enforcement data (Enforcement Data Catalog)
+    source_url: https://enforcedata.dol.gov/views/data_summary.php
     temporal_coverage: "1985/.."
     date_modified_sql: select max(load_dt) from cases
     date_published: "2022-10-22"
