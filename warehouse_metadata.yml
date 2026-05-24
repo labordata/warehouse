@@ -942,6 +942,7 @@ databases:
     source: Department of Labor Enforcement Data Catalog, scraped
     source_url: https://github.com/labordata/whd-compliance
     temporal_coverage: "1985/.."
+    date_modified_sql: select max(load_dt) from cases
     source_organization:
       "@type": GovernmentOrganization
       name: U.S. Department of Labor, Wage and Hour Division
@@ -959,6 +960,7 @@ databases:
       - civil money penalties
     tables:
       cases:
+        title: WHISARD — closed Wage & Hour Division investigations
         description: One row per closed WHD investigation, covering cases from 1985 onward. Each row identifies the employer (trade and legal name, address, NAICS industry), the count of violations found, the civil money penalty assessed, back wages agreed to be paid (and the number of employees due those back wages), and the investigation date range. Note that a small number of rows have nonsense dates (year 0200 or 3021) reflecting upstream data-entry errors.
         columns:
           case_id: WHD case identifier. Primary key.
@@ -986,6 +988,7 @@ databases:
           bw_atp_amt: dollars
           ee_atp_cnt: persons
       violations:
+        title: WHISARD — labor-law violations by statute
         description: One row per violation type per case — the per-statute breakdown of each investigation's findings. The type column identifies the specific federal labor law violated; common values include FLSA (general Fair Labor Standards Act), flsa_ot (overtime), flsa_mw (minimum wage), fmla (Family and Medical Leave Act), and dbra (Davis-Bacon Act).
         columns:
           id: Primary key.
@@ -1001,6 +1004,7 @@ databases:
           employees: persons
           civil_money_penalty: dollars
       flsa_details:
+        hidden: true
         description: Placeholder table for additional FLSA-violation detail. Currently empty in the snapshot — the upstream WHD export doesn't always populate this. The schema is included for forward-compatibility with future WHD releases.
         columns:
           violation_id: Foreign key to violations.id.
