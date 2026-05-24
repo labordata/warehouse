@@ -5,6 +5,7 @@ databases:
   nlrb:
     title: NLRB cases since 2010
     source: National Labor Relations Board website, scraped
+    source_url: https://www.nlrb.gov/search/case
     code_repository: https://github.com/labordata/nlrb-data
     description_html: |-
       <p>National Labor Relations Board case data from the NLRB's current online case management system. Covers union-representation cases (R petitions — RC certification, RD decertification, RM employer-filed) and unfair-labor-practice cases (C charges — CA against employers, CB against unions, and several less-common subtypes), plus unit-clarification, deauthorization, and related case types.</p>
@@ -241,13 +242,20 @@ databases:
       <p>Election-by-election results for NLRB union-representation cases (RC, RD, and RM petitions) from the mid-1960s through 1998. The data was originally maintained by the AFL-CIO in Washington, DC, then compiled and cleaned by <a href="https://www.gsb.stanford.edu/faculty-research/faculty/john-paul-ferguson">JP Ferguson</a> (now at McGill University) for use in academic research on union organizing.</p>
       <p>Each row is one election that was actually held. Note that the data does NOT include organizing drives where petitions were filed but later withdrawn or dismissed before reaching a vote — for those, a much larger universe of records is needed (see <a href="./cats">cats</a> for the 1999–2011 successor system).</p>
       <p>Many internal NLRB code fields are preserved as-is from the source database; their mappings are not fully documented in the upstream cleaning scripts. The most analytically useful columns are the employer/union names, the vote totals (<code>fst_votes</code>, <code>votes_no</code>, <code>valid_for</code>, <code>valid_cast</code>), the bargaining-unit category, the election date, and <code>won</code>.</p>
-    source: JP Ferguson
+    source: NLRB representation election results, 1965-1998, compiled by J.P. Ferguson
     source_url: https://github.com/jpfergongithub/nlrb_old_rcases
     temporal_coverage: "1959/1999"
     source_organization:
-      "@type": GovernmentOrganization
-      name: National Labor Relations Board
-      url: https://www.nlrb.gov/
+      "@type": Person
+      name: J.P. Ferguson
+      url: https://www.gsb.stanford.edu/faculty-research/faculty/john-paul-ferguson
+    source_based_on:
+      "@type": Dataset
+      name: Union representation elections database
+      creator:
+        "@type": Organization
+        name: AFL-CIO
+        url: https://aflcio.org/
     keywords:
       - NLRB
       - union elections
@@ -328,6 +336,10 @@ databases:
     title: NLRB cases, 1999-2011
     source: NLRB files posted to data.gov, archived on archive.org
     code_repository: https://github.com/labordata/nlrb-cats
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
     description_html: |-
       <p>This data is the publicly-releasable records for the Case Activity Tracking System that the National Labor Relations Board used from around 1999-2011</p>
     tables:
@@ -446,7 +458,12 @@ databases:
   chips:
     title: NLRB cases, 1984-2000
     source: NLRB files archived with the National Archive
+    source_url: https://catalog.archives.gov/id/627716
     code_repository: https://github.com/labordata/CHIPS
+    source_organization:
+      "@type": GovernmentOrganization
+      name: National Labor Relations Board
+      url: https://www.nlrb.gov/
     description_html: |-
       <p>The county table was transcribe by Sean Brailey from the <a href="https://s3.amazonaws.com/NARAprodstorage/opastorage/live/1/8902/890201/content/arcmedia/electronic-records/rg-025/chips/113.1CL.pdf">CHIPS codebook</a>.</p>
   opdr:
@@ -857,6 +874,7 @@ databases:
       <p>Voluntary recognitions of unions by private-sector employers, as reported to the National Labor Relations Board. Under Section 9 of the National Labor Relations Act, employers may voluntarily recognize a union for collective bargaining without an election; when they do, they notify the NLRB using <a href="https://www.nlrb.gov/sites/default/files/attachments/pages/node-195/5581_7-20.pdf">Form NLRB-5581</a> and the agency posts a public notice during which other parties may challenge the recognition.</p>
       <p>Each row is a single recognition: the employer, the union, the bargaining unit (description and headcount), the NLRB regional office, and the relevant procedural dates (recognition, notice, posting, and any subsequent representation-case petition). The data was obtained from the NLRB via Freedom of Information Act requests and covers 2002 through 2024.</p>
     source: NLRB, Public Records Requests
+    source_url: https://www.muckrock.com/foi/united-states-of-america-10/
     code_repository: https://github.com/labordata/nlrb-voluntary-recognitions
     temporal_coverage: "2002/2024"
     source_organization:
