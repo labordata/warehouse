@@ -27,6 +27,7 @@ plugins:
   schema-org:
     creator:
       "@type": Person
+      "@id": https://orcid.org/0009-0001-8330-9219
       name: Forest Gregg
       url: https://bsky.app/profile/bunkum.us
     keywords:

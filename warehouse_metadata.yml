@@ -943,6 +943,7 @@ databases:
     source_url: https://github.com/labordata/whd-compliance
     temporal_coverage: "1985/.."
     date_modified_sql: select max(load_dt) from cases
+    date_published: "2022-10-22"
     source_organization:
       "@type": GovernmentOrganization
       name: U.S. Department of Labor, Wage and Hour Division
