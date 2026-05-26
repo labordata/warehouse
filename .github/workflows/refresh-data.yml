@@ -92,7 +92,7 @@ jobs:
           AWS_ENDPOINT_URL_S3: ${{ secrets.R2_ENDPOINT }}
           AWS_DEFAULT_REGION: auto
         run: |
-          aws s3 sync . "s3://$R2_BUCKET/nightly/" \
+          aws s3 sync . "s3://$R2_BUCKET/" \
             --exclude "*" --include "*.db" --include "inspect-data.json" \
             --no-progress
 
@@ -192,7 +192,7 @@ jobs:
           echo "put scripts/pull-from-r2-direct.sh /tmp/pull-from-r2-direct.sh" \
             | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
-            -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE/nightly $ASSETS"
+            -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE $ASSETS"
 
       - name: Restart staging to mmap fresh data
         env:
