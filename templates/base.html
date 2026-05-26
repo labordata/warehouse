@@ -74,5 +74,13 @@
 {% if select_templates %}<!-- Templates considered: {{ select_templates|join(", ") }} -->{% endif %}
 <script src="{{ urls.static('navigation-search.js') }}" defer></script>
 <navigation-search url="/-/tables"></navigation-search>
+
+{# Cloudflare Turnstile (invisible, pre-clearance): silently mints a cf_clearance
+   cookie so human browsers skip the WAF managed-challenge interstitial on the
+   gated "back-room" paths. Honest non-browser clients never run it; the swarm
+   can't (no JS). Widget mode + pre-clearance level are configured dashboard-side
+   on this sitekey. See ../labordata_firewall/turnstile-lobby-plan.md #}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<div class="cf-turnstile" data-sitekey="0x4AAAAAADWy_1LGnPd95_Qc" data-appearance="interaction-only"></div>
 </body>
 </html>
