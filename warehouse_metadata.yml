@@ -12,7 +12,7 @@ databases:
       <p>The data is organized around a central <a href="./nlrb/filing">filing</a> table (one row per case) with related tables for <a href="./nlrb/participant">participants</a>, <a href="./nlrb/allegation">allegations</a>, <a href="./nlrb/sought_unit">bargaining units sought</a>, <a href="./nlrb/voting_unit">units that voted</a>, <a href="./nlrb/election">elections</a>, <a href="./nlrb/election_result">election results</a>, <a href="./nlrb/tally">tallies</a>, <a href="./nlrb/docket">docket events</a>, and <a href="./nlrb/document">case documents</a>. All linked by <code>case_number</code>.</p>
     temporal_coverage: "2010/.."
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: National Labor Relations Board
       url: https://www.nlrb.gov/
     keywords:
@@ -184,7 +184,7 @@ databases:
       <p>Data scraped nightly from the FMCS website. FMCS itself only refreshes its data monthly, so a 1–4 week lag is expected. Some legacy rows have unreliable date fields — see column descriptions.</p>
     temporal_coverage: "1997/.."
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: Federal Mediation and Conciliation Service
       url: https://www.fmcs.gov/
     keywords:
@@ -250,7 +250,7 @@ databases:
       name: J.P. Ferguson
       url: https://www.gsb.stanford.edu/faculty-research/faculty/john-paul-ferguson
     source_based_on:
-      "@type": Dataset
+      "@type": CreativeWork
       name: Union representation elections database
       creator:
         "@type": Organization
@@ -337,7 +337,7 @@ databases:
     source: NLRB files posted to data.gov, archived on archive.org
     code_repository: https://github.com/labordata/nlrb-cats
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: National Labor Relations Board
       url: https://www.nlrb.gov/
     description_html: |-
@@ -461,7 +461,7 @@ databases:
     source_url: https://catalog.archives.gov/id/627716
     code_repository: https://github.com/labordata/CHIPS
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: National Labor Relations Board
       url: https://www.nlrb.gov/
     description_html: |-
@@ -484,7 +484,7 @@ databases:
     code_repository: https://github.com/labordata/opdr
     temporal_coverage: "1999/.."
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: U.S. Department of Labor, Office of Labor-Management Standards
       url: https://www.dol.gov/agencies/olms
     keywords:
@@ -878,7 +878,7 @@ databases:
     code_repository: https://github.com/labordata/nlrb-voluntary-recognitions
     temporal_coverage: "2002/2024"
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: National Labor Relations Board
       url: https://www.nlrb.gov/
     keywords:
@@ -921,7 +921,7 @@ databases:
     code_repository: https://github.com/labordata/fmcs-work-stoppage
     temporal_coverage: "1984/2020"
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: Federal Mediation and Conciliation Service
       url: https://www.fmcs.gov/
     keywords:
@@ -967,7 +967,7 @@ databases:
     date_modified_sql: select max(load_dt) from cases
     date_published: "2022-10-22"
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: U.S. Department of Labor, Wage and Hour Division
       url: https://www.dol.gov/agencies/whd
     keywords:
@@ -1049,7 +1049,7 @@ databases:
     code_repository: https://github.com/labordata/lm20
     temporal_coverage: "2001/.."
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: U.S. Department of Labor, Office of Labor-Management Standards
       url: https://www.dol.gov/agencies/olms
     keywords:
@@ -1258,7 +1258,7 @@ databases:
     code_repository: https://github.com/labordata/lm10
     temporal_coverage: "2001/.."
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: U.S. Department of Labor, Office of Labor-Management Standards
       url: https://www.dol.gov/agencies/olms
     keywords:
@@ -1438,7 +1438,7 @@ databases:
     code_repository: https://github.com/labordata/osha-enforcement
     temporal_coverage: "1970/.."
     source_organization:
-      "@type": GovernmentOrganization
+      "@type": Organization
       name: U.S. Department of Labor, Occupational Safety and Health Administration
       url: https://www.osha.gov/
     keywords:
