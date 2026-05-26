@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir \
     pysqlite3-binary \
     datasette-block-robots \
     datasette-pretty-traces \
-    https://github.com/fgregg/datasette-schema-org/archive/3572f01759eff5036e19d88b75012b05c50f2027.zip
+    https://github.com/fgregg/datasette-schema-org/archive/611e9b3dffaa7aed32f5a56cc250dd8f840f94d1.zip
 
 # Bake the commit SHA into the rootfs so the deploy workflow can SSH
 # into the running machine and verify it matches $GITHUB_SHA. Fly's
