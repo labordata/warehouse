@@ -1,0 +1,54 @@
+# Datasette config for the DuckDB deployment (app: warehouse-duckdb).
+#
+# Derived from datasette.yml. The `databases:` block from the SQLite config
+# is intentionally dropped: its canned queries (new_rc_cases, new_lm20_filings)
+# use sqlite-only functions (datetime(), || concatenation semantics, the atom_*
+# convention against sqlite results) and the sqlite_sequence hidden-table tweak
+# has no DuckDB equivalent. Re-add DuckDB-flavoured queries here as they're
+# ported.
+
+extra_css_urls:
+  - /static/custom.css
+
+extra_js_urls:
+  - /static/sticky-thead.js?v=3
+
+plugins:
+  datasette-block-robots:
+    literal: |-
+      User-agent: *
+      Disallow: /*?
+      Disallow: /*/sqlite_*
+      Disallow: /*/_*
+      Disallow: /*/*_fts
+      Disallow: /*/*_fts_*
+
+      User-agent: Claude-User
+      Disallow:
+
+      User-agent: ChatGPT-User
+      Disallow:
+
+      User-agent: Perplexity-User
+      Disallow:
+
+      Sitemap: https://labordata.bunkum.us/sitemap.xml
+  schema-org:
+    creator:
+      "@type": Person
+      "@id": https://orcid.org/0009-0001-8330-9219
+      name: Forest Gregg
+      url: https://bsky.app/profile/bunkum.us
+    keywords:
+      - labor
+      - labor unions
+      - United States
+    defaults:
+      spatialCoverage: United States
+      isAccessibleForFree: true
+      inLanguage: en
+      license: https://creativecommons.org/publicdomain/mark/1.0/
+    exclude:
+      - cats
+      - chips
+      - union_names_crosswalk

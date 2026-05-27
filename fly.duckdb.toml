@@ -1,0 +1,53 @@
+# Fly.io configuration for the DuckDB deployment (warehouse-duckdb).
+#
+# Parallel to fly.toml. Same shape: a data-less image (Dockerfile.duckdb),
+# databases on a Fly Volume mounted at /data and updated out-of-band by
+# refresh-data-duckdb.yml. Separate app so it has its own machine, volume,
+# and hostname and never shares the Fly proxy with the SQLite app (the
+# round-robin hazard documented in fly.toml).
+
+app = "warehouse-duckdb"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.duckdb"
+
+# NB: no [mounts] block — same reasoning as fly.toml. Volumes are created and
+# attached per-refresh by refresh-data-duckdb.yml via
+# `flyctl machine run --volume <id>:/data`. A [mounts] here would make
+# `flyctl deploy` create a second machine on a fresh empty volume.
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "requests"
+    soft_limit = 60
+    hard_limit = 100
+
+  [[services.http_checks]]
+    # /-/versions.json is constant-time and doesn't touch the databases.
+    interval = "30s"
+    grace_period = "120s"
+    method = "get"
+    path = "/-/versions.json"
+    protocol = "http"
+    timeout = "30s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "2gb"
+  cpus = 1
