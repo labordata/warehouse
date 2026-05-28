@@ -92,13 +92,20 @@ jobs:
       - name: Install build dependencies
         run: |
           # sqlite-utils / csvs-to-sqlite drive the Makefile; labor-union-parser
-          # builds the crosswalk. The datasette-duckdb plugin (installed from
-          # the duckdb-backend branch) brings the converter module and the
-          # duckdb driver. It upgrades datasette to the backend-abstraction
-          # branch, which `make` doesn't use, so that's harmless here.
+          # builds the crosswalk.
           pip install -r requirements.txt
           pip install labor-union-parser
+          # The datasette-duckdb plugin brings the converter module + duckdb.
           pip install "datasette-duckdb @ git+https://github.com/fgregg/datasette@duckdb-backend#subdirectory=datasette-duckdb"
+          # requirements.txt already installed a different datasette fork
+          # (no_limit_csv), so pip treats the plugin's unpinned `datasette` dep
+          # as satisfied and does NOT pull the backend-abstraction branch ->
+          # `datasette.backends` is missing and convert.py fails on import.
+          # Force the branch datasette last so it wins. `make` doesn't use
+          # datasette, so replacing the no_limit_csv fork here is harmless.
+          pip install --force-reinstall --no-deps "datasette @ git+https://github.com/fgregg/datasette@duckdb-backend"
+          # Fail fast if the backends module still isn't importable.
+          python -c "import datasette.backends, datasette_duckdb.convert; print('convert import OK')"
 
       - name: Build all databases
         run: make
