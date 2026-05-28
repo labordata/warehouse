@@ -32,14 +32,6 @@
 name: Refresh data (DuckDB)
 
 on:
-  # TEMPORARY: run on every push to this feature branch so we can exercise the
-  # bootstrap end-to-end before merging to main (workflow_dispatch only works
-  # for workflows on the default branch). Scoped to the branch so it never
-  # fires on main, and the SQLite deploy.yml (which watches main) is untouched.
-  # REMOVE this push: block before merging.
-  push:
-    branches:
-      - duckdb-parallel-build
   schedule:
     # 30 min after the SQLite refresh (0 7) so upstream sources are settled
     # and the two runners don't contend.
@@ -67,10 +59,7 @@ env:
   R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
   DUCKDB_PREFIX: duckdb
   STAGING_VOL_GB: 10
-  # TEMPORARY: push events promote too, so a commit-triggered bootstrap leaves a
-  # running app + URL instead of a dry-run that tears itself down. Revert with
-  # the push: trigger above.
-  PROMOTE: ${{ (github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.promote == true)) && 'true' || 'false' }}
+  PROMOTE: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.promote == true)) && 'true' || 'false' }}
 
 jobs:
   refresh:
@@ -355,9 +344,10 @@ jobs:
             -C "sh /tmp/smoke-test.sh"
 
       - name: Dump staging diagnostics (on failure)
-        # TEMPORARY debugging aid: capture the staging machine's datasette
-        # logs + memory/process state into the CI output so a failure is
-        # diagnosable without reproducing. Worth keeping in some form.
+        # On failure, capture the staging machine's datasette logs + memory /
+        # process state into the CI output so the next time something breaks
+        # it's diagnosable without reproducing. (Teardown destroys the machine
+        # immediately after, so without this we lose the evidence.)
         if: failure()
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -415,11 +405,7 @@ jobs:
       # ─── Teardown of staging if not promoted (dry-run + failure path) ─
 
       - name: Tear down staging
-        # TEMPORARY: dropped the `|| failure()` so a FAILED staging machine
-        # persists for direct inspection (flyctl ssh / logs). With PROMOTE=true
-        # this means teardown effectively never runs; restore
-        # `(env.PROMOTE != 'true' || failure())` once the bootstrap is green.
-        if: always() && env.PROMOTE != 'true'
+        if: always() && (env.PROMOTE != 'true' || failure())
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
