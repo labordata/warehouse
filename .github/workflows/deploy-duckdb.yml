@@ -130,16 +130,3 @@ jobs:
             exit 1
           fi
           echo "Verified: running rootfs SHA = $RUNNING_SHA"
-
-      - name: Warm up datasette on the rolled machine
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          # machine update restarts the container, so the cold-scan cache
-          # (~245s on the real warehouse data) is gone. Drive it back before
-          # the first real visitor hits the site. The script polls for
-          # uvicorn first then patiently waits on /-/databases.json.
-          flyctl ssh console --app "$FLY_APP" -C "rm -f /tmp/warmup-datasette.sh"
-          echo "put scripts/warmup-datasette.sh /tmp/warmup-datasette.sh" \
-            | flyctl ssh sftp shell --app "$FLY_APP"
-          flyctl ssh console --app "$FLY_APP" -C "sh /tmp/warmup-datasette.sh"

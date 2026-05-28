@@ -21,14 +21,15 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential git \
  && rm -rf /var/lib/apt/lists/*
 
-# datasette (backend seams) + the DuckDB backend plugin, both from the same
-# branch/commit so the plugin's `from datasette.backends import ...` resolves
-# against a matching core. The `#subdirectory=` form installs the plugin that
-# lives under datasette-duckdb/ in that repo. duckdb is pulled in as a dep of
-# the plugin, but pin it here too so the image is reproducible.
+# datasette (backend seams) + the DuckDB backend plugin, both from
+# `duckdb-deploy` — the merge of `duckdb-backend` (clean upstream PR
+# candidate: backend abstraction + plugin) with `no_limit_csv` (the fork's
+# extra fixes: uncapped `datasette inspect`, mode=ro immutable opens, no
+# truncation on CSV stream, etc.). The plugin's
+# `from datasette.backends import ...` resolves against a matching core.
 RUN pip install --no-cache-dir \
-    "datasette @ git+https://github.com/fgregg/datasette@duckdb-backend" \
-    "datasette-duckdb @ git+https://github.com/fgregg/datasette@duckdb-backend#subdirectory=datasette-duckdb" \
+    "datasette @ git+https://github.com/fgregg/datasette@duckdb-deploy" \
+    "datasette-duckdb @ git+https://github.com/fgregg/datasette@duckdb-deploy#subdirectory=datasette-duckdb" \
     "duckdb>=1.0" \
     datasette-atom==0.10a0 \
     datasette-block-robots \

@@ -32,8 +32,6 @@
 #   * No FTS yet — the converter doesn't build FTS indexes, so search boxes
 #     are absent until that lands.
 #   * No --crossdb / union_names canned queries (sqlite-specific).
-#   * No inspect-data.json (`datasette inspect` is sqlite-shaped). We work
-#     around the resulting ~245s cold scan by warming explicitly.
 
 name: Refresh data (DuckDB)
 
@@ -98,17 +96,16 @@ jobs:
           # builds the crosswalk.
           pip install -r requirements.txt
           pip install labor-union-parser
-          # The datasette-duckdb plugin brings the converter module + duckdb.
-          pip install "datasette-duckdb @ git+https://github.com/fgregg/datasette@duckdb-backend#subdirectory=datasette-duckdb"
-          # requirements.txt already installed a different datasette fork
-          # (no_limit_csv), so pip treats the plugin's unpinned `datasette` dep
-          # as satisfied and does NOT pull the backend-abstraction branch ->
-          # `datasette.backends` is missing and convert.py fails on import.
-          # Force the branch datasette last so it wins. `make` doesn't use
-          # datasette, so replacing the no_limit_csv fork here is harmless.
-          pip install --force-reinstall --no-deps "datasette @ git+https://github.com/fgregg/datasette@duckdb-backend"
-          # Fail fast if the backends module still isn't importable.
-          python -c "import datasette.backends, datasette_duckdb.convert; print('convert import OK')"
+          # Plugin (converter + duckdb driver) from the deploy branch.
+          pip install "datasette-duckdb @ git+https://github.com/fgregg/datasette@duckdb-deploy#subdirectory=datasette-duckdb"
+          # requirements.txt already installed the no_limit_csv datasette fork,
+          # so pip treats the plugin's unpinned `datasette` dep as already
+          # satisfied and does NOT pull duckdb-deploy. Force the deploy
+          # datasette in last so the backends module + the `inspect -c` flag
+          # (used below to build inspect-data.json) are both available.
+          pip install --force-reinstall --no-deps "datasette @ git+https://github.com/fgregg/datasette@duckdb-deploy"
+          # Fail fast if anything is wrong.
+          python -c "import datasette.backends, datasette_duckdb.convert; print('OK')"
 
       - name: Build all databases
         run: make
@@ -129,6 +126,33 @@ jobs:
           ls -la *.duckdb
           df -h
 
+      - name: Build inspect-data.json
+        run: |
+          # Precompute per-table counts so datasette's startup scan
+          # short-circuits to the cache (Database.cached_table_counts keyed by
+          # db name). Without this, cold /-/databases.json over the real
+          # warehouse data takes ~245s on shared-cpu-1x.
+          #
+          # Build a temp config mirroring serve-duckdb.sh's plugin mount, but
+          # with LOCAL paths so the CLI can open the files here. The inspect
+          # JSON is matched at serve-time by db name (not file path), so the
+          # "file" field being a CI path is fine — runtime config points at
+          # /data/<name>.duckdb under the same names.
+          python3 - <<'PY'
+          import glob, os, yaml
+          dbs = {
+              os.path.splitext(os.path.basename(p))[0]: os.path.abspath(p)
+              for p in sorted(glob.glob("*.duckdb"))
+          }
+          yaml.safe_dump(
+              {"plugins": {"datasette-duckdb": {"databases": dbs}}},
+              open("/tmp/inspect-config.yml", "w"),
+          )
+          print("mounting %d database(s) for inspect" % len(dbs))
+          PY
+          datasette inspect -c /tmp/inspect-config.yml --inspect-file inspect-data.json
+          echo "wrote inspect-data.json ($(wc -c < inspect-data.json) bytes)"
+
       - name: Upload DuckDB databases to R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -138,7 +162,7 @@ jobs:
         run: |
           # Separate key namespace from the SQLite .db files in the same bucket.
           aws s3 sync . "s3://$R2_BUCKET/$DUCKDB_PREFIX/" \
-            --exclude "*" --include "*.duckdb" \
+            --exclude "*" --include "*.duckdb" --include "inspect-data.json" \
             --no-progress
 
       - name: Install flyctl
@@ -231,7 +255,7 @@ jobs:
           # forms). Enumerate them for the pull list; the public base points at
           # the duckdb/ prefix we synced to. pull-from-r2-direct.sh cds /data
           # and writes each basename, so it's reused unchanged.
-          ASSETS=$(ls *.duckdb | tr '\n' ' ')
+          ASSETS="$(ls *.duckdb | tr '\n' ' ') inspect-data.json"
           echo "Pulling: $ASSETS"
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
             -C "rm -f /tmp/pull-from-r2-direct.sh"
@@ -273,23 +297,6 @@ jobs:
             sleep 2
           done
           flyctl ssh console --app "$FLY_APP" --machine "$MID" -C "true"
-
-      - name: Warm up datasette (build schema cache)
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          # Cold /-/databases.json over the real warehouse data (~4GB across
-          # 13 dbs) takes ~4 minutes on shared-cpu-1x — datasette's first-time
-          # schema scan introspects every table across every db. The SQLite
-          # track sidesteps this via --inspect-file; we don't have a DuckDB
-          # equivalent yet. Patiently warm the cache from a remote shell so
-          # smoke (30s per-request timeout) runs against a warm datasette.
-          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
-            -C "rm -f /tmp/warmup-datasette.sh"
-          echo "put scripts/warmup-datasette.sh /tmp/warmup-datasette.sh" \
-            | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
-          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
-            -C "sh /tmp/warmup-datasette.sh"
 
       - name: Smoke test datasette on staging
         env:
@@ -336,26 +343,12 @@ jobs:
 
           # 1. Put services on the staging machine so Fly's proxy routes to it.
           #    machine update restarts the container, so the warm cache from
-          #    the smoke step is dropped — the next step warms it again
-          #    before we cordon the old machine.
+          #    the smoke step is dropped. With inspect-data.json on the
+          #    volume the new container's first request is fast anyway, so
+          #    no explicit re-warm is needed.
           flyctl machine update "$NEW" --app "$FLY_APP" --yes \
             --port "80:8080/tcp:http" \
             --port "443:8080/tcp:tls:http"
-
-      - name: Warm up promoted machine (cold scan reset by port update)
-        if: env.PROMOTE == 'true'
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          # /-/databases.json over the real data takes ~4 min on shared-cpu-1x.
-          # Warm the NEW (now-public) machine before we cordon the OLD one, so
-          # traffic never lands on a cold machine.
-          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
-            -C "rm -f /tmp/warmup-datasette.sh"
-          echo "put scripts/warmup-datasette.sh /tmp/warmup-datasette.sh" \
-            | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
-          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
-            -C "sh /tmp/warmup-datasette.sh"
 
       - name: Cordon + finalize promote metadata
         if: env.PROMOTE == 'true'

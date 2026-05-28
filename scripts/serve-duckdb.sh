@@ -21,6 +21,15 @@ DATA_DIR="${DATA_DIR:-/data}"
 BASE_CONFIG=/app/datasette.duckdb.yml
 RUNTIME_CONFIG=/tmp/datasette-runtime.yml
 
+# inspect-data.json (shipped alongside the .duckdb files) precomputes the
+# per-table counts datasette would otherwise scan on first request — without
+# it, /-/databases.json over the real warehouse data takes ~4 min on
+# shared-cpu-1x. Same role as on the SQLite track's serve.sh.
+INSPECT_ARGS=""
+if [ -f "$DATA_DIR/inspect-data.json" ]; then
+  INSPECT_ARGS="--inspect-file $DATA_DIR/inspect-data.json"
+fi
+
 # Merge discovered *.duckdb files into the plugin's databases map. datasette
 # depends on PyYAML, so it's importable here.
 python3 - "$DATA_DIR" "$BASE_CONFIG" "$RUNTIME_CONFIG" <<'PY'
@@ -45,8 +54,10 @@ print("serve-duckdb: mounting %d duckdb database(s): %s"
       % (len(databases), ", ".join(sorted(databases)) or "(none)"), file=sys.stderr)
 PY
 
+# shellcheck disable=SC2086  # INSPECT_ARGS is intentionally word-split
 exec datasette serve \
   -c "$RUNTIME_CONFIG" \
+  $INSPECT_ARGS \
   -m /app/warehouse_metadata.yml \
   -h 0.0.0.0 -p 8080 \
   --plugins-dir /app/plugins \
