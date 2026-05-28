@@ -10,7 +10,7 @@ app = "warehouse-duckdb"
 primary_region = "iad"
 
 [build]
-  dockerfile = "Dockerfile.duckdb"
+  dockerfile = "Dockerfile-duckdb"
 
 # NB: no [mounts] block — same reasoning as fly.toml. Volumes are created and
 # attached per-refresh by refresh-data-duckdb.yml via
