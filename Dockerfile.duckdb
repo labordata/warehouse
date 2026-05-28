@@ -15,8 +15,10 @@
 
 FROM python:3.12-slim
 
+# git is needed because we pip install datasette + the plugin from
+# git+https://... URLs (the SQLite image avoids git by using archive-zip URLs).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential \
+ && apt-get install -y --no-install-recommends build-essential git \
  && rm -rf /var/lib/apt/lists/*
 
 # datasette (backend seams) + the DuckDB backend plugin, both from the same
