@@ -1,11 +1,19 @@
 # Datasette config for the DuckDB deployment (app: warehouse-duckdb).
 #
-# Derived from datasette.yml. The `databases:` block from the SQLite config
-# is intentionally dropped: its canned queries (new_rc_cases, new_lm20_filings)
-# use sqlite-only functions (datetime(), || concatenation semantics, the atom_*
-# convention against sqlite results) and the sqlite_sequence hidden-table tweak
-# has no DuckDB equivalent. Re-add DuckDB-flavoured queries here as they're
-# ported.
+# Derived from datasette.yml — same canned queries, translated to DuckDB:
+#   * datetime(col,'utc')||'Z'  ->  strftime(col,'%Y-%m-%dT%H:%M:%SZ')
+#   * For columns we know are TIMESTAMP (e.g. nlrb.filing.created_at,
+#     surveyed at the time of conversion), strftime takes the value directly.
+#   * For columns whose underlying SQLite type was TEXT and that the converter
+#     therefore left as VARCHAR (the lm20 receiveDate), use
+#     strftime(try_cast(col as timestamp), '%Y-%m-%dT%H:%M:%SZ') so the format
+#     works whether the underlying storage is TIMESTAMP or an ISO-shaped string.
+#     (See issue #9 — once the converter promotes date-ish TEXT columns the
+#     try_cast becomes a no-op and can come back out.)
+#   * SQLite tolerates referencing SELECT aliases in WHERE. DuckDB follows the
+#     standard and doesn't, so the lm20 query wraps in a CTE.
+#   * `sqlite_sequence` table-hide tweak isn't needed — DuckDB has no such
+#     table to hide.
 
 extra_css_urls:
   - /static/custom.css
@@ -52,3 +60,55 @@ plugins:
       - cats
       - chips
       - union_names_crosswalk
+
+databases:
+  nlrb:
+    queries:
+      new_rc_cases:
+        title: New petitions for representation elections
+        sql: |-
+          select
+            case_number as atom_id,
+            name as atom_title,
+            strftime(created_at, '%Y-%m-%dT%H:%M:%SZ') as atom_updated,
+            url as atom_link,
+            '<p>Case Number: <a href="' || url || '">' || case_number || '</a></p><p>Filed on: ' || date_filed || '</p><p>' || number_of_voters_on_petition_or_charge || ' workers at ' || name || ' petitioned for a representation election in ' || city || ', ' || state || '.</p>' as atom_content_html
+          from
+            filing
+          where
+            case_type = 'RC'
+          order by
+            created_at desc,
+            date_filed desc
+          limit
+            100
+  lm20:
+    queries:
+      new_lm20_filings:
+        title: New LM20 Filings
+        sql: |-
+          with feed as (
+            select distinct
+              rptID,
+              employer.empLabOrg || ' vs ' || specific_subject_labor_orgs as atom_title,
+              filing_url as atom_link,
+              strftime(try_cast(receiveDate as timestamp), '%Y-%m-%dT%H:%M:%SZ') as atom_updated,
+              '<p>' || employer.empLabOrg || ' (' || employer.city || ', ' || employer.state || ') hired ' || coalesce(contact.organization, contact.name) || ' to meet with ' || specific_subject_employees || ' to help convince workers not to organize with ' || specific_subject_labor_orgs || '</p>' as atom_content_html,
+              receiveDate as _sort
+            from
+              filing
+              inner join employer using (rptId)
+              inner join specific_activity using (rptId)
+              inner join contact using (rptId)
+            where
+              contact_type = 'name_and_mailing_address'
+          )
+          select
+            rptID as atom_id,
+            atom_title,
+            atom_link,
+            atom_updated,
+            atom_content_html
+          from feed
+          where atom_title is not null and atom_content_html is not null
+          order by _sort desc
