@@ -58,11 +58,22 @@ jobs:
           # doesn't spawn sibling data-less machines).
           set -o pipefail
           TAG="build-$GITHUB_RUN_NUMBER"
+          # Resolve the current tip of duckdb-deploy and pass it as a build
+          # arg so the Dockerfile's pip install layer cache invalidates when
+          # datasette changes (the @branch URL is text-identical across
+          # deploys, so BuildKit reuses stale layers without this).
+          DATASETTE_SHA=$(git ls-remote https://github.com/fgregg/datasette duckdb-deploy | awk '{print $1}')
+          if [ -z "$DATASETTE_SHA" ]; then
+            echo "Could not resolve duckdb-deploy commit SHA" >&2
+            exit 1
+          fi
+          echo "Building against datasette duckdb-deploy @ $DATASETTE_SHA"
           flyctl deploy --build-only --remote-only --app "$FLY_APP" \
             --config fly.duckdb.toml \
             --image-label "$TAG" \
             --push \
             --build-arg "GIT_SHA=$GITHUB_SHA" \
+            --build-arg "DATASETTE_REF=$DATASETTE_SHA" \
             2>&1 | tee /tmp/build.log
           DIGEST=$(grep -oE "pushing manifest for [^ ]*@sha256:[0-9a-f]+" /tmp/build.log \
                    | grep -oE "sha256:[0-9a-f]+" | tail -1)

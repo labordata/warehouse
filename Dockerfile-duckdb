@@ -27,9 +27,16 @@ RUN apt-get update \
 # extra fixes: uncapped `datasette inspect`, mode=ro immutable opens, no
 # truncation on CSV stream, etc.). The plugin's
 # `from datasette.backends import ...` resolves against a matching core.
+#
+# DATASETTE_REF is passed by the workflow as the commit SHA of duckdb-deploy
+# (defaults to the branch name for local builds). Pinning to a SHA invalidates
+# the Docker layer cache when datasette changes — without this, a `git+https`
+# URL pointing at a branch is text-identical across deploys and BuildKit
+# silently reuses the cached pip layer with stale code.
+ARG DATASETTE_REF=duckdb-deploy
 RUN pip install --no-cache-dir \
-    "datasette @ git+https://github.com/fgregg/datasette@duckdb-deploy" \
-    "datasette-duckdb @ git+https://github.com/fgregg/datasette@duckdb-deploy#subdirectory=datasette-duckdb" \
+    "datasette @ git+https://github.com/fgregg/datasette@${DATASETTE_REF}" \
+    "datasette-duckdb @ git+https://github.com/fgregg/datasette@${DATASETTE_REF}#subdirectory=datasette-duckdb" \
     "duckdb>=1.0" \
     datasette-atom==0.10a0 \
     datasette-block-robots \
