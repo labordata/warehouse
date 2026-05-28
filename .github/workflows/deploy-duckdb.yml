@@ -20,6 +20,9 @@ on:
   push:
     branches:
       - main
+      # TEMPORARY: also fire on the feature branch so we can iterate on the
+      # image / serve-script before merging. Remove before merging.
+      - duckdb-parallel-build
   workflow_dispatch:
 
 concurrency:
