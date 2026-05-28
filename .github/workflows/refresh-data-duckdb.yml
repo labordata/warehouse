@@ -238,20 +238,34 @@ jobs:
         run: |
           # Built from the freshly pushed image (not from a current machine's
           # image), so this also works on the bootstrap run. No public ports
-          # until promotion. `flyctl machine run` has no --json; parse stdout.
-          OUT=$(flyctl machine run "${{ steps.build.outputs.image }}" \
-            --app "$FLY_APP" \
-            --region "$FLY_REGION" \
-            --volume "${{ steps.vol.outputs.id }}:/data" \
-            --metadata role=staging \
-            --metadata refresh_run="$GITHUB_RUN_ID" \
-            --vm-cpu-kind shared \
-            --vm-cpus 1 \
-            --vm-memory 2048 2>&1)
-          echo "$OUT"
-          MID=$(echo "$OUT" | grep -oE 'Machine ID: [a-f0-9]+' | head -1 | awk '{print $3}')
+          # until promotion. `flyctl machine run` has no --json; parse stdout
+          # for "Machine ID: XXX".
+          #
+          # Retry: the image was pushed seconds ago in the Build step, and
+          # Fly's registry can 404 the manifest for seconds-to-minutes after a
+          # push (the same propagation lag deploy.yml retries around for
+          # `machine update`). A single attempt fast-fails. We `tee` the output
+          # (rather than OUT=$(...), which under `set -e` exits before we can
+          # echo it) and retry until a Machine ID appears. A 404 pull failure
+          # creates no machine, so retrying can't orphan one.
+          MID=""
+          for i in $(seq 1 15); do
+            flyctl machine run "${{ steps.build.outputs.image }}" \
+              --app "$FLY_APP" \
+              --region "$FLY_REGION" \
+              --volume "${{ steps.vol.outputs.id }}:/data" \
+              --metadata role=staging \
+              --metadata refresh_run="$GITHUB_RUN_ID" \
+              --vm-cpu-kind shared \
+              --vm-cpus 1 \
+              --vm-memory 2048 2>&1 | tee /tmp/machine_run.log || true
+            MID=$(grep -oE 'Machine ID: [a-f0-9]+' /tmp/machine_run.log | head -1 | awk '{print $3}')
+            if [ -n "$MID" ]; then break; fi
+            echo "attempt $i: machine run not ready (likely image-manifest propagation), sleeping 15s..." >&2
+            sleep 15
+          done
           if [ -z "$MID" ]; then
-            echo "Could not parse machine ID from flyctl output" >&2
+            echo "Could not create staging machine after retries" >&2
             exit 1
           fi
           echo "id=$MID" >> $GITHUB_OUTPUT
