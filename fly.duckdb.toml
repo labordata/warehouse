@@ -41,7 +41,11 @@ primary_region = "iad"
   [[services.http_checks]]
     # /-/versions.json is constant-time and doesn't touch the databases.
     interval = "30s"
-    grace_period = "120s"
+    # Datasette boot over 13 attached duckdb databases on shared-cpu-1x is
+    # ~2 min (plugin discovery + 13 startup-hook add_database + 13
+    # check_databases). Headroom past that so the health check doesn't
+    # decide the machine is unhealthy mid-boot and kill it.
+    grace_period = "240s"
     method = "get"
     path = "/-/versions.json"
     protocol = "http"

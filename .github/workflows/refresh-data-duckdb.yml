@@ -298,6 +298,21 @@ jobs:
           done
           flyctl ssh console --app "$FLY_APP" --machine "$MID" -C "true"
 
+      - name: Wait for datasette to bind :8080 on staging
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # Wait-for-SSH above only checks Fly's hallpass — datasette itself
+          # takes ~2 min to start over 13 attached duckdb dbs on shared-cpu-1x.
+          # Without an explicit wait, smoke-test.sh's built-in 120s poll
+          # races against the boot and tail-fails.
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C "rm -f /tmp/wait-for-datasette.sh"
+          echo "put scripts/wait-for-datasette.sh /tmp/wait-for-datasette.sh" \
+            | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C "sh /tmp/wait-for-datasette.sh"
+
       - name: Smoke test datasette on staging
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -343,12 +358,26 @@ jobs:
 
           # 1. Put services on the staging machine so Fly's proxy routes to it.
           #    machine update restarts the container, so the warm cache from
-          #    the smoke step is dropped. With inspect-data.json on the
-          #    volume the new container's first request is fast anyway, so
-          #    no explicit re-warm is needed.
+          #    the smoke step is dropped. inspect-data.json on the volume
+          #    means the first /-/databases.json is fast, but datasette
+          #    still takes ~2 min to bind :8080 over 13 dbs — the next step
+          #    waits for it so we don't cordon the old machine before the
+          #    new one is serving (which would leak 502s to visitors).
           flyctl machine update "$NEW" --app "$FLY_APP" --yes \
             --port "80:8080/tcp:http" \
             --port "443:8080/tcp:tls:http"
+
+      - name: Wait for datasette to bind :8080 on promoted machine
+        if: env.PROMOTE == 'true'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C "rm -f /tmp/wait-for-datasette.sh"
+          echo "put scripts/wait-for-datasette.sh /tmp/wait-for-datasette.sh" \
+            | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C "sh /tmp/wait-for-datasette.sh"
 
       - name: Cordon + finalize promote metadata
         if: env.PROMOTE == 'true'
