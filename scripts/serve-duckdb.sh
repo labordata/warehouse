@@ -56,6 +56,5 @@ exec datasette serve \
   --setting sql_time_limit_ms 100000 \
   --setting facet_time_limit_ms 500 \
   --setting allow_facet off \
-  --setting trace_debug 1 \
   --setting max_csv_mb 1000 \
   --setting force_https_urls on
