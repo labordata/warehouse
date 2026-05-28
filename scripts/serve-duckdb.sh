@@ -1,39 +1,54 @@
 #!/bin/sh
-# Discover .duckdb databases on the mounted volume and exec datasette with
-# each one attached immutable (-i). Parallel to serve.sh, which does the same
-# for SQLite .db files.
+# Serve the .duckdb databases on the mounted volume via the datasette-duckdb
+# backend plugin.
 #
-# Differences from serve.sh:
-#   * globs *.duckdb (the converted files) instead of *.db
-#   * no --crossdb: the SQLite track uses cross-database ATTACH for the
-#     union_names canned queries, which are sqlite-specific; the DuckDB
-#     backend serves one connection per database.
-#   * no --inspect-file: `datasette inspect` is sqlite-shaped, so the DuckDB
-#     refresh doesn't produce one. Datasette will scan on first request.
+# IMPORTANT: unlike the SQLite track (serve.sh), we must NOT pass the files
+# with `-i`. `-i path` attaches a file with datasette's default SQLite backend,
+# which then tries to read the .duckdb file as SQLite and crashes the process
+# on startup ("file is not a database"). The DuckDB backend is mounted instead
+# through plugin config: plugins.datasette-duckdb.databases = {name: path}.
+# So we discover /data/*.duckdb at boot, merge them into a runtime copy of the
+# static config, and serve that.
 #
 # If /data has no .duckdb files yet (first boot / pre-upload during a refresh
-# cycle), start with no databases so the /-/versions.json health check still
-# passes and the refresh can SFTP files in, then restart.
+# cycle), the databases map is empty and datasette starts with no databases so
+# the /-/versions.json health check still passes and the refresh can SFTP files
+# in, then restart.
 
 set -eu
 
 DATA_DIR="${DATA_DIR:-/data}"
+BASE_CONFIG=/app/datasette.duckdb.yml
+RUNTIME_CONFIG=/tmp/datasette-runtime.yml
 
-IMMUTABLE_ARGS=""
-if ls "$DATA_DIR"/*.duckdb >/dev/null 2>&1; then
-  for db in "$DATA_DIR"/*.duckdb; do
-    IMMUTABLE_ARGS="$IMMUTABLE_ARGS -i $db"
-  done
-else
-  echo "no .duckdb files in $DATA_DIR yet — starting datasette without any databases" >&2
-fi
+# Merge discovered *.duckdb files into the plugin's databases map. datasette
+# depends on PyYAML, so it's importable here.
+python3 - "$DATA_DIR" "$BASE_CONFIG" "$RUNTIME_CONFIG" <<'PY'
+import glob, os, sys, yaml
 
-# shellcheck disable=SC2086  # args are intentionally word-split
+data_dir, base_config, runtime_config = sys.argv[1], sys.argv[2], sys.argv[3]
+
+with open(base_config) as f:
+    cfg = yaml.safe_load(f) or {}
+
+databases = {}
+for path in sorted(glob.glob(os.path.join(data_dir, "*.duckdb"))):
+    name = os.path.splitext(os.path.basename(path))[0]
+    databases[name] = path
+
+cfg.setdefault("plugins", {}).setdefault("datasette-duckdb", {})["databases"] = databases
+
+with open(runtime_config, "w") as f:
+    yaml.safe_dump(cfg, f, sort_keys=False)
+
+print("serve-duckdb: mounting %d duckdb database(s): %s"
+      % (len(databases), ", ".join(sorted(databases)) or "(none)"), file=sys.stderr)
+PY
+
 exec datasette serve \
-  $IMMUTABLE_ARGS \
-  -h 0.0.0.0 -p 8080 \
-  -c /app/datasette.duckdb.yml \
+  -c "$RUNTIME_CONFIG" \
   -m /app/warehouse_metadata.yml \
+  -h 0.0.0.0 -p 8080 \
   --plugins-dir /app/plugins \
   --template-dir /app/templates \
   --static static:/app/static \
