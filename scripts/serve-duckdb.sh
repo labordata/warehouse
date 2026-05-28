@@ -66,6 +66,10 @@ exec datasette serve \
   --cors \
   --setting sql_time_limit_ms 100000 \
   --setting facet_time_limit_ms 500 \
-  --setting allow_facet off \
   --setting max_csv_mb 1000 \
   --setting force_https_urls on
+  # NB: unlike serve.sh (SQLite), we do NOT pass `--setting allow_facet off`.
+  # The SQLite site disables faceting because it's aggregation-heavy and too
+  # expensive on 10GB+ SQLite tables. DuckDB is columnar/vectorized — faceting
+  # is cheap (group-by over 11M rows ~11ms in profiling) — so we leave it on
+  # and rely on facet_time_limit_ms 500 as the per-facet cost guard.
