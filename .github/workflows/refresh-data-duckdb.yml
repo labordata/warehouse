@@ -337,6 +337,23 @@ jobs:
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
             -C "sh /tmp/smoke-test.sh"
 
+      - name: Dump staging diagnostics (on failure)
+        # TEMPORARY debugging aid: capture the staging machine's datasette
+        # logs + memory/process state into the CI output so a failure is
+        # diagnosable without reproducing. Worth keeping in some form.
+        if: failure()
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          MID="${{ steps.mach.outputs.id }}"
+          echo "=== machine status ==="
+          flyctl machine status "$MID" --app "$FLY_APP" 2>&1 | head -40 || true
+          echo "=== datasette logs (tail) ==="
+          flyctl logs --app "$FLY_APP" --machine "$MID" --no-tail 2>&1 | tail -150 || true
+          echo "=== in-container probe ==="
+          flyctl ssh console --app "$FLY_APP" --machine "$MID" \
+            -C "sh -c 'grep -E \"MemTotal|MemAvailable\" /proc/meminfo; echo ---DATA---; ls -la /data; echo ---PROCS---; ps aux 2>/dev/null | grep -E \"datasette|uvicorn\" | grep -v grep'" 2>&1 | head -50 || true
+
       # ─── Promote path (only when explicitly requested) ──────────────
 
       - name: Promote staging to current
@@ -381,7 +398,11 @@ jobs:
       # ─── Teardown of staging if not promoted (dry-run + failure path) ─
 
       - name: Tear down staging
-        if: always() && (env.PROMOTE != 'true' || failure())
+        # TEMPORARY: dropped the `|| failure()` so a FAILED staging machine
+        # persists for direct inspection (flyctl ssh / logs). With PROMOTE=true
+        # this means teardown effectively never runs; restore
+        # `(env.PROMOTE != 'true' || failure())` once the bootstrap is green.
+        if: always() && env.PROMOTE != 'true'
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
