@@ -36,11 +36,11 @@
 name: Refresh data (DuckDB)
 
 on:
-  # Refresh runs on schedule + manual dispatch only — NOT on every push.
-  # Code/serve-script iteration goes through deploy-duckdb.yml (fast, ~5min);
-  # firing a full 22min refresh on every push just produced runs we
-  # immediately cancelled. Dispatch manually when data actually needs
-  # rebuilding (e.g. after a convert.py change).
+  # TEMPORARY: fire on every push to the feature branch so we can iterate
+  # the full refresh pipeline before merging. Remove before merging.
+  push:
+    branches:
+      - duckdb-parallel-build
   schedule:
     # 30 min after the SQLite refresh (0 7) so upstream sources are settled
     # and the two runners don't contend.
@@ -68,8 +68,10 @@ env:
   R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
   DUCKDB_PREFIX: duckdb
   STAGING_VOL_GB: 10
-  # Scheduled runs always promote; manual dispatch promotes unless promote=false.
-  PROMOTE: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.promote == true)) && 'true' || 'false' }}
+  # TEMPORARY: push events promote too, so a commit-triggered refresh leaves
+  # a live URL instead of a dry-run that tears itself down. Revert with the
+  # push: trigger above.
+  PROMOTE: ${{ (github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.promote == true)) && 'true' || 'false' }}
 
 jobs:
   refresh:
