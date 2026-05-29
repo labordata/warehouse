@@ -63,6 +63,7 @@ exec datasette serve \
   --plugins-dir /app/plugins \
   --template-dir /app/templates \
   --static static:/app/static \
+  --crossdb \
   --cors \
   --setting sql_time_limit_ms 100000 \
   --setting facet_time_limit_ms 500 \
@@ -73,3 +74,10 @@ exec datasette serve \
   # expensive on 10GB+ SQLite tables. DuckDB is columnar/vectorized — faceting
   # is cheap (group-by over 11M rows ~11ms in profiling) — so we leave it on
   # and rely on facet_time_limit_ms 500 as the per-facet cost guard.
+  #
+  # --crossdb: enables the /_memory cross-database query interface (parity with
+  # serve.sh), so e.g. union_names_crosswalk can be joined against nlrb/f7/lm*.
+  # The datasette-duckdb plugin re-backs _memory with DuckDB at startup and
+  # ATTACHes every mounted .duckdb (READ_ONLY). Unlike SQLite there is no
+  # SQLITE_LIMIT_ATTACHED cap, so all ~14 databases are cross-queryable, not
+  # just the first 10.
