@@ -40,7 +40,7 @@
         <p>The following databases are attached to this connection, and can be used for cross-database joins:</p>
         <ul class="bullets">
             {% for db_name in attached_databases %}
-                <li><strong>{{ db_name }}</strong> - <a href="{{ urls.database(db_name) }}/-/query?sql=select+*+from+[{{ db_name }}].sqlite_master+where+type='table'">tables</a></li>
+                <li><strong>{{ db_name }}</strong> - <a href="{{ urls.database(db_name) }}">tables</a></li>
             {% endfor %}
         </ul>
     </div>
