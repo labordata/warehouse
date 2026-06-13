@@ -407,6 +407,27 @@ jobs:
             flyctl volumes destroy "$OLDVOL" -y
           fi
 
+      # The edge caches data-derived pages (the homepage's database list,
+      # table row counts, etc.) with a long cdn-cache-control, so a data
+      # refresh must purge or the old counts/pages stick at the edge until
+      # expiry. Mirrors the SQLite track's purge in refresh-data.yml. No-op
+      # until labordata.bunkum.us is cut over to this app (today the DuckDB
+      # site is served from warehouse-duckdb.fly.dev, not through this zone),
+      # but harmless before then — it purges the same shared zone.
+      - name: Purge Cloudflare cache
+        if: env.PROMOTE == 'true'
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          response=$(curl -fsS -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}')
+          echo "$response"
+          echo "$response" | grep -q '"success":true' || { echo "Purge failed"; exit 1; }
+
       # ─── Teardown of staging if not promoted (dry-run + failure path) ─
 
       - name: Tear down staging
