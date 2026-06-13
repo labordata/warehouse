@@ -50,6 +50,12 @@
       cloneTable.style.width = table.getBoundingClientRect().width + 'px';
     }
 
+    // The wrapper carries a 1px border and the table's content sits inside it.
+    // Anchor the clone to the wrapper's content box (not its border box) and
+    // clip to the visible content width, or the cloned header sits 1px left of
+    // the body — a seam that flickers as the clone toggles on/off (issue #28).
+    const borderLeft = parseFloat(getComputedStyle(wrapper).borderLeftWidth) || 0;
+
     function syncPosition() {
       const wrapRect = wrapper.getBoundingClientRect();
       const tableRect = table.getBoundingClientRect();
@@ -58,8 +64,8 @@
       // viewport and the table itself is still on-screen.
       const visible = tableRect.top < 0 && tableRect.bottom > theadHeight;
       holder.style.visibility = visible ? 'visible' : 'hidden';
-      holder.style.left = wrapRect.left + 'px';
-      holder.style.width = wrapRect.width + 'px';
+      holder.style.left = (wrapRect.left + borderLeft) + 'px';
+      holder.style.width = wrapper.clientWidth + 'px';
       holder.scrollLeft = wrapper.scrollLeft;
     }
 

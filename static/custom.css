@@ -299,6 +299,15 @@ a:active {
   margin: 0;
   background: transparent;
 }
+/* sticky-thead.js sizes each cloned <th> by assigning the original th's
+   getBoundingClientRect().width — a border-box measurement. The cells default
+   to box-sizing: content-box, so that width gets padding (~25px) + border (1px)
+   added on top, inflating every column by ~26px. The error accumulates across
+   columns, so the cloned header drifts progressively left of the body as you
+   scroll right (issue #28). Match the measurement's box model. */
+.sticky-thead-clone th {
+  box-sizing: border-box;
+}
 
 
 table {
