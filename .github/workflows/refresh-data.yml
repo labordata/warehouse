@@ -305,6 +305,26 @@ jobs:
             flyctl volumes destroy "$OLDVOL" -y
           fi
 
+      # The edge caches data-derived pages (the homepage's database list,
+      # table row counts, etc.) with a 1-year cdn-cache-control keyed by
+      # the datasette version — which a data-only refresh doesn't bump. So
+      # a refresh that adds/changes data (or a whole database) is invisible
+      # at the edge until purged. deploy.yml purges on code deploys; this
+      # is the matching purge for data deploys.
+      - name: Purge Cloudflare cache
+        if: env.PROMOTE == 'true'
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          response=$(curl -fsS -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}')
+          echo "$response"
+          echo "$response" | grep -q '"success":true' || { echo "Purge failed"; exit 1; }
+
       # ─── Teardown of staging if not promoted (dry-run + failure path) ─
 
       - name: Tear down staging

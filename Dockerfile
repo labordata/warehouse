@@ -12,8 +12,11 @@ FROM python:3.12-slim
 
 # pysqlite3-binary wants build tools when no wheel matches; with python:slim
 # we usually get the binary wheel, but include build-essential just in case.
+# wget is for pull-from-r2-direct.sh: it length-checks and retries
+# downloads, unlike the hand-rolled urllib loop it replaced, which wrote
+# silently truncated .db files when a connection dropped mid-transfer.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential \
+ && apt-get install -y --no-install-recommends build-essential wget \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir \
