@@ -2,7 +2,7 @@ extra_css_urls:
   - /static/custom.css
 
 extra_js_urls:
-  - /static/sticky-thead.js?v=3
+  - /static/sticky-thead.js?v=4
 
 plugins:
   datasette-block-robots:
