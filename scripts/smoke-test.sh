@@ -43,7 +43,7 @@ names = sorted(d["name"] for d in dbs)
 print(f"  attached: {len(dbs)} databases: {names}")
 
 expected = {
-    "osha_enforcement", "nlrb", "opdr", "whisard", "lm10", "lm20",
+    "osha_enforcement", "nlrb", "opdr", "whisard", "lm10", "lm20", "lm30",
     "chips", "cats", "f7", "work_stoppages",
     "nlrb_rc_elections_1961_1998", "voluntary_recognitions",
     "union_names_crosswalk",

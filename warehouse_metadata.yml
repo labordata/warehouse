@@ -1450,6 +1450,156 @@ databases:
           city: City.
           state: State.
           "zip_code_+_4": ZIP+4 code.
+  lm30:
+    title: Conflict-of-Interest Reports of Union Officers and Employees (Form LM-30)
+    description_html: |-
+      <p>Reports filed with the Department of Labor by <em>union officers and employees</em> who have a financial interest or dealing that could conflict with their duty to the members they represent. Under <a href="https://www.law.cornell.edu/uscode/text/29/432">Section 202 of the Labor-Management Reporting and Disclosure Act</a>, an officer or employee of a labor organization must file <a href="https://www.dol.gov/agencies/olms/sites/dolgov/files/migrated/regs/compliance/forms-instructions/LM-30.pdf">Form LM-30</a> for any fiscal year in which they (or a spouse or minor child) held or received:</p>
+      <ul>
+        <li><strong>Part A</strong> — an interest in, or income/payments from, an employer whose employees their union represents;</li>
+        <li><strong>Part B</strong> — an interest in a business that deals with such an employer, with the union, or with a union trust;</li>
+        <li><strong>Part C</strong> — payments from any other employer (or a labor-relations consultant) that would create a conflict.</li>
+      </ul>
+      <p>It is the union-insider counterpart to the employer's <a href="./lm10">LM-10</a> and the persuader's <a href="./lm20">LM-20</a>. The data is scraped nightly from the OLMS <a href="https://olms.dol-esa.gov/olpdr/">Online Public Disclosure Room</a>. The <a href="./lm30/filing">filing</a> table is the index of every filing (keyed by <code>rptId</code>); for filings whose report OLMS serves as HTML, the disclosure entries are parsed into <a href="./lm30/represented_employer_interest">represented_employer_interest</a>, <a href="./lm30/business_interest">business_interest</a>, and <a href="./lm30/other_employer_payment">other_employer_payment</a>, with the report's filer-and-union header in <a href="./lm30/report_identity">report_identity</a>. Older filings are served as PDFs and have an index row only.</p>
+    source: OLMS website, scraped
+    source_url: https://olms.dol-esa.gov/olpdr/
+    source_description: Officer-and-employee conflict-of-interest reports (Form LM-30) filed with the DOL Office of Labor-Management Standards and published in its Online Public Disclosure Room.
+    source_license: https://creativecommons.org/publicdomain/mark/1.0/
+    code_repository: https://github.com/labordata/lm30
+    temporal_coverage: "1990/.."
+    source_organization:
+      "@type": Organization
+      name: U.S. Department of Labor, Office of Labor-Management Standards
+      url: https://www.dol.gov/agencies/olms
+    keywords:
+      - LM-30
+      - conflict of interest
+      - union officers
+      - union employees
+      - LMRDA Section 202
+      - OLMS
+    tables:
+      filer:
+        label_column: name
+        description: One row per LM-30 filer — a union officer or employee, paired with the labor organization they report against. A person (identified by srNum, the "U-" file number) may appear under several srFilerIds, one per union relationship.
+        columns:
+          srFilerId: OLMS surrogate filer ID. Primary key. The detail servlet is keyed by this.
+          srNum: The filer's "U-" file number (shown as "U-"+srNum on the report). One srNum can map to several srFilerIds.
+          name: Filer's name (last, first).
+          suffix: Name suffix, when present.
+          city: City of the filer's reported address.
+          state: State of the filer's reported address.
+          affAbbr: Abbreviation of the affiliated union (e.g. "IUOE").
+          unionName: Name of the labor organization the filer reports against.
+          unionCity: City of that labor organization.
+          unionState: State of that labor organization.
+          detailId: OLMS internal detail identifier.
+      filing:
+        description: One row per LM-30 filing — the filing index. Keyed by rptId. About 32,000 filings, 1990 to present. Amendments get a new rptId; only the latest version of each (srFilerId, yrCovered) chain is kept here (see the amendment table for full history).
+        columns:
+          rptId: OLMS report ID. Primary key.
+          srFilerId: Foreign key to filer.srFilerId.
+          formFiled: Form type — always "LM-30".
+          amended: "Whether this filing is an amendment (\"Y\"/\"N\")."
+          amendment: Sequence number of the amendment, when applicable.
+          beginDate: Start of the fiscal year covered (ISO 8601, YYYY-MM-DD).
+          endDate: End of the fiscal year covered.
+          yrCovered: Year covered by the report.
+          receiveDate: Date OLMS received the filing.
+          registerDate: Date OLMS registered the filing in its system.
+          unionName: Labor organization named on the filing (denormalized from filer).
+          unionCity: City of that labor organization.
+          unionState: State of that labor organization.
+          filing_url: URL to the report on the OLMS public disclosure site.
+          file_path: Reserved for a cached report document (not yet archived).
+          file_checksum: Reserved for a cached report document's checksum.
+          file_status: Reserved for the report-fetch status.
+      report_identity:
+        description: The report header (Form items 4 & 5), parsed from the HTML report — the filer's own contact information and the labor organization's identifying information, neither of which is in the filing index. One row per filing whose report OLMS served as parseable HTML (paper/PDF filings have none). Keyed by rptId.
+        columns:
+          rptId: Foreign key to filing.rptId. Primary key.
+          filer_name: Filer's name as written on the report (item 4).
+          filer_street: Filer's street address.
+          filer_city: Filer's city.
+          filer_state: Filer's state.
+          filer_zip: Filer's ZIP code.
+          filer_email: Filer's email address (an optional field on the form).
+          filer_role: "Whether the filer is an \"Officer\" or an \"Employee\" of the union (item 5)."
+          filer_position_title: The filer's officer position or job title (e.g. "President", "Secretary Treasurer").
+          union_name: Labor organization's name as written on the report (item 5).
+          union_street: Labor organization's street address.
+          union_city: Labor organization's city.
+          union_state: Labor organization's state.
+          union_zip: Labor organization's ZIP code.
+          union_file_number: The labor organization's own OLMS file number, linking to its LM-2/3/4 filings.
+      represented_employer_interest:
+        description: Form Part A — interests in, and income or payments from, an employer whose employees the filer's union represents. One row per disclosed entry; a filing may have several. Parsed from the HTML report.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          entry_order: 1-based position of this entry within the filing's Part A.
+          represented_employer: Name of the represented employer (item 6).
+          contact_name: Contact name for the employer.
+          telephone: Contact telephone.
+          street: Employer's street address.
+          city: Employer's city.
+          state: Employer's state.
+          zip: Employer's ZIP code.
+          nature_of_interest: Nature of the interest, transaction, benefit, arrangement, income, or loan (item 7.a).
+          amount: Amount or value of the interest (item 7.b).
+      business_interest:
+        description: Form Part B — interests in a business that deals with the represented employer, the union, or a union trust. One row per disclosed entry. Parsed from the HTML report.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          entry_order: 1-based position of this entry within the filing's Part B.
+          business_name: Name of the business (item 8).
+          contact_name: Contact name for the business.
+          telephone: Contact telephone.
+          street: Business's street address.
+          city: Business's city.
+          state: Business's state.
+          zip: Business's ZIP code.
+          deals_with: "Whom the business deals with — a comma-separated set of \"labor_organization\", \"trust\", and/or \"employer\" (item 9)."
+          deals_with_name: Name of the employer or labor-relations consultant the business deals with (item 10).
+          deals_with_contact_name: Contact name for that counterparty.
+          deals_with_telephone: Contact telephone for that counterparty.
+          deals_with_street: Counterparty's street address.
+          deals_with_city: Counterparty's city.
+          deals_with_state: Counterparty's state.
+          deals_with_zip: Counterparty's ZIP code.
+          nature_of_dealings: Nature of the dealings between the business and the counterparty (item 11.a).
+          value_of_dealings: Value of those dealings (item 11.b).
+          nature_of_interest: Nature of the filer's interest, benefit, arrangement, or income (item 12.a).
+          amount_of_interest: Amount or value of that interest (item 12.b).
+      other_employer_payment:
+        description: Form Part C — payments from any other employer (or a labor-relations consultant) that would create a conflict. One row per disclosed entry. Parsed from the HTML report.
+        columns:
+          rptId: Foreign key to filing.rptId.
+          entry_order: 1-based position of this entry within the filing's Part C.
+          other_employer: Name of the other employer (item 13.a).
+          contact_name: Contact name.
+          telephone: Contact telephone.
+          street: Street address (the form labels this "Mailing Address").
+          city: City.
+          state: State.
+          zip: ZIP code.
+          entity_type: "Whether the payer is \"employer\" or \"consultant\" (item 13.b)."
+          nature_of_payment: Nature of the payment.
+          amount: Amount or value of the payment.
+      amendment:
+        description: The full version chain of each amended filing, including the superseded versions the OLMS detail feed hides (it serves only the latest). Each version keeps its own rptId; the latest version duplicates a filing row. Join history to the current filing on (srFilerId, yrCovered). Backfilled from the OLMS amendment-history servlet for chains where filing.amended = 'Y'.
+        columns:
+          rptId: OLMS report ID of this version. Primary key.
+          srFilerId: Foreign key to filer.srFilerId.
+          yrCovered: Year covered (shared across the chain).
+          amendment: Sequence number of this version within the chain (0 = original).
+          amended: "Whether this version is an amendment (\"Y\"/\"N\")."
+          beginDate: Start of the fiscal year covered.
+          endDate: End of the fiscal year covered.
+          receiveDate: Date OLMS received this version.
+          formFiled: Form type — "LM-30".
+          unionName: Labor organization named on this version.
+          unionCity: City of that labor organization.
+          unionState: State of that labor organization.
+          filing_url: URL to this version's report.
   osha_enforcement:
     title: OSHA Enforcement Data (inspections, citations, accidents)
     description_html: |-
