@@ -211,7 +211,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('throw error');
                     throw new Error(data.title || data.error);
                 }
-                const count = data['rows'][0]['count(*)'];
+                // SQL aliases the column to `count` (datasette views/table.py)
+                // so this works on any backend — SQLite would otherwise return
+                // key "count(*)", DuckDB "count_star()".
+                const count = data['rows'][0]['count'];
                 const formattedCount = count.toLocaleString();
                 span.closest('h3').textContent = formattedCount + ' rows';
             } catch (error) {
