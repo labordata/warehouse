@@ -65,10 +65,18 @@ exec datasette serve \
   --static static:/app/static \
   --crossdb \
   --cors \
-  --setting sql_time_limit_ms 100000 \
+  --setting sql_time_limit_ms 30000 \
   --setting facet_time_limit_ms 500 \
   --setting max_csv_mb 1000 \
   --setting force_https_urls on
+  # sql_time_limit_ms is 30s (was 100s): a crawler hit a generated
+  # `nlrb.docket ... order by rowid limit 101` view, which full-scans + sorts on
+  # DuckDB (~125s, no native rowid) and — allowed 100s each — monopolized the
+  # single shared-cpu-1x vCPU until datasette wedged (2026-06-19 incident). 30s
+  # still clears the legit heavy analytical exports (=<~13s) while capping the
+  # catastrophic tail. Deeper fix TODO: that docket order-by-rowid view should
+  # not full-scan (index/pk on case_number, or drop rowid sort on big tables).
+  #
   # NB: unlike serve.sh (SQLite), we do NOT pass `--setting allow_facet off`.
   # The SQLite site disables faceting because it's aggregation-heavy and too
   # expensive on 10GB+ SQLite tables. DuckDB is columnar/vectorized — faceting
