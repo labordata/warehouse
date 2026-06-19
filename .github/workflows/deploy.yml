@@ -3,17 +3,18 @@
 # Push the warehouse image to Fly. Data on the volume is untouched —
 # the new container boots into whatever's already in /data.
 #
-# Triggers: every push to main (intended for code/plugin/config
-# changes that land via PR merge) and manual dispatch. The
-# `refresh-data.yml` workflow handles data updates; the two share a
-# concurrency group so they serialize.
+# Triggers: MANUAL DISPATCH ONLY during the DuckDB cutover. The push:main
+# auto-deploy is intentionally disabled so that merging the DuckDB PR (#25)
+# to main does NOT redeploy this SQLite app — labordata.bunkum.us now serves
+# the warehouse-duckdb app, and this SQLite app is the rollback target, which
+# must not pick up DuckDB-era shared template changes (e.g. the count-alias
+# templates/table.html that breaks row-count on the old datasette). Re-enable
+# the push:main trigger when the SQLite app is retired. `refresh-data.yml`
+# (data updates) is separate and still runs on its own cron.
 
 name: Deploy app
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
