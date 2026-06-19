@@ -54,6 +54,16 @@ print("serve-duckdb: mounting %d duckdb database(s): %s"
       % (len(databases), ", ".join(sorted(databases)) or "(none)"), file=sys.stderr)
 PY
 
+# TEMP native-heap leak profiling: LD_PRELOAD tcmalloc with the heap profiler,
+# scoped to the datasette process. Dumps a heap profile to /data/heap.* whenever
+# in-use memory grows ~100MB (the leak-relevant trigger). pprof --base <early>
+# <late> /usr/local/bin/python3.12 <heap> names the C++ backtraces holding the
+# growing in-use memory = the native leak. Remove after diagnosis.
+export LD_PRELOAD="$(ls /usr/lib/*/libtcmalloc.so.4 2>/dev/null | head -1)"
+export HEAPPROFILE=/data/heap
+export HEAP_PROFILE_INUSE_INTERVAL=104857600
+export HEAP_PROFILE_ALLOCATION_INTERVAL=1073741824
+
 # shellcheck disable=SC2086  # INSPECT_ARGS is intentionally word-split
 exec datasette serve \
   -c "$RUNTIME_CONFIG" \

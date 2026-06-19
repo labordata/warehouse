@@ -21,8 +21,12 @@ FROM python:3.12-slim
 # machine and runs to populate /data from R2 (same script as the SQLite track,
 # which gets wget via the main Dockerfile).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential git wget \
+ && apt-get install -y --no-install-recommends build-essential git wget libgoogle-perftools4 \
  && rm -rf /var/lib/apt/lists/*
+# ^ libgoogle-perftools4 (tcmalloc): TEMP, for native-heap leak profiling.
+#   serve-duckdb.sh LD_PRELOADs libtcmalloc with HEAPPROFILE so pprof can show
+#   the C++ allocation backtraces gc can't see (Debian jemalloc lacks prof).
+#   Remove after diagnosis.
 
 # datasette (backend seams) + the DuckDB backend plugin, both from
 # `duckdb-deploy` — the merge of `duckdb-backend` (clean upstream PR
