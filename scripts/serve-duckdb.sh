@@ -58,6 +58,7 @@ PY
 exec datasette serve \
   -c "$RUNTIME_CONFIG" \
   $INSPECT_ARGS \
+  --internal "$DATA_DIR/internal.db" \
   -m /app/warehouse_metadata.yml \
   -h 0.0.0.0 -p 8080 \
   --plugins-dir /app/plugins \
@@ -65,10 +66,26 @@ exec datasette serve \
   --static static:/app/static \
   --crossdb \
   --cors \
-  --setting sql_time_limit_ms 100000 \
+  --setting sql_time_limit_ms 30000 \
   --setting facet_time_limit_ms 500 \
   --setting max_csv_mb 1000 \
   --setting force_https_urls on
+  # --internal persists datasette's schema catalog on the /data volume so it is
+  # introspected ONCE and frozen, instead of re-running full live introspection
+  # (information_schema over every table) on every boot. First boot on a fresh
+  # volume populates /data/internal.db; subsequent restarts/deploys reuse it
+  # (schema_version match -> populate skipped; needs the upstream startup-prune
+  # guard, fgregg/datasette@1e5644fe). Blue-green ships a new volume per refresh,
+  # so the frozen catalog is rebuilt with each data refresh and never goes stale.
+  #
+  # sql_time_limit_ms is 30s (was 100s): a crawler hit a generated
+  # `nlrb.docket ... order by rowid limit 101` view, which full-scans + sorts on
+  # DuckDB (~125s, no native rowid) and — allowed 100s each — monopolized the
+  # single shared-cpu-1x vCPU until datasette wedged (2026-06-19 incident). 30s
+  # still clears the legit heavy analytical exports (=<~13s) while capping the
+  # catastrophic tail. Deeper fix TODO: that docket order-by-rowid view should
+  # not full-scan (index/pk on case_number, or drop rowid sort on big tables).
+  #
   # NB: unlike serve.sh (SQLite), we do NOT pass `--setting allow_facet off`.
   # The SQLite site disables faceting because it's aggregation-heavy and too
   # expensive on 10GB+ SQLite tables. DuckDB is columnar/vectorized — faceting

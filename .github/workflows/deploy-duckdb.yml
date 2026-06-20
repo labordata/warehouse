@@ -154,3 +154,22 @@ jobs:
           echo "put scripts/wait-for-datasette.sh /tmp/wait-for-datasette.sh" \
             | flyctl ssh sftp shell --app "$FLY_APP"
           flyctl ssh console --app "$FLY_APP" -C "sh /tmp/wait-for-datasette.sh"
+
+      # A code deploy changes rendered HTML/CSS/JS and headers; the old versions
+      # sit at the edge until purged. Mirrors deploy.yml on the SQLite track.
+      # Now that labordata.bunkum.us is served through this app (DuckDB cutover),
+      # this must run — previously omitted while the DuckDB site was pre-cutover.
+      # Purge happens only after datasette is confirmed serving (above), so the
+      # cache re-warm doesn't hammer a not-yet-ready origin.
+      - name: Purge Cloudflare cache
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          response=$(curl -fsS -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}')
+          echo "$response"
+          echo "$response" | grep -q '"success":true' || { echo "Purge failed"; exit 1; }

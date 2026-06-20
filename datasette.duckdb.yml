@@ -22,6 +22,23 @@ extra_js_urls:
   - /static/sticky-thead.js?v=4
 
 plugins:
+  datasette-duckdb:
+    # Shared-instance mode: route every database through ONE process-wide DuckDB
+    # instance (all dbs ATTACHed as catalogs, addressed per-cursor via USE)
+    # instead of N independent per-db instances. This gives a SINGLE global
+    # memory budget for the whole process (no per-instance oversubscription ->
+    # the OOM #30) AND lets a single big operation (large CSV export / sort) use
+    # the whole budget instead of being starved by a low per-instance cap (which
+    # broke 500k-row CSV exports). See fgregg/datasette#31.
+    shared_instance: true
+    # The single global memory_limit (vs the old 128MB-per-instance cap). ~1.4GB
+    # leaves headroom for base + python on the 2GB box.
+    memory_limit: 1400MB
+    # 1 vCPU: more threads only multiply sort/agg memory and worsen latency-
+    # fairness (measured), with no compute gain.
+    threads: 1
+    # ROLLBACK: to revert to per-instance mode set `shared_instance: false` AND
+    # `memory_limit: 128MB` together (a 1.4GB *per-instance* cap would OOM).
   datasette-block-robots:
     literal: |-
       User-agent: *

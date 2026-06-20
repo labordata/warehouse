@@ -36,11 +36,6 @@
 name: Refresh data (DuckDB)
 
 on:
-  # TEMPORARY: fire on every push to the feature branch so we can iterate
-  # the full refresh pipeline before merging. Remove before merging.
-  push:
-    branches:
-      - duckdb-parallel-build
   schedule:
     # 30 min after the SQLite refresh (0 7) so upstream sources are settled
     # and the two runners don't contend.
@@ -68,10 +63,9 @@ env:
   R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
   DUCKDB_PREFIX: duckdb
   STAGING_VOL_GB: 10
-  # TEMPORARY: push events promote too, so a commit-triggered refresh leaves
-  # a live URL instead of a dry-run that tears itself down. Revert with the
-  # push: trigger above.
-  PROMOTE: ${{ (github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.promote == true)) && 'true' || 'false' }}
+  # Schedule + default-dispatch promote; workflow_dispatch can set
+  # promote=false to dry-run. (Mirrors the SQLite refresh-data.yml.)
+  PROMOTE: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.promote == true)) && 'true' || 'false' }}
 
 jobs:
   refresh:
@@ -224,23 +218,42 @@ jobs:
           # Boot from the CURRENT machine's image so this workflow doesn't
           # have to build — image lifecycle is owned by deploy-duckdb.yml.
           # No public ports until promotion. `flyctl machine run` has no
-          # --json; parse stdout for "Machine ID: XXX". We `tee` the output
-          # (rather than OUT=$(...), which under `set -e` exits before we
-          # can echo it). Retry isn't needed here the way it was when we
-          # built+ran in the same step — the current image has been in the
-          # registry for a while.
-          flyctl machine run "${{ steps.cur.outputs.image }}" \
-            --app "$FLY_APP" \
-            --region "$FLY_REGION" \
-            --volume "${{ steps.vol.outputs.id }}:/data" \
-            --metadata role=staging \
-            --metadata refresh_run="$GITHUB_RUN_ID" \
-            --vm-cpu-kind shared \
-            --vm-cpus 1 \
-            --vm-memory 2048 2>&1 | tee /tmp/machine_run.log
-          MID=$(grep -oE 'Machine ID: [a-f0-9]+' /tmp/machine_run.log | head -1 | awk '{print $3}')
+          # --json; parse stdout for "Machine ID: XXX".
+          #
+          # Retry on transient Fly capacity errors ("machine capacity hold
+          # failed: insufficient CPUs", failed_precondition): the region's
+          # shared-CPU pool is occasionally momentarily full, which otherwise
+          # fails the whole daily refresh (2026-06-20 run 27868174575). A
+          # capacity hold fails BEFORE any machine is created, so retrying is
+          # safe and can't orphan a machine. Non-capacity errors fail fast so
+          # we don't mask a real misconfiguration behind retries.
+          MID=""
+          for attempt in 1 2 3 4 5; do
+            set +e
+            flyctl machine run "${{ steps.cur.outputs.image }}" \
+              --app "$FLY_APP" \
+              --region "$FLY_REGION" \
+              --volume "${{ steps.vol.outputs.id }}:/data" \
+              --metadata role=staging \
+              --metadata refresh_run="$GITHUB_RUN_ID" \
+              --vm-cpu-kind shared \
+              --vm-cpus 1 \
+              --vm-memory 2048 > /tmp/machine_run.log 2>&1
+            rc=$?
+            set -e
+            cat /tmp/machine_run.log
+            MID=$(grep -oE 'Machine ID: [a-f0-9]+' /tmp/machine_run.log | head -1 | awk '{print $3}')
+            [ -n "$MID" ] && break
+            if grep -qiE 'insufficient (cpus|capacity)|capacity hold failed|failed_precondition|no capacity available' /tmp/machine_run.log; then
+              echo "::warning::staging machine create hit Fly capacity (attempt $attempt/5, rc=$rc); retrying after backoff"
+              sleep $((attempt * 30))
+              continue
+            fi
+            echo "flyctl machine run failed with a non-capacity error (rc=$rc); not retrying" >&2
+            exit 1
+          done
           if [ -z "$MID" ]; then
-            echo "Could not parse machine ID from flyctl output" >&2
+            echo "Could not create staging machine after 5 attempts (Fly capacity?)" >&2
             exit 1
           fi
           echo "id=$MID" >> $GITHUB_OUTPUT
@@ -408,12 +421,12 @@ jobs:
           fi
 
       # The edge caches data-derived pages (the homepage's database list,
-      # table row counts, etc.) with a long cdn-cache-control, so a data
-      # refresh must purge or the old counts/pages stick at the edge until
-      # expiry. Mirrors the SQLite track's purge in refresh-data.yml. No-op
-      # until labordata.bunkum.us is cut over to this app (today the DuckDB
-      # site is served from warehouse-duckdb.fly.dev, not through this zone),
-      # but harmless before then — it purges the same shared zone.
+      # table row counts, etc.) and CSV/JSON exports with a long
+      # cdn-cache-control, so a data refresh must purge or the old counts/pages
+      # stick at the edge until expiry. labordata.bunkum.us is now served
+      # through this app (DuckDB cutover), so this purge is live (it was a no-op
+      # while the site was pre-cutover on warehouse-duckdb.fly.dev). Mirrors the
+      # SQLite track's purge in refresh-data.yml.
       - name: Purge Cloudflare cache
         if: env.PROMOTE == 'true'
         env:
