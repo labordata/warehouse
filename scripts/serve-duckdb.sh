@@ -54,14 +54,6 @@ print("serve-duckdb: mounting %d duckdb database(s): %s"
       % (len(databases), ", ".join(sorted(databases)) or "(none)"), file=sys.stderr)
 PY
 
-# TEMP native-heap leak profiling: LD_PRELOAD tcmalloc with the heap profiler.
-# HEAPPROFILE + intervals come from Dockerfile-duckdb ENV (a literal `export
-# HEAPPROFILE=/data/heap` here got its leading '/' high-bit-corrupted at runtime
-# — only command-substitution paths survive, so LD_PRELOAD stays an export and
-# the rest moved to ENV). Dumps /data/heap.* as in-use grows ~20MB; pprof --base
-# <early> <late> /usr/local/bin/python3.12 <heap> names the leaking C++ backtrace.
-export LD_PRELOAD="$(ls /usr/lib/*/libtcmalloc.so.4 2>/dev/null | head -1)"
-
 # shellcheck disable=SC2086  # INSPECT_ARGS is intentionally word-split
 exec datasette serve \
   -c "$RUNTIME_CONFIG" \
