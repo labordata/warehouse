@@ -58,6 +58,7 @@ PY
 exec datasette serve \
   -c "$RUNTIME_CONFIG" \
   $INSPECT_ARGS \
+  --internal "$DATA_DIR/internal.db" \
   -m /app/warehouse_metadata.yml \
   -h 0.0.0.0 -p 8080 \
   --plugins-dir /app/plugins \
@@ -69,6 +70,14 @@ exec datasette serve \
   --setting facet_time_limit_ms 500 \
   --setting max_csv_mb 1000 \
   --setting force_https_urls on
+  # --internal persists datasette's schema catalog on the /data volume so it is
+  # introspected ONCE and frozen, instead of re-running full live introspection
+  # (information_schema over every table) on every boot. First boot on a fresh
+  # volume populates /data/internal.db; subsequent restarts/deploys reuse it
+  # (schema_version match -> populate skipped; needs the upstream startup-prune
+  # guard, fgregg/datasette@1e5644fe). Blue-green ships a new volume per refresh,
+  # so the frozen catalog is rebuilt with each data refresh and never goes stale.
+  #
   # sql_time_limit_ms is 30s (was 100s): a crawler hit a generated
   # `nlrb.docket ... order by rowid limit 101` view, which full-scans + sorts on
   # DuckDB (~125s, no native rowid) and — allowed 100s each — monopolized the
