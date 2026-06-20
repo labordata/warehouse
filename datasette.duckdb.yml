@@ -22,6 +22,16 @@ extra_js_urls:
   - /static/sticky-thead.js?v=4
 
 plugins:
+  datasette-duckdb:
+    # Per-instance DuckDB memory_limit. Each database is its own DuckDB instance
+    # with an independent buffer pool; uncapped, each defaults to ~80% of host
+    # RAM (1.5GiB on this 2GB machine), so crawler load touching many databases
+    # oversubscribes memory and OOM-kills the box. Capping each instance bounds
+    # the aggregate working set (enforced by cheap cache eviction, not spilling).
+    # Tune here; the serve-duckdb.sh runtime config injects `databases` alongside.
+    # Start conservative (clean OOM-stop signal); raise if query perf needs it
+    # (a low cap cost only ~4% on heavy scans in testing).
+    memory_limit: 128MB
   datasette-block-robots:
     literal: |-
       User-agent: *
