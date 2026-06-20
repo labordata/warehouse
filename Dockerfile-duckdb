@@ -24,9 +24,12 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential git wget libgoogle-perftools4 \
  && rm -rf /var/lib/apt/lists/*
 # ^ libgoogle-perftools4 (tcmalloc): TEMP, for native-heap leak profiling.
-#   serve-duckdb.sh LD_PRELOADs libtcmalloc with HEAPPROFILE so pprof can show
-#   the C++ allocation backtraces gc can't see (Debian jemalloc lacks prof).
-#   Remove after diagnosis.
+#   serve-duckdb.sh LD_PRELOADs libtcmalloc; these ENV vars drive its heap
+#   profiler (set here, not via shell export, which corrupted the path).
+#   pprof shows the C++ allocation backtraces gc can't see. Remove after diagnosis.
+ENV HEAPPROFILE=/data/heap
+ENV HEAP_PROFILE_INUSE_INTERVAL=20971520
+ENV HEAP_PROFILE_ALLOCATION_INTERVAL=268435456
 
 # datasette (backend seams) + the DuckDB backend plugin, both from
 # `duckdb-deploy` — the merge of `duckdb-backend` (clean upstream PR
