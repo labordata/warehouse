@@ -72,11 +72,15 @@ exec datasette serve \
   --setting force_https_urls on
   # --internal persists datasette's schema catalog on the /data volume so it is
   # introspected ONCE and frozen, instead of re-running full live introspection
-  # (information_schema over every table) on every boot. First boot on a fresh
-  # volume populates /data/internal.db; subsequent restarts/deploys reuse it
+  # (information_schema over every table) on every boot. The catalog is now
+  # built OFFLINE in refresh-data-duckdb.yml ("Build internal.db" step) and
+  # shipped to the volume alongside the .duckdb files, so boot just adopts it
   # (schema_version match -> populate skipped; needs the upstream startup-prune
-  # guard, fgregg/datasette@1e5644fe). Blue-green ships a new volume per refresh,
-  # so the frozen catalog is rebuilt with each data refresh and never goes stale.
+  # guard, fgregg/datasette@1e5644fe). Building it in the action — not lazily on
+  # the first serve request — avoids the traffic-racing populate that silently
+  # froze the largest db (cats, 282 tables) at 0 listed tables. If internal.db
+  # is somehow absent, datasette still self-builds it on first request as a
+  # fallback. Blue-green ships a new volume per refresh, so it never goes stale.
   #
   # sql_time_limit_ms is 30s (was 100s): a crawler hit a generated
   # `nlrb.docket ... order by rowid limit 101` view, which full-scans + sorts on
