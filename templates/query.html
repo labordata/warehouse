@@ -92,7 +92,7 @@
 <div class="download-card">
     <h3>Download this data</h3>
     <p>
-        <a class="download-link" href="{{ url_csv }}{{ '&' if '?' in url_csv else '?' }}_dl=1">CSV</a>
+        <a class="download-link" href="{{ url_csv }}{{ '&' if '?' in url_csv else '?' }}_dl=1{% if settings.allow_csv_stream %}&_stream=on{% endif %}">CSV</a>
         {%- for name, url in renderers.items() -%}
             &nbsp;&middot;&nbsp;<a class="download-link" href="{{ url }}">{{ name|upper }}</a>
         {%- endfor -%}
