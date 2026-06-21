@@ -197,11 +197,30 @@ jobs:
             curl -sf --max-time 180 "http://127.0.0.1:8099/$name.json" -o /dev/null \
               || echo "warn: $name.json did not return 200"
           done
+          # Shut datasette down and wait for it to release the internal.db lock.
           kill $DSPID 2>/dev/null || true
+          for i in $(seq 1 30); do kill -0 $DSPID 2>/dev/null || break; sleep 1; done
           wait $DSPID 2>/dev/null || true
+
+          # datasette's internal db is SQLite in WAL mode: the catalog we just
+          # built lives partly in internal.db-wal, NOT yet in the main file. We
+          # ship only the single internal.db (not the -wal/-shm sidecars), so we
+          # MUST fold the WAL into it first — otherwise the shipped catalog is
+          # empty and every db lists 0 tables on boot (the 0==0 skip then freezes
+          # that empty state). Checkpoint BEFORE the gate so the gate validates
+          # exactly the single file that gets uploaded.
+          python3 - <<'PY'
+          import sqlite3
+          con = sqlite3.connect("internal.db")
+          con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+          con.execute("PRAGMA journal_mode=DELETE")  # leave a single self-contained file
+          con.close()
+          PY
+          rm -f internal.db-wal internal.db-shm
 
           # Completeness gate: a db with rows but 0 cataloged tables is the exact
           # cats failure — fail the build rather than ship a broken landing page.
+          # Runs on the post-checkpoint single file, so it reflects what ships.
           python3 - <<'PY'
           import glob, os, sqlite3, sys
           con = sqlite3.connect("internal.db")
