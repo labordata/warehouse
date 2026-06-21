@@ -147,6 +147,80 @@ jobs:
           datasette inspect -c /tmp/inspect-config.yml --inspect-file inspect-data.json
           echo "wrote inspect-data.json ($(wc -c < inspect-data.json) bytes)"
 
+      - name: Build internal.db (frozen schema catalog)
+        run: |
+          # Datasette's schema catalog (tables/columns/FKs -> internal.db) powers
+          # every db/table landing page. It used to be built LAZILY on the first
+          # serve-boot of a fresh volume — but that introspection runs on the
+          # first request, racing live traffic + memory pressure, and on the
+          # largest db (cats, 282 tables) populate_schema_tables threw partway.
+          # _refresh_schemas writes the catalog_databases row BEFORE populating
+          # tables, and schema_version() is a static 0, so the half-built entry
+          # froze cats at 0 listed tables forever (data still queryable, just
+          # unlisted). See app.py _refresh_schemas.
+          #
+          # Fix: build internal.db HERE, offline, with full resources and zero
+          # traffic, then ship it on the volume. serve-duckdb.sh reuses an
+          # existing /data/internal.db (0 == 0 -> populate skipped on boot), so a
+          # pre-validated catalog is adopted with no live introspection at all.
+          #
+          # Reuses /tmp/inspect-config.yml (same db mounts as inspect-data.json).
+          # The catalog content is identical under shared- or separate-instance
+          # mode; catalog_databases.path is written but never read back (reuse is
+          # keyed on database_name + schema_version), so the CI-local paths here
+          # are harmless.
+          rm -f internal.db
+          datasette serve -c /tmp/inspect-config.yml \
+            --inspect-file inspect-data.json \
+            --internal internal.db \
+            --port 8099 >/tmp/ds-internal.log 2>&1 &
+          DSPID=$!
+          # The first request to a db view drives + awaits the full populate of
+          # every db (refresh_schemas is called from the view handlers). Poll
+          # /-/databases.json: a connection-refused returns fast (not bound yet),
+          # a bound-but-still-introspecting request blocks up to --max-time.
+          ok=0
+          for i in $(seq 1 120); do
+            if curl -sf --max-time 600 http://127.0.0.1:8099/-/databases.json \
+                 -o /tmp/dbs.json; then ok=1; break; fi
+            if ! kill -0 $DSPID 2>/dev/null; then
+              echo "datasette exited during introspection:"; cat /tmp/ds-internal.log; exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ok" != 1 ]; then
+            echo "datasette never served /-/databases.json"; cat /tmp/ds-internal.log
+            kill $DSPID 2>/dev/null; exit 1
+          fi
+          # Belt-and-suspenders: touch each db page so its catalog is forced.
+          for name in $(ls *.duckdb | sed 's/\.duckdb$//'); do
+            curl -sf --max-time 180 "http://127.0.0.1:8099/$name.json" -o /dev/null \
+              || echo "warn: $name.json did not return 200"
+          done
+          kill $DSPID 2>/dev/null || true
+          wait $DSPID 2>/dev/null || true
+
+          # Completeness gate: a db with rows but 0 cataloged tables is the exact
+          # cats failure — fail the build rather than ship a broken landing page.
+          python3 - <<'PY'
+          import glob, os, sqlite3, sys
+          con = sqlite3.connect("internal.db")
+          counts = dict(con.execute(
+              "select database_name, count(*) from catalog_tables group by database_name"))
+          bad = []
+          for f in sorted(glob.glob("*.duckdb")):
+              name = os.path.splitext(os.path.basename(f))[0]
+              n = counts.get(name, 0)
+              print(f"  {name}: {n} tables")
+              if n == 0:
+                  bad.append(name)
+          if bad:
+              sys.exit("FAIL: internal.db has 0 cataloged tables for: " + ", ".join(bad))
+          print("internal.db complete: %d tables across %d dbs"
+                % (sum(counts.values()), len(counts)))
+          PY
+          echo "wrote internal.db ($(wc -c < internal.db) bytes)"
+
       - name: Upload DuckDB databases to R2
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -157,6 +231,7 @@ jobs:
           # Separate key namespace from the SQLite .db files in the same bucket.
           aws s3 sync . "s3://$R2_BUCKET/$DUCKDB_PREFIX/" \
             --exclude "*" --include "*.duckdb" --include "inspect-data.json" \
+            --include "internal.db" \
             --no-progress
 
       - name: Install flyctl
@@ -268,7 +343,7 @@ jobs:
           # forms). Enumerate them for the pull list; the public base points at
           # the duckdb/ prefix we synced to. pull-from-r2-direct.sh cds /data
           # and writes each basename, so it's reused unchanged.
-          ASSETS="$(ls *.duckdb | tr '\n' ' ') inspect-data.json"
+          ASSETS="$(ls *.duckdb | tr '\n' ' ') inspect-data.json internal.db"
           echo "Pulling: $ASSETS"
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
             -C "rm -f /tmp/pull-from-r2-direct.sh"

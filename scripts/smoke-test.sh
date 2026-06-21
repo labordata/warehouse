@@ -58,8 +58,19 @@ if extra:
 if missing:
     sys.exit(1)
 
-# Touch one real query per database so the smoke covers actual mmap.
+# Touch one real query per database so the smoke covers actual mmap, and
+# assert the schema catalog (internal.db) actually lists tables for it. A db
+# that attaches and answers queries but lists 0 tables is the cats failure
+# mode (frozen/incomplete internal.db) — catch it at serve time too, not just
+# in the offline build gate.
+empty = []
 for name in sorted(got):
     body, t = get(f"/{name}.json?_size=0", timeout=60)
-    print(f"  /{name:>30}.json?_size=0   {t:>6.0f} ms")
+    ntables = len(json.loads(body).get("tables", []))
+    print(f"  /{name:>30}.json?_size=0   {t:>6.0f} ms  ({ntables} tables)")
+    if ntables == 0:
+        empty.append(name)
+if empty:
+    print(f"  EMPTY CATALOG (internal.db incomplete): {empty}", file=sys.stderr)
+    sys.exit(1)
 PY
