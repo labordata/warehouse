@@ -293,14 +293,47 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
+          # On this Fly setup the shared-CPU "machine capacity hold" is acquired
+          # at VOLUME creation, so `flyctl volumes create` is what hits
+          # "failed_precondition: ... insufficient CPUs available" when iad is
+          # momentarily full (2026-06-22 run 27921322176). Retry it with the
+          # same policy as the machine step below.
+          #
+          # Also: capture the create output to a file and check the exit code
+          # explicitly. The previous `VOL_ID=$(flyctl ... | jq)` form let the
+          # pipe mask a failed create — jq returned empty from the error text,
+          # the pipeline exit was jq's (0), so the step went green with an empty
+          # volume id and the machine step later failed with the opaque
+          # "not enough unattached volumes for ''".
           NAME="dbs_stage_${GITHUB_RUN_ID}"
-          VOL_ID=$(flyctl volumes create "$NAME" \
-            --app "$FLY_APP" \
-            --size "$STAGING_VOL_GB" \
-            --region "$FLY_REGION" \
-            --yes \
-            --json \
-            | jq -r '.id')
+          VOL_ID=""
+          for attempt in 1 2 3 4 5; do
+            set +e
+            flyctl volumes create "$NAME" \
+              --app "$FLY_APP" \
+              --size "$STAGING_VOL_GB" \
+              --region "$FLY_REGION" \
+              --yes \
+              --json > /tmp/vol_create.log 2>&1
+            rc=$?
+            set -e
+            cat /tmp/vol_create.log
+            if [ "$rc" -eq 0 ]; then
+              VOL_ID=$(jq -r '.id // empty' /tmp/vol_create.log)
+            fi
+            [ -n "$VOL_ID" ] && break
+            if grep -qiE 'insufficient (cpus|capacity)|capacity hold failed|failed_precondition|no capacity available' /tmp/vol_create.log; then
+              echo "::warning::staging volume create hit Fly capacity (attempt $attempt/5, rc=$rc); retrying after backoff"
+              sleep $((attempt * 30))
+              continue
+            fi
+            echo "flyctl volumes create failed with a non-capacity error (rc=$rc); not retrying" >&2
+            exit 1
+          done
+          if [ -z "$VOL_ID" ]; then
+            echo "Could not create staging volume after 5 attempts (Fly capacity?)" >&2
+            exit 1
+          fi
           echo "id=$VOL_ID" >> $GITHUB_OUTPUT
           echo "Created staging volume: $NAME ($VOL_ID)"
 
