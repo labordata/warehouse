@@ -89,7 +89,16 @@ databases:
             name as atom_title,
             strftime(created_at, '%Y-%m-%dT%H:%M:%SZ') as atom_updated,
             url as atom_link,
-            '<p>Case Number: <a href="' || url || '">' || case_number || '</a></p><p>Filed on: ' || date_filed || '</p><p>' || number_of_voters_on_petition_or_charge || ' workers at ' || name || ' petitioned for a representation election in ' || city || ', ' || state || '.</p>' as atom_content_html
+            printf(
+              '<p>Case Number: <a href="%s">%s</a></p><p>Filed on: %s</p><p>%,d workers at %s petitioned for a representation election in %s, %s</p>',
+              url,
+              case_number,
+              date_filed,
+              number_of_voters_on_petition_or_charge,
+              name,
+              city,
+              state
+            ) as atom_content_html
           from
             filing
           where
@@ -104,28 +113,38 @@ databases:
       new_lm20_filings:
         title: New LM20 Filings
         sql: |-
-          with feed as (
-            select distinct
-              rptID,
-              employer.empLabOrg || ' vs ' || specific_subject_labor_orgs as atom_title,
-              filing_url as atom_link,
-              strftime(try_cast(receiveDate as timestamp), '%Y-%m-%dT%H:%M:%SZ') as atom_updated,
-              '<p>' || employer.empLabOrg || ' (' || employer.city || ', ' || employer.state || ') hired ' || coalesce(contact.organization, contact.name) || ' to meet with ' || specific_subject_employees || ' to help convince workers not to organize with ' || specific_subject_labor_orgs || '</p>' as atom_content_html,
-              receiveDate as _sort
-            from
-              filing
-              inner join employer using (rptId)
-              inner join specific_activity using (rptId)
-              inner join contact using (rptId)
-            where
-              contact_type = 'name_and_mailing_address'
-          )
           select
-            rptID as atom_id,
-            atom_title,
-            atom_link,
-            atom_updated,
-            atom_content_html
-          from feed
-          where atom_title is not null and atom_content_html is not null
-          order by _sort desc
+            distinct rptID,
+            printf(
+              '%s vs %s',
+              employer.empLabOrg,
+              specific_subject_labor_orgs
+            ) as atom_title,
+            filing_url as atom_link,
+            strftime(
+              try_cast(receiveDate as timestamp),
+              '%Y-%m-%dT%H:%M:%SZ'
+            ) as atom_updated,
+            printf(
+              '<p>%s (%s, %s) hired %s to meet with %s to help convince workers not to organize with %s</p>',
+              employer.empLabOrg,
+              employer.city,
+              employer.state,
+              coalesce(contact.organization, contact.name),
+              specific_subject_employees,
+              specific_subject_labor_orgs
+            ) as atom_content_html,
+          from
+            filing
+            inner join employer using (rptId)
+            inner join specific_activity using (rptId)
+            inner join contact using (rptId)
+          where
+            contact_type = 'name_and_mailing_address'
+            and atom_updated is not null
+            and atom_title is not null
+            and atom_content_html is not null
+          order by
+            receiveDate desc
+          limit
+            100
