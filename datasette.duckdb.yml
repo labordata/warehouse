@@ -40,14 +40,19 @@ plugins:
     # ROLLBACK: to revert to per-instance mode set `shared_instance: false` AND
     # `memory_limit: 128MB` together (a 1.4GB *per-instance* cap would OOM).
   query-concurrency:
-    # Global in-flight cap on custom-SQL (?sql=) execution. The shared instance
-    # serializes heavy queries through one threads=1 master on a 1-vCPU box, so
-    # without a cap a single automated client starves the whole site (it 524'd
-    # 2026-06-22). Excess heavy queries get an immediate 429 + Retry-After
-    # instead of forming an unbounded queue. Non-SQL traffic is never gated.
-    # 3 == num_sql_threads (the real ceiling); set 2 to always reserve a worker
-    # thread for browsing. See plugins/query_concurrency.py.
+    # Bounded-wait cap on custom-SQL (?sql= on .json/.csv) execution. The shared
+    # instance serializes heavy queries through one threads=1 master on a 1-vCPU
+    # box, so without a cap a single automated client starves the whole site (it
+    # 524'd 2026-06-22). max_concurrent run at once; when full, a request WAITS
+    # up to queue_wait for a slot before getting 429 + Retry-After. Cheap bursts
+    # (e.g. notes.labordata chart pages firing ~6 concurrent ?sql=) free slots
+    # in ms and drain through the wait; only genuinely heavy load holds slots
+    # past queue_wait and sheds. max_queue bounds waiters. Non-SQL traffic and
+    # HTML query pages are never gated. See plugins/query_concurrency.py.
+    # 3 == num_sql_threads (the real ceiling); set 2 to reserve a browse thread.
     max_concurrent: 3
+    queue_wait: 1.5
+    max_queue: 20
     retry_after: 5
   datasette-block-robots:
     literal: |-
