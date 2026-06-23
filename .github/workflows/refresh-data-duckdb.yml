@@ -512,11 +512,26 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+          MID="${{ steps.mach.outputs.id }}"
+          # The promote `machine update` above restarts the container to apply
+          # the public ports, so SSH (hallpass) isn't immediately back. Poll
+          # until the machine is reachable before sftp'ing the wait script —
+          # otherwise the next `ssh console` races the restart and dies with
+          # "--machine not found/started" (2026-06-23 nightly run 28020701935).
+          # Mirrors the "Wait for SSH (hallpass) on staging" step.
+          for i in $(seq 1 45); do
+            if flyctl ssh console --app "$FLY_APP" --machine "$MID" -C "true" >/dev/null 2>&1; then
+              echo "  ssh ready on attempt $i"
+              break
+            fi
+            echo "  attempt $i: machine not ssh-ready yet"
+            sleep 2
+          done
+          flyctl ssh console --app "$FLY_APP" --machine "$MID" \
             -C "rm -f /tmp/wait-for-datasette.sh"
           echo "put scripts/wait-for-datasette.sh /tmp/wait-for-datasette.sh" \
-            | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
-          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            | flyctl ssh sftp shell --app "$FLY_APP" --machine "$MID"
+          flyctl ssh console --app "$FLY_APP" --machine "$MID" \
             -C "sh /tmp/wait-for-datasette.sh"
 
       - name: Cordon + finalize promote metadata
