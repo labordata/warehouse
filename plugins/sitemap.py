@@ -1,3 +1,4 @@
+import re
 from xml.sax.saxutils import escape
 
 from datasette import hookimpl
@@ -5,15 +6,29 @@ from datasette.utils.asgi import Response
 
 INTERNAL_DATABASES = {"_internal", "_memory"}
 
+# A trailing timezone designator: Z or ±hh:mm / ±hhmm.
+_HAS_TZ = re.compile(r"(?:Z|[+-]\d{2}:?\d{2})$")
+
 
 def _iso_datetime(value):
-    """Normalize a SQLite date/datetime scalar to ISO 8601 for <lastmod>."""
+    """Normalize a date/datetime scalar to a sitemap-valid W3C datetime.
+
+    Per the sitemaps spec <lastmod> must be either a date (YYYY-MM-DD) or a
+    *full* datetime carrying a timezone. The warehouse hands us naive UTC
+    timestamps like '2026-04-22 17:14:37' (no zone), which Search Console
+    rejects as an invalid date. So: swap the separator, drop any fractional
+    seconds, and stamp UTC — while leaving date-only and already-zoned values
+    untouched.
+    """
     s = str(value).strip()
     if not s:
         return None
-    if " " in s and "T" not in s:
-        s = s.replace(" ", "T", 1)
-    return s
+    s = s.replace(" ", "T", 1)
+    if "T" not in s:
+        return s  # date-only is already valid
+    if _HAS_TZ.search(s):
+        return s  # already carries a timezone
+    return s.split(".", 1)[0] + "Z"
 
 
 async def _db_lastmod(datasette, name, db):
