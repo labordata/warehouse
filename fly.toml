@@ -1,35 +1,26 @@
-# Fly.io configuration for labordata.bunkum.us
+# Fly.io configuration for warehouse-duckdb (the labordata.bunkum.us origin).
 #
-# Architecture: the Docker image contains only Datasette + plugins + config.
-# The actual SQLite databases (~10 GB across 13 .db files) live on a Fly
-# Volume mounted at /data and are updated out-of-band via SFTP rather than
-# baked into image layers.
+# Data-less image (Dockerfile): the .duckdb databases live on a Fly Volume
+# mounted at /data and are updated out-of-band by refresh-data.yml.
 
-app = "warehouse"
+app = "warehouse-duckdb"
 primary_region = "iad"
 
 [build]
-  # Use the Dockerfile in the repo root.
+  dockerfile = "Dockerfile"
 
-# NB: no [mounts] block.
-#
-# Volumes are managed entirely by refresh-data.yml — each refresh
-# creates a new ephemeral volume (dbs_stage_<run_id>) and the old one
-# is destroyed at promotion time. Re-adding `[mounts] source = "dbs"`
-# here would make `flyctl deploy` create a second machine attached to
-# a brand-new empty 25 GB volume whenever no volume named "dbs"
-# exists — which is exactly what happened on the first post-cutover
-# deploy and broke the homepage for half the requests.
-#
-# The mount path is set on each machine at creation time via the
-# `flyctl machine run --volume <id>:/data` flag in refresh-data.yml.
+# NB: no [mounts] block. A [mounts] here would make `flyctl deploy` create a
+# second machine on a fresh empty volume, and the Fly proxy would round-robin
+# between it and the real one (half of requests get no databases). Volumes are
+# instead created and attached per-refresh by refresh-data.yml via
+# `flyctl machine run --volume <id>:/data`.
 
 [[services]]
   protocol = "tcp"
   internal_port = 8080
-  auto_stop_machines = "off"      # always-on; we don't want repeated cold-starts
-  auto_start_machines = true      # of the 10GB SQLite mmap working set
-  min_machines_running = 1        # keep at least one machine up
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
 
   [[services.ports]]
     port = 80
@@ -46,14 +37,13 @@ primary_region = "iad"
     hard_limit = 100
 
   [[services.http_checks]]
-    # /-/versions.json is constant-time and doesn't touch SQLite. Using
-    # /-/databases.json instead triggers datasette's per-table inspect scan
-    # on cold mmap, which on a 10 GB working set blows past any reasonable
-    # health-check timeout. --inspect-file makes /-/databases.json fast at
-    # steady state, but the file is uploaded *after* this deploy step, so
-    # the check has to survive the first boot without it.
+    # /-/versions.json is constant-time and doesn't touch the databases.
     interval = "30s"
-    grace_period = "120s"
+    # Datasette boot over 13 attached duckdb databases on shared-cpu-1x is
+    # ~2 min (plugin discovery + 13 startup-hook add_database + 13
+    # check_databases). Headroom past that so the health check doesn't
+    # decide the machine is unhealthy mid-boot and kill it.
+    grace_period = "240s"
     method = "get"
     path = "/-/versions.json"
     protocol = "http"

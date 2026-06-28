@@ -1,48 +1,102 @@
 #!/bin/sh
-# Discover databases on the mounted volume and exec datasette with the same
-# flags Cloud Run uses, plus -i for each .db (immutable mode).
+# Serve the .duckdb databases on the mounted volume via the datasette-duckdb
+# backend plugin.
 #
-# If /data is empty (first boot, or pre-upload during a deploy cycle), start
-# datasette with no attached databases. The health check on
-# /-/databases.json will still return 200 (it lists the built-in _memory db),
-# allowing the deploy step to finish so the upload step can SFTP files in.
-# A `flyctl machine restart` after the upload picks them up.
+# IMPORTANT: we must NOT pass the .duckdb files with `-i`. `-i path` attaches a file with datasette's default SQLite backend,
+# which then tries to read the .duckdb file as SQLite and crashes the process
+# on startup ("file is not a database"). The DuckDB backend is mounted instead
+# through plugin config: plugins.datasette-duckdb.databases = {name: path}.
+# So we discover /data/*.duckdb at boot, merge them into a runtime copy of the
+# static config, and serve that.
+#
+# If /data has no .duckdb files yet (first boot / pre-upload during a refresh
+# cycle), the databases map is empty and datasette starts with no databases so
+# the /-/versions.json health check still passes and the refresh can SFTP files
+# in, then restart.
 
 set -eu
 
 DATA_DIR="${DATA_DIR:-/data}"
+BASE_CONFIG=/app/datasette.yml
+RUNTIME_CONFIG=/tmp/datasette-runtime.yml
 
-IMMUTABLE_ARGS=""
-if ls "$DATA_DIR"/*.db >/dev/null 2>&1; then
-  for db in "$DATA_DIR"/*.db; do
-    IMMUTABLE_ARGS="$IMMUTABLE_ARGS -i $db"
-  done
-else
-  echo "no .db files in $DATA_DIR yet — starting datasette without any databases" >&2
-fi
-
-# Use the pre-computed inspect file when present so datasette skips its
-# startup scan (per-table row counts, schema hashes) on every machine boot.
+# inspect-data.json (shipped alongside the .duckdb files) precomputes the
+# per-table counts datasette would otherwise scan on first request — without
+# it, /-/databases.json over the real warehouse data takes ~4 min on
+# shared-cpu-1x.
 INSPECT_ARGS=""
 if [ -f "$DATA_DIR/inspect-data.json" ]; then
   INSPECT_ARGS="--inspect-file $DATA_DIR/inspect-data.json"
 fi
 
-# shellcheck disable=SC2086  # args are intentionally word-split
+# Merge discovered *.duckdb files into the plugin's databases map. datasette
+# depends on PyYAML, so it's importable here.
+python3 - "$DATA_DIR" "$BASE_CONFIG" "$RUNTIME_CONFIG" <<'PY'
+import glob, os, sys, yaml
+
+data_dir, base_config, runtime_config = sys.argv[1], sys.argv[2], sys.argv[3]
+
+with open(base_config) as f:
+    cfg = yaml.safe_load(f) or {}
+
+databases = {}
+for path in sorted(glob.glob(os.path.join(data_dir, "*.duckdb"))):
+    name = os.path.splitext(os.path.basename(path))[0]
+    databases[name] = path
+
+cfg.setdefault("plugins", {}).setdefault("datasette-duckdb", {})["databases"] = databases
+
+with open(runtime_config, "w") as f:
+    yaml.safe_dump(cfg, f, sort_keys=False)
+
+print("serve-duckdb: mounting %d duckdb database(s): %s"
+      % (len(databases), ", ".join(sorted(databases)) or "(none)"), file=sys.stderr)
+PY
+
+# shellcheck disable=SC2086  # INSPECT_ARGS is intentionally word-split
 exec datasette serve \
-  $IMMUTABLE_ARGS \
+  -c "$RUNTIME_CONFIG" \
   $INSPECT_ARGS \
-  -h 0.0.0.0 -p 8080 \
-  -c /app/datasette.yml \
+  --internal "$DATA_DIR/internal.db" \
   -m /app/warehouse_metadata.yml \
+  -h 0.0.0.0 -p 8080 \
   --plugins-dir /app/plugins \
   --template-dir /app/templates \
   --static static:/app/static \
   --crossdb \
   --cors \
-  --setting sql_time_limit_ms 100000 \
+  --setting sql_time_limit_ms 30000 \
   --setting facet_time_limit_ms 500 \
-  --setting allow_facet off \
-  --setting trace_debug 1 \
   --setting max_csv_mb 1000 \
   --setting force_https_urls on
+  # --internal persists datasette's schema catalog on the /data volume so it is
+  # introspected ONCE and frozen, instead of re-running full live introspection
+  # (information_schema over every table) on every boot. The catalog is now
+  # built OFFLINE in refresh-data.yml ("Build internal.db" step) and
+  # shipped to the volume alongside the .duckdb files, so boot just adopts it
+  # (schema_version match -> populate skipped; needs the upstream startup-prune
+  # guard, fgregg/datasette@1e5644fe). Building it in the action — not lazily on
+  # the first serve request — avoids the traffic-racing populate that silently
+  # froze the largest db (cats, 282 tables) at 0 listed tables. If internal.db
+  # is somehow absent, datasette still self-builds it on first request as a
+  # fallback. Blue-green ships a new volume per refresh, so it never goes stale.
+  #
+  # sql_time_limit_ms is 30s (was 100s): a crawler hit a generated
+  # `nlrb.docket ... order by rowid limit 101` view, which full-scans + sorts on
+  # DuckDB (~125s, no native rowid) and — allowed 100s each — monopolized the
+  # single shared-cpu-1x vCPU until datasette wedged (2026-06-19 incident). 30s
+  # still clears the legit heavy analytical exports (=<~13s) while capping the
+  # catastrophic tail. Deeper fix TODO: that docket order-by-rowid view should
+  # not full-scan (index/pk on case_number, or drop rowid sort on big tables).
+  #
+  # NB: we do NOT disable faceting (`--setting allow_facet off`). DuckDB is
+  # columnar/vectorized — faceting
+  # is cheap (group-by over 11M rows ~11ms in profiling) — so we leave it on
+  # and rely on facet_time_limit_ms 500 as the per-facet cost guard.
+  #
+  # --crossdb: enables the /_memory cross-database query interface, so e.g.
+  # union_names_crosswalk can be joined against nlrb/f7/lm*.
+  # The datasette-duckdb plugin re-backs _memory with DuckDB at startup and
+  # ATTACHes every mounted .duckdb (READ_ONLY). Unlike SQLite there is no
+  # SQLITE_LIMIT_ATTACHED cap, so all ~14 databases are cross-queryable, not
+  # just the first 10.

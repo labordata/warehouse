@@ -1,55 +1,66 @@
-# Data-less Datasette image for Fly.io deployment.
+# Data-less Datasette image for warehouse-duckdb (labordata.bunkum.us).
 #
-# Unlike the Cloud Run image (built ad-hoc by `datasette package *.db`), this
-# image bundles ONLY datasette + plugins + config. The SQLite databases live
-# on a Fly Volume mounted at /data and are uploaded out-of-band via
-# `fly ssh sftp`, decoupling code and data deploys.
+# datasette + plugins + config only, no databases. Installs the
+# backend-abstraction branch of datasette plus the `datasette-duckdb` backend
+# plugin (and the duckdb driver). The `.duckdb` files produced by
+# `datasette_duckdb.convert` live on a Fly Volume mounted at /data and are
+# uploaded out-of-band via `fly ssh sftp`.
 #
-# Result: image is ~100 MB instead of ~2 GB, deploys take seconds, and
-# updating data doesn't require a redeploy.
+# NB: datasette + datasette-duckdb are installed from the `duckdb-backend`
+# branch of the fgregg fork, which carries BOTH `datasette.backends` (the
+# backend seams) and the plugin subdirectory. That branch must be pushed to
+# github.com/fgregg/datasette for this build to succeed.
 
 FROM python:3.12-slim
 
-# pysqlite3-binary wants build tools when no wheel matches; with python:slim
-# we usually get the binary wheel, but include build-essential just in case.
-# wget is for pull-from-r2-direct.sh: it length-checks and retries
-# downloads, unlike the hand-rolled urllib loop it replaced, which wrote
-# silently truncated .db files when a connection dropped mid-transfer.
+# git is needed because we pip install datasette + the plugin from
+# git+https://... URLs. wget is for pull-from-r2-direct.sh, which the refresh
+# job SFTPs onto the machine and runs to populate /data from R2.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential wget \
+ && apt-get install -y --no-install-recommends build-essential git wget \
  && rm -rf /var/lib/apt/lists/*
 
+# datasette (backend seams) + the DuckDB backend plugin, both from
+# `duckdb-deploy` — the merge of `duckdb-backend` (clean upstream PR
+# candidate: backend abstraction + plugin) with `no_limit_csv` (the fork's
+# extra fixes: uncapped `datasette inspect`, mode=ro immutable opens, no
+# truncation on CSV stream, etc.). The plugin's
+# `from datasette.backends import ...` resolves against a matching core.
+#
+# DATASETTE_REF is passed by the workflow as the commit SHA of duckdb-deploy
+# (defaults to the branch name for local builds). Pinning to a SHA invalidates
+# the Docker layer cache when datasette changes — without this, a `git+https`
+# URL pointing at a branch is text-identical across deploys and BuildKit
+# silently reuses the cached pip layer with stale code.
+ARG DATASETTE_REF=duckdb-deploy
 RUN pip install --no-cache-dir \
-    https://github.com/fgregg/datasette/archive/d9e31738fb1eed8aae1c524f036f002b7c127264.zip \
+    "datasette @ git+https://github.com/fgregg/datasette@${DATASETTE_REF}" \
+    "datasette-duckdb @ git+https://github.com/fgregg/datasette@${DATASETTE_REF}#subdirectory=datasette-duckdb" \
+    "duckdb>=1.0" \
     datasette-atom==0.10a0 \
-    datasette-rure \
-    pysqlite3-binary \
     datasette-block-robots \
     datasette-pretty-traces \
     https://github.com/fgregg/datasette-schema-org/archive/611e9b3dffaa7aed32f5a56cc250dd8f840f94d1.zip
 
-# Bake the commit SHA into the rootfs so the deploy workflow can SSH
-# into the running machine and verify it matches $GITHUB_SHA. Fly's
-# control-plane tag→digest cache occasionally hands a machine a stale
-# digest after `flyctl machine update --image …:tag` — the API
-# reports success but /proc/1/root is on the wrong rootfs. The Verify
-# step in deploy.yml compares this file to the expected SHA and fails
-# the run if they don't match. deploy.yml also pins by digest, which
-# bypasses the cache; this is the second line of defence.
+# Bake the commit SHA into the rootfs so a deploy can verify the running
+# container matches what was built (see deploy.yml's Verify step). ARG passed
+# by the workflow as GIT_SHA=$GITHUB_SHA.
 ARG GIT_SHA=unknown
 RUN echo "$GIT_SHA" > /etc/build-sha
 
 WORKDIR /app
 
-# Plugins and config — these change with code, not data.
+# Plugins and config — change with code, not data: the shared static/ and
+# templates/, plus the DuckDB datasette config.
 COPY plugins/ /app/plugins/
 COPY static/ /app/static/
 COPY templates/ /app/templates/
-COPY datasette.yml warehouse_metadata.yml /app/
+COPY datasette.yml /app/datasette.yml
+COPY warehouse_metadata.yml /app/
 COPY scripts/ /app/scripts/
 RUN chmod +x /app/scripts/*.sh
 
-# Databases live on a Fly Volume mounted here.
+# .duckdb databases live on a Fly Volume mounted here.
 VOLUME /data
 
 EXPOSE 8080
