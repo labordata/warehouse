@@ -1,34 +1,35 @@
-# App-only deploy.
+# App-only deploy for warehouse-duckdb.
 #
-# Push the warehouse image to Fly. Data on the volume is untouched —
-# the new container boots into whatever's already in /data.
+# Push the image to Fly and roll it onto the current machine. The
+# .duckdb files on the volume are untouched — the new container boots into
+# whatever's already in /data. refresh-data.yml handles data updates;
+# the two share the warehouse-duckdb-deploy concurrency group so they
+# serialize.
 #
-# Triggers: MANUAL DISPATCH ONLY during the DuckDB cutover. The push:main
-# auto-deploy is intentionally disabled so that merging the DuckDB PR (#25)
-# to main does NOT redeploy this SQLite app — labordata.bunkum.us now serves
-# the warehouse-duckdb app, and this SQLite app is the rollback target, which
-# must not pick up DuckDB-era shared template changes (e.g. the count-alias
-# templates/table.html that breaks row-count on the old datasette). Re-enable
-# the push:main trigger when the SQLite app is retired. `refresh-data.yml`
-# (data updates) is separate and still runs on its own cron.
+# Bootstrap (one-time): on a brand-new app this workflow
+# has no machine to roll onto. Create the first machine manually via
+# `flyctl deploy -c fly.toml --remote-only` after `flyctl apps create
+# warehouse-duckdb` and IP allocation. From then on this workflow rolls
+# images onto whatever machine has role=current (or the first machine, on
+# the cycle right after manual bootstrap before refresh has run).
 
 name: Deploy app
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
-  group: warehouse-deploy
+  group: warehouse-duckdb-deploy
   cancel-in-progress: false
 
-# Public repo. GITHUB_TOKEN defaults to permissive on push events; lock
-# it down so a compromised step can't write to issues/PRs/contents.
-# Only `contents: read` is needed for actions/checkout.
 permissions:
   contents: read
 
 env:
-  FLY_APP: warehouse
+  FLY_APP: warehouse-duckdb
 
 jobs:
   deploy:
@@ -39,7 +40,7 @@ jobs:
 
       - name: Install flyctl
         # Pinned to v1.6 commit SHA. `@master` would let an upstream
-        # compromise run with our FLY_API_TOKEN. Bump intentionally.
+        # compromise run with our FLY_API_TOKEN.
         uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1  # v1.6
 
       - name: Build image
@@ -47,38 +48,28 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # `flyctl deploy` without --build-only reconciles the running
-          # machines against fly.toml's services config, and when our
-          # current machine doesn't look "deployed" enough to it (because
-          # it was created out-of-band by refresh-data.yml, services
-          # were added via `machine update --port`, etc.) it spins up
-          # extra empty machines as siblings. That makes Fly proxy
-          # round-robin to a data-less machine — outage. Build the
-          # image only; we roll it out with `flyctl machine update`
-          # below, which never creates machines.
-          #
-          # We pass GIT_SHA so the Dockerfile can bake it into
-          # /etc/build-sha; the Verify step below SSHes into the
-          # running machine and checks it matches $GITHUB_SHA. That's
-          # how we detect Fly's control-plane tag→digest cache
-          # serving a stale digest after machine update (the
-          # long-running pain that was previously misdiagnosed as a
-          # BuildKit / registry-layer-dedup issue and fought with
-          # --no-cache — which was never the cure).
-          TAG="build-$GITHUB_RUN_NUMBER"
-          # Tee the output so we can grep the manifest digest out of
-          # buildkit's progress lines (it prints
-          # "pushing manifest for registry.fly.io/foo:tag@sha256:..."
-          # right when the push lands). Pinning the machine to that
-          # digest is what bypasses Fly's tag→digest cache; the
-          # registry HTTP API would also work but FLY_API_TOKEN is a
-          # deploy-scoped token and read-via-HTTP-Basic returns 404
-          # for it.
+          # Build+push only, then pin by manifest digest in `machine update`.
+          # Bypasses Fly's
+          # tag→digest cache and never reconciles fly.toml services (so it
+          # doesn't spawn sibling data-less machines).
           set -o pipefail
+          TAG="build-$GITHUB_RUN_NUMBER"
+          # Resolve the current tip of duckdb-deploy and pass it as a build
+          # arg so the Dockerfile's pip install layer cache invalidates when
+          # datasette changes (the @branch URL is text-identical across
+          # deploys, so BuildKit reuses stale layers without this).
+          DATASETTE_SHA=$(git ls-remote https://github.com/fgregg/datasette duckdb-deploy | awk '{print $1}')
+          if [ -z "$DATASETTE_SHA" ]; then
+            echo "Could not resolve duckdb-deploy commit SHA" >&2
+            exit 1
+          fi
+          echo "Building against datasette duckdb-deploy @ $DATASETTE_SHA"
           flyctl deploy --build-only --remote-only --app "$FLY_APP" \
+            --config fly.toml \
             --image-label "$TAG" \
             --push \
             --build-arg "GIT_SHA=$GITHUB_SHA" \
+            --build-arg "DATASETTE_REF=$DATASETTE_SHA" \
             2>&1 | tee /tmp/build.log
           DIGEST=$(grep -oE "pushing manifest for [^ ]*@sha256:[0-9a-f]+" /tmp/build.log \
                    | grep -oE "sha256:[0-9a-f]+" | tail -1)
@@ -86,42 +77,36 @@ jobs:
             echo "Could not extract manifest digest from build output." >&2
             exit 1
           fi
-          echo "Resolved $TAG → $DIGEST"
-          # flyctl machine update has a bug where passing
-          # `repo@sha256:DIGEST` makes it append the digest a second
-          # time (`repo@sha256:DIGEST@sha256:DIGEST`), which Fly's API
-          # then rejects as "invalid image identifier". Workaround
-          # documented on the community forum: include the tag too,
-          # i.e. `repo:tag@sha256:DIGEST`. The digest is still what
-          # binds; the tag is decorative for flyctl's parser.
-          # https://community.fly.io/t/fly-machine-run-duplicates-sha256-digest-when-image-ref-is-digest-form-rejects-as-invalid-image-identifier/27679
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved $TAG -> $DIGEST"
+          # repo:tag@sha256:digest form is the documented workaround for
+          # flyctl's double-digest-append bug on `machine update`.
           echo "image=registry.fly.io/$FLY_APP:$TAG@$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Roll image onto the current machine
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Update only the role=current machine. Anything tagged
-          # role=staging is in the middle of a refresh-data.yml run and
-          # shouldn't be touched here.
+          # Prefer role=current; fall back to the first machine for the
+          # bootstrap window (right after manual creation, before refresh
+          # has promoted anything to role=current).
           MID=$(flyctl machine list --app "$FLY_APP" --json | jq -r '
             [.[] | select(.config.metadata.role == "current")] | first | .id
           ')
           if [ -z "$MID" ] || [ "$MID" = "null" ]; then
-            echo "No machine has role=current" >&2
-            flyctl machine list --app "$FLY_APP" --json \
-              | jq '.[]|{id,role:.config.metadata.role}' >&2
+            MID=$(flyctl machine list --app "$FLY_APP" --json | jq -r '.[0].id // empty')
+          fi
+          if [ -z "$MID" ] || [ "$MID" = "null" ]; then
+            echo "No machine exists on $FLY_APP — bootstrap one manually first." >&2
             exit 1
           fi
-          echo "Rolling ${{ steps.build.outputs.image }} onto $MID"
-          # Fly's registry can return 404 on the manifest for a few
-          # seconds-to-minutes after `flyctl deploy --push` completes
-          # — push reports success before the manifest is globally
-          # readable. Retry up to ~5 min.
+          echo "Rolling image onto $MID"
+          # Fly's registry can 404 the manifest for seconds-to-minutes after
+          # `flyctl deploy --push` completes (push reports success before the
+          # manifest is globally readable). Retry up to ~5 min.
           for i in $(seq 1 20); do
             if flyctl machine update "$MID" --app "$FLY_APP" --yes \
                  --image "${{ steps.build.outputs.image }}"; then
+              echo "MID=$MID" >> $GITHUB_ENV
               exit 0
             fi
             echo "retry $i: machine update failed, sleeping 15s..." >&2
@@ -134,10 +119,9 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          # Read /etc/build-sha from the actual running container
-          # (baked in by the Dockerfile's ARG GIT_SHA). If it doesn't
-          # match GITHUB_SHA, Fly handed us a different rootfs than
-          # we asked for — fail loudly instead of declaring success.
+          # Read /etc/build-sha from the running container (baked in by the
+          # Dockerfile's ARG GIT_SHA). If it doesn't match GITHUB_SHA, Fly
+          # handed us a different rootfs than we asked for — fail loudly.
           for i in 1 2 3 4 5; do
             RUNNING_SHA=$(flyctl ssh console --app "$FLY_APP" \
               -C "cat /etc/build-sha" 2>/dev/null \
@@ -150,11 +134,28 @@ jobs:
           done
           if [ "$RUNNING_SHA" != "$GITHUB_SHA" ]; then
             echo "::error::Running rootfs SHA ($RUNNING_SHA) does not match GITHUB_SHA ($GITHUB_SHA)."
-            echo "::error::Fly machine update reported success but the new image isn't actually running."
             exit 1
           fi
           echo "Verified: running rootfs SHA = $RUNNING_SHA"
 
+      - name: Wait for datasette to bind :8080
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          # machine update restarts the container. Verify-rootfs above
+          # used hallpass (independent of datasette), so the workflow could
+          # otherwise complete while datasette is still starting (~2 min over
+          # 13 dbs on shared-cpu-1x), and visitors get 502s until it binds.
+          flyctl ssh console --app "$FLY_APP" -C "rm -f /tmp/wait-for-datasette.sh"
+          echo "put scripts/wait-for-datasette.sh /tmp/wait-for-datasette.sh" \
+            | flyctl ssh sftp shell --app "$FLY_APP"
+          flyctl ssh console --app "$FLY_APP" -C "sh /tmp/wait-for-datasette.sh"
+
+      # A code deploy changes rendered HTML/CSS/JS and headers; the old versions
+      # sit at the edge until purged. labordata.bunkum.us is served through
+      # this app, so this purge must run.
+      # Purge happens only after datasette is confirmed serving (above), so the
+      # cache re-warm doesn't hammer a not-yet-ready origin.
       - name: Purge Cloudflare cache
         env:
           CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
