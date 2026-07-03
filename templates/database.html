@@ -5,6 +5,14 @@
 {% block extra_head %}
 {{- super() -}}
 {% include "_codemirror.html" %}
+{# Dublin Core so Zotero imports this database as a dataset. Zotero's RDF
+   importer maps DC.type "Dataset" -> the dataset item type; the schema.org
+   JSON-LD (datasette-schema-org) and Highwire tags don't produce that type. #}
+<meta name="DC.title" content="{{ metadata.title or database }}">
+<meta name="DC.creator" content="Gregg, Forest">
+<meta name="DC.type" content="Dataset">
+<meta name="DC.publisher" content="Labor Data">
+<meta name="DC.identifier" content="{{ request.url }}">
 {% endblock %}
 
 {% block body_class %}db db-{{ database|to_css_class }}{% endblock %}
