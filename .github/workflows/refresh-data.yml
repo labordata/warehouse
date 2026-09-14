@@ -70,7 +70,7 @@ env:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -440,8 +440,7 @@ jobs:
           ")"
           echo "Pulling usaspending parquet: $PARQUET"
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
-            -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE/$USASPENDING_PREFIX $PARQUET" \
-            --command-timeout 1800
+            -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE/$USASPENDING_PREFIX $PARQUET"
 
       - name: Restart staging to attach fresh data
         env:
