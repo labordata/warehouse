@@ -1962,8 +1962,8 @@ databases:
           recipient_uei: Unique Entity Identifier — per SAM registration, not per company.
           recipient_parent_uei: UEI of the recipient's ultimate parent; use this for company-level totals.
           recipient_name: Recipient name as registered in SAM.
-          labor_standards: Whether the Service Contract Act applies. NB — USAspending swaps this pair — the codes (Y/N/X) arrive in labor_standards and the descriptions in labor_standards_code.
-          labor_standards_code: Service Contract Act determination, spelled out (YES / NO / NOT APPLICABLE). See the note on labor_standards.
+          labor_standards: Whether the Service Contract Act applies (YES / NO / NOT APPLICABLE). NB — USAspending's August 2026 archive shipped this pair swapped (codes here, descriptions in labor_standards_code); September's is correct. Filter on labor_standards_code = 'Y' to be safe across rebuilds.
+          labor_standards_code: Service Contract Act determination code — Y, N, or X (not applicable).
           construction_wage_rate_requirements: Whether Davis-Bacon prevailing wages apply (YES / NO / NOT APPLICABLE).
           materials_supplies_articles_equipment: Whether the Walsh-Healey Public Contracts Act applies (YES / NO / NOT APPLICABLE).
           naics_code: North American Industry Classification System code for the work.
