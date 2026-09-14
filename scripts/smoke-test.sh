@@ -63,7 +63,7 @@ expected = {
     "osha_enforcement", "nlrb", "opdr", "whisard", "lm10", "lm20", "lm30",
     "chips", "cats", "f7", "work_stoppages",
     "nlrb_rc_elections_1961_1998", "voluntary_recognitions",
-    "union_names_crosswalk",
+    "union_names_crosswalk", "usaspending",
 }
 got = set(names) - {"_memory"}
 missing = expected - got
@@ -87,9 +87,14 @@ for name in sorted(got):
     # column-detail queries on a cold 433 MB file). On staging there's no
     # public traffic to race, so let it finish rather than tail-fail.
     body, t = get(f"/{name}.json?_size=0", timeout=300)
-    ntables = len(json.loads(body).get("tables", []))
-    print(f"  /{name:>30}.json?_size=0   {t:>6.0f} ms  ({ntables} tables)")
-    if ntables == 0:
+    payload = json.loads(body)
+    # Views count as catalog content: usaspending is views over Parquet and
+    # has no tables at all, so a tables-only check would call it empty.
+    ntables = len(payload.get("tables", []))
+    nviews = len(payload.get("views", []))
+    print(f"  /{name:>30}.json?_size=0   {t:>6.0f} ms  "
+          f"({ntables} tables, {nviews} views)")
+    if ntables + nviews == 0:
         empty.append(name)
 if empty:
     print(f"  EMPTY CATALOG (internal.db incomplete): {empty}", file=sys.stderr)
