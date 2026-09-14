@@ -15,6 +15,11 @@
 # The explicit UA is necessary because Cloudflare BIC rule 1010 on the
 # bunkum.us zone blocks requests with non-browser default user agents.
 #
+# Names may contain slashes (usaspending's Parquet is pulled as
+# contracts/FY2024.parquet and so on); the directory is created before the
+# fetch, and the name keeps its path under /data so the views in
+# usaspending.duckdb resolve against it.
+#
 # Usage: pull-from-r2-direct.sh <public-base> <name>...
 
 set -eu
@@ -26,6 +31,9 @@ cd /data
 
 for name in "$@"; do
   echo "Pulling $BASE/$name"
+  case "$name" in
+    */*) mkdir -p "$(dirname "$name")" ;;
+  esac
   # -O "$name" forces the output path and OVERWRITES. Without it, wget's
   # default is to write "$name.1" when "$name" already exists — which it does
   # for internal.db: the staging machine boots datasette against the fresh

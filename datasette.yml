@@ -54,6 +54,16 @@ plugins:
     queue_wait: 1.5
     max_queue: 20
     retry_after: 5
+  nosuggest-facets:
+    # Facet *suggestion* runs one grouped query per column. usaspending's
+    # contracts view has 293 columns over Parquet (~30ms each, and the cost is
+    # per-query decode, so it does not shrink with fewer files or lower time
+    # limits): ~18s a page, against ~0.5s for the page itself. Skipping
+    # suggestion for this database alone brings it back to ~0.5s. Explicit
+    # ?_facet= and any configured facets still work, and the native tables --
+    # where suggestion costs ~0.15s and earns it -- keep theirs.
+    databases:
+      - usaspending
   datasette-block-robots:
     literal: |-
       User-agent: *

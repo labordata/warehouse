@@ -59,7 +59,10 @@ env:
   R2_BUCKET: labordata-warehouse-staging
   R2_PUBLIC_BASE: ${{ secrets.R2_PUBLIC_BASE }}
   DUCKDB_PREFIX: duckdb
-  STAGING_VOL_GB: 10
+  # labordata/usaspending publishes Parquet here; it is served as
+  # Parquet (see scripts/usaspending_views.py), not converted.
+  USASPENDING_PREFIX: usaspending
+  STAGING_VOL_GB: 20
   # Schedule + default-dispatch promote; workflow_dispatch can set
   # promote=false to dry-run.
   PROMOTE: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.promote == true)) && 'true' || 'false' }}
@@ -117,6 +120,22 @@ jobs:
           ls -la *.duckdb
           df -h
 
+      - name: Build usaspending.duckdb (views over R2 Parquet)
+        run: |
+          # usaspending is ~6.5 GB of Parquet (~50 GB as native DuckDB), so it
+          # is served as Parquet from the volume and this database is only the
+          # views over it. Nothing is downloaded here: the builder reads remote
+          # footers and schemas and writes zero-row placeholders at the paths
+          # the views reference, so CREATE VIEW resolves on the runner. The
+          # real files are pulled onto the volume further down, at those same
+          # paths.
+          sudo mkdir -p /data
+          sudo chown "$(id -u):$(id -g)" /data
+          python scripts/usaspending_views.py \
+            --base "$R2_PUBLIC_BASE/$USASPENDING_PREFIX" \
+            --data-dir /data --prefix "$USASPENDING_PREFIX" \
+            --out usaspending.duckdb --counts-out usaspending-counts.json
+
       - name: Build inspect-data.json
         run: |
           # Precompute per-table counts so datasette's startup scan
@@ -143,6 +162,12 @@ jobs:
           PY
           datasette inspect -c /tmp/inspect-config.yml --inspect-file inspect-data.json
           echo "wrote inspect-data.json ($(wc -c < inspect-data.json) bytes)"
+          # A view has no cheap count, so datasette's bounded query would report
+          # ">10,000 rows" for 93M-row usaspending views. inspect-data.json is
+          # the one count it trusts instead; table_counts() filters non-tables
+          # back out of the database page's table list.
+          python scripts/inject_view_counts.py \
+            inspect-data.json usaspending usaspending-counts.json
 
       - name: Build internal.db (frozen schema catalog)
         run: |
@@ -400,6 +425,18 @@ jobs:
             | flyctl ssh sftp shell --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}"
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
             -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE/$DUCKDB_PREFIX $ASSETS"
+
+          # usaspending's data is Parquet served in place, pulled from its own
+          # prefix (not re-uploaded through duckdb/) into the nested paths that
+          # usaspending.duckdb's views reference.
+          PARQUET="$(python -c "
+          import json
+          print(' '.join(json.load(open('usaspending-files.json'))))
+          ")"
+          echo "Pulling usaspending parquet: $PARQUET"
+          flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
+            -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE/$USASPENDING_PREFIX $PARQUET" \
+            --command-timeout 1800
 
       - name: Restart staging to attach fresh data
         env:

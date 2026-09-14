@@ -1919,3 +1919,75 @@ databases:
           accident_value: Human-readable cost-bracket description.
           accident_letter: Letter key (referenced by accident.project_cost).
           load_dt: Timestamp when this row was loaded.
+
+  usaspending:
+    title: Federal Contract Awards (USAspending)
+    description_html: |-
+      <p>Every prime contract transaction the federal government has reported to FPDS since fiscal year 2008 — 93 million rows, $11.2 trillion in obligations. A "transaction" is one contract action: the original award or any later modification, so a single contract appears once per action.</p>
+      <p>For labor research the useful columns are the prevailing-wage determinations each award carries: <code>labor_standards</code> (Service Contract Act), <code>construction_wage_rate_requirements</code> (Davis-Bacon), and <code>materials_supplies_articles_equipment</code> (Walsh-Healey), alongside recipient name, parent, address, NAICS, place of performance, and the business-type flags (woman-owned, veteran-owned, nonprofit, university, and so on).</p>
+      <p>Built monthly from USAspending's <a href="https://www.usaspending.gov/download_center/award_data_archive">award data archive</a>; processing scripts live at <a href="https://github.com/labordata/usaspending">labordata/usaspending</a>.</p>
+      <p>Two caveats. Recipients are identified by UEI, which is per SAM registration rather than per company — a large contractor has many (Boeing had 28 in FY2026), so roll up on <code>recipient_parent_uei</code> for company-level totals. And FY2015 has far more rows than FY2014 with no matching jump in dollars, because FPDS began capturing many low-value purchases then; row counts are not comparable across that boundary, obligation totals are.</p>
+    source: USAspending.gov award data archive, processed
+    source_description: Prime federal contract award transactions reported to the Federal Procurement Data System, published through USAspending.gov.
+    source_license: https://creativecommons.org/publicdomain/mark/1.0/
+    source_url: https://www.usaspending.gov/download_center/award_data_archive
+    code_repository: https://github.com/labordata/usaspending
+    temporal_coverage: "2007-10-01/.."
+    source_organization:
+      "@type": Organization
+      name: U.S. Department of the Treasury, Bureau of the Fiscal Service
+      url: https://www.usaspending.gov/
+    keywords:
+      - federal contracting
+      - government procurement
+      - federal contractors
+      - Service Contract Act
+      - Davis-Bacon Act
+      - prevailing wage
+      - government spending
+      - FPDS
+    tables:
+      contracts:
+        title: Contract transactions
+        description: One row per prime contract action (award or modification), fiscal years 2008 onward. Every column USAspending publishes except four that are derivable from the others.
+        columns:
+          award_id_piid: Procurement Instrument Identifier — the contract number. Unique only within the awarding agency.
+          modification_number: Identifies this action against the award; the original award is usually "0".
+          parent_award_id_piid: The IDV (indefinite delivery vehicle) this order was placed against, if any.
+          federal_action_obligation: Dollars obligated (or, if negative, deobligated) by this action.
+          current_total_value_of_award: Total value of the award as of this action, before unexercised options.
+          potential_total_value_of_award: Total value if every option is exercised.
+          action_date: Date this action was signed.
+          action_date_fiscal_year: Federal fiscal year of the action (October–September).
+          recipient_uei: Unique Entity Identifier — per SAM registration, not per company.
+          recipient_parent_uei: UEI of the recipient's ultimate parent; use this for company-level totals.
+          recipient_name: Recipient name as registered in SAM.
+          labor_standards: Whether the Service Contract Act applies. NB — USAspending swaps this pair — the codes (Y/N/X) arrive in labor_standards and the descriptions in labor_standards_code.
+          labor_standards_code: Service Contract Act determination, spelled out (YES / NO / NOT APPLICABLE). See the note on labor_standards.
+          construction_wage_rate_requirements: Whether Davis-Bacon prevailing wages apply (YES / NO / NOT APPLICABLE).
+          materials_supplies_articles_equipment: Whether the Walsh-Healey Public Contracts Act applies (YES / NO / NOT APPLICABLE).
+          naics_code: North American Industry Classification System code for the work.
+          product_or_service_code: What is being bought (PSC/FSC code).
+          type_of_set_aside: Small-business or other set-aside the award was competed under.
+          contracting_officers_determination_of_business_size: Whether the contracting officer judged the recipient small or other than small.
+          primary_place_of_performance_state_code: State where the work is performed, which often differs from the recipient's address.
+          highly_compensated_officer_1_amount: Compensation of the recipient's highest-paid officer, where reporting is required.
+      recipient_year:
+        title: Recipient by fiscal year
+        description: One row per recipient UEI per fiscal year, with obligations split out by prevailing-wage regime.
+        columns:
+          fiscal_year: Federal fiscal year.
+          recipient_uei: Unique Entity Identifier — per SAM registration, not per company.
+          transactions: Number of contract actions in the year.
+          awards: Distinct contract numbers (PIIDs) in the year.
+          obligations: Total dollars obligated in the year.
+          service_contract_act_obligations: Obligations on actions where the Service Contract Act applies.
+          davis_bacon_obligations: Obligations on actions carrying Davis-Bacon construction wage rates.
+          walsh_healey_obligations: Obligations on actions under the Walsh-Healey Public Contracts Act.
+          top_officer_compensation: Highest reported officer compensation for the recipient that year.
+      recipient_year_agency:
+        title: Recipient by fiscal year and agency
+        description: The recipient_year rollup split further by awarding agency, for "who funds this employer" questions.
+        columns:
+          awarding_agency_code: Code of the agency that awarded the contracts.
+          awarding_agency_name: Name of the awarding agency.
