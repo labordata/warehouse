@@ -240,25 +240,30 @@ jobs:
           PY
           rm -f internal.db-wal internal.db-shm
 
-          # Completeness gate: a db with rows but 0 cataloged tables is the exact
+          # Completeness gate: a db with rows but nothing cataloged is the exact
           # cats failure — fail the build rather than ship a broken landing page.
           # Runs on the post-checkpoint single file, so it reflects what ships.
+          # Counts views as well as tables: usaspending is views over Parquet
+          # and has no tables at all, so a tables-only gate would fail it.
           python3 - <<'PY'
           import glob, os, sqlite3, sys
           con = sqlite3.connect("internal.db")
-          counts = dict(con.execute(
+          tables = dict(con.execute(
               "select database_name, count(*) from catalog_tables group by database_name"))
+          views = dict(con.execute(
+              "select database_name, count(*) from catalog_views group by database_name"))
           bad = []
           for f in sorted(glob.glob("*.duckdb")):
               name = os.path.splitext(os.path.basename(f))[0]
-              n = counts.get(name, 0)
-              print(f"  {name}: {n} tables")
-              if n == 0:
+              t, v = tables.get(name, 0), views.get(name, 0)
+              print(f"  {name}: {t} tables, {v} views")
+              if t + v == 0:
                   bad.append(name)
           if bad:
-              sys.exit("FAIL: internal.db has 0 cataloged tables for: " + ", ".join(bad))
-          print("internal.db complete: %d tables across %d dbs"
-                % (sum(counts.values()), len(counts)))
+              sys.exit("FAIL: internal.db cataloged nothing for: " + ", ".join(bad))
+          print("internal.db complete: %d tables + %d views across %d dbs"
+                % (sum(tables.values()), sum(views.values()),
+                   len(set(tables) | set(views))))
           PY
           echo "wrote internal.db ($(wc -c < internal.db) bytes)"
 
