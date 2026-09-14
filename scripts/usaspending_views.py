@@ -15,7 +15,12 @@ the path the view will reference. The refresh job then ships the real files to
 those same paths on the volume, and the views resolve against real data with no
 change to the stored SQL.
 
-`--files-out` lists the keys the refresh job then pulls onto the volume.
+`--files-out` lists the paths the refresh job then pulls onto the volume,
+relative to `--data-dir` -- prefix included, so that what lands on the volume
+is exactly what the views reference. (The first promoted refresh pulled to
+/data/contracts/... while the views looked in /data/usaspending/contracts/...
+and every view page 500'd; the smoke test now queries each view to catch
+that.)
 
 Row counts come from the remote Parquet footers and are written to
 `--counts-out`, for injecting into inspect-data.json: Datasette's bounded
@@ -72,7 +77,8 @@ def main():
     ap.add_argument("--out", default="usaspending.duckdb")
     ap.add_argument("--counts-out", default="usaspending-counts.json")
     ap.add_argument("--files-out", default="usaspending-files.json",
-                    help="keys to pull onto the volume, relative to the prefix")
+                    help="paths to pull onto the volume, relative to --data-dir "
+                         "(so they include --prefix, matching what the views reference)")
     ap.add_argument("--prefix", default="usaspending")
     args = ap.parse_args()
 
@@ -112,7 +118,7 @@ def main():
     with open(args.counts_out, "w") as f:
         json.dump(view_counts, f, indent=2)
     with open(args.files_out, "w") as f:
-        json.dump(keys, f, indent=2)
+        json.dump([f"{args.prefix}/{k}" for k in keys], f, indent=2)
     print(f"wrote {args.out} ({os.path.getsize(args.out):,} bytes), "
           f"{args.counts_out} and {args.files_out}")
 

@@ -96,6 +96,25 @@ for name in sorted(got):
           f"({ntables} tables, {nviews} views)")
     if ntables + nviews == 0:
         empty.append(name)
+    # A view lists fine even when the files behind it are missing -- the
+    # catalog knows its name, not whether its Parquet resolves. Query each
+    # one, so a view over a path that isn't there fails here and not in
+    # production (the first promoted refresh shipped /data/contracts/... for
+    # views that read /data/usaspending/contracts/...).
+    for view in payload.get("views", []):
+        vname = view["name"] if isinstance(view, dict) else view
+        try:
+            vbody, vt = get(f"/{name}/{vname}.json?_size=1&_shape=array", timeout=300)
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")[:300]
+            print(f"  VIEW FAILED: /{name}/{vname} -> HTTP {e.code}: {detail}",
+                  file=sys.stderr)
+            sys.exit(1)
+        nrows = len(json.loads(vbody))
+        print(f"      /{name}/{vname}.json?_size=1   {vt:>6.0f} ms  ({nrows} row)")
+        if nrows == 0:
+            print(f"  VIEW RETURNED NO ROWS: /{name}/{vname}", file=sys.stderr)
+            sys.exit(1)
 if empty:
     print(f"  EMPTY CATALOG (internal.db incomplete): {empty}", file=sys.stderr)
     sys.exit(1)
