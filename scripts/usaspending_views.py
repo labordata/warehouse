@@ -39,8 +39,8 @@ import duckdb
 # per-year contract files so a bare `select *` starts in the current year.
 VIEW_PATTERNS = {
     "contracts": re.compile(r"^contracts/FY(\d{4})\.parquet$"),
+    "recipients": re.compile(r"^recipients\.parquet$"),
     "recipient_year": re.compile(r"^recipient_year\.parquet$"),
-    "recipient_year_agency": re.compile(r"^recipient_year_agency\.parquet$"),
 }
 
 
@@ -50,7 +50,7 @@ def list_keys(base):
     Enumerated from the fiscal years the API offers plus the two rollups,
     then confirmed with a HEAD -- the bucket has no public listing.
     """
-    keys = ["recipient_year.parquet", "recipient_year_agency.parquet"]
+    keys = ["recipients.parquet", "recipient_year.parquet"]
     keys += [f"contracts/FY{fy}.parquet" for fy in range(2008, 2100)]
     found = []
     misses = 0

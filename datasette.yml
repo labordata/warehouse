@@ -173,3 +173,70 @@ databases:
             receiveDate desc
           limit
             100
+  usaspending:
+    # Per-recipient drill-downs. The contracts Parquet is sorted by
+    # recipient_uei, so a single-UEI filter prunes to a few row groups and
+    # these run in well under a second against all 93M rows -- no rollup
+    # needed. Find a UEI on the recipients view first.
+    queries:
+      spending_by_year:
+        title: One recipient's obligations by fiscal year and agency
+        sql: |-
+          select
+            action_date_fiscal_year as fiscal_year,
+            awarding_agency_name,
+            count(*) as transactions,
+            count(distinct award_id_piid) as awards,
+            sum(federal_action_obligation) as obligations,
+            sum(federal_action_obligation) filter (where labor_standards_code = 'Y' or labor_standards = 'Y') as service_contract_act_obligations,
+            sum(federal_action_obligation) filter (where construction_wage_rate_requirements_code = 'Y') as davis_bacon_obligations
+          from contracts
+          where recipient_uei = :uei
+          group by 1, 2
+          order by 1 desc, obligations desc
+      spending_by_place:
+        title: Where one recipient performs its federal contracts
+        sql: |-
+          select
+            primary_place_of_performance_state_code as state,
+            primary_place_of_performance_county_name as county,
+            primary_place_of_performance_city_name as city,
+            count(distinct award_id_piid) as awards,
+            sum(federal_action_obligation) as obligations,
+            min(action_date) as first_action,
+            max(action_date) as last_action
+          from contracts
+          where recipient_uei = :uei
+          group by 1, 2, 3
+          order by obligations desc
+      awards_for_recipient:
+        title: One recipient's contracts, one row per award
+        sql: |-
+          select
+            award_id_piid,
+            parent_award_id_piid,
+            arg_max(awarding_sub_agency_name, action_date) as awarding_sub_agency,
+            arg_max(prime_award_base_transaction_description, action_date) as description,
+            arg_max(naics_description, action_date) as naics,
+            arg_max(labor_standards, action_date) as service_contract_act,
+            arg_max(construction_wage_rate_requirements, action_date) as davis_bacon,
+            arg_max(primary_place_of_performance_state_code, action_date) as state,
+            min(period_of_performance_start_date) as start_date,
+            max(period_of_performance_current_end_date) as end_date,
+            count(*) as transactions,
+            sum(federal_action_obligation) as obligations
+          from contracts
+          where recipient_uei = :uei
+          group by 1, 2
+          order by obligations desc
+      recipients_by_name:
+        title: Find recipient UEIs by name
+        sql: |-
+          select
+            recipient_uei, recipient_name, doing_business_as, city, state,
+            first_fiscal_year, last_fiscal_year, obligations, top_naics
+          from recipients
+          where recipient_name ilike '%' || :name || '%'
+             or doing_business_as ilike '%' || :name || '%'
+          order by obligations desc
+          limit 200

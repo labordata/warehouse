@@ -95,7 +95,10 @@
 {% if tables %}
 <p class="advanced-db-links"><a href="{{ urls.database(database) }}/-/schema">Database schema</a></p>
 {% endif %}
-{% if allow_download %}
+{# A views-only database (usaspending) is a few hundred KB of view definitions
+   over Parquet that lives elsewhere; offering that file as "the database"
+   would mislead. Its description links the Parquet instead. #}
+{% if allow_download and tables %}
 <p class="download-sqlite">Download SQLite DB: <a href="{{ urls.database(database) }}.db" rel="nofollow">{{ database }}.db</a> <em>{{ format_bytes(size) }}</em></p>
 {% endif %}
 
