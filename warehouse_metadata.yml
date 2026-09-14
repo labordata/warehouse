@@ -1926,7 +1926,9 @@ databases:
       <p>Every prime contract transaction the federal government has reported to FPDS since fiscal year 2008 — 93 million rows, $11.2 trillion in obligations. A "transaction" is one contract action: the original award or any later modification, so a single contract appears once per action.</p>
       <p>For labor research the useful columns are the prevailing-wage determinations each award carries: <code>labor_standards</code> (Service Contract Act), <code>construction_wage_rate_requirements</code> (Davis-Bacon), and <code>materials_supplies_articles_equipment</code> (Walsh-Healey), alongside recipient name, parent, address, NAICS, place of performance, and the business-type flags (woman-owned, veteran-owned, nonprofit, university, and so on).</p>
       <p>Built monthly from USAspending's <a href="https://www.usaspending.gov/download_center/award_data_archive">award data archive</a>; processing scripts live at <a href="https://github.com/labordata/usaspending">labordata/usaspending</a>.</p>
+      <p>Start with <a href="/usaspending/recipients">recipients</a> — one row per contractor with lifetime totals — then use the canned queries below to see one recipient's spending by year, by place, or by award. <a href="/usaspending/contracts">contracts</a> is the full 93-million-row transaction record.</p>
       <p>Two caveats. Recipients are identified by UEI, which is per SAM registration rather than per company — a large contractor has many (Boeing had 28 in FY2026), so roll up on <code>recipient_parent_uei</code> for company-level totals. And FY2015 has far more rows than FY2014 with no matching jump in dollars, because FPDS began capturing many low-value purchases then; row counts are not comparable across that boundary, obligation totals are.</p>
+      <p>Download as Parquet: <a href="https://downloads.labordata.bunkum.us/usaspending/recipients.parquet">recipients</a>, <a href="https://downloads.labordata.bunkum.us/usaspending/recipient_year.parquet">recipient_year</a>, and one file per fiscal year for contracts, e.g. <a href="https://downloads.labordata.bunkum.us/usaspending/contracts/FY2024.parquet">contracts/FY2024.parquet</a> (about 350 MB each, 6.5 GB for FY2008–2026).</p>
     source: USAspending.gov award data archive, processed
     source_description: Prime federal contract award transactions reported to the Federal Procurement Data System, published through USAspending.gov.
     source_license: https://creativecommons.org/publicdomain/mark/1.0/
@@ -1962,8 +1964,8 @@ databases:
           recipient_uei: Unique Entity Identifier — per SAM registration, not per company.
           recipient_parent_uei: UEI of the recipient's ultimate parent; use this for company-level totals.
           recipient_name: Recipient name as registered in SAM.
-          labor_standards: Whether the Service Contract Act applies. NB — USAspending swaps this pair — the codes (Y/N/X) arrive in labor_standards and the descriptions in labor_standards_code.
-          labor_standards_code: Service Contract Act determination, spelled out (YES / NO / NOT APPLICABLE). See the note on labor_standards.
+          labor_standards: Whether the Service Contract Act applies (YES / NO / NOT APPLICABLE). NB — USAspending's August 2026 archive shipped this pair swapped (codes here, descriptions in labor_standards_code); September's is correct. Filter on labor_standards_code = 'Y' to be safe across rebuilds.
+          labor_standards_code: Service Contract Act determination code — Y, N, or X (not applicable).
           construction_wage_rate_requirements: Whether Davis-Bacon prevailing wages apply (YES / NO / NOT APPLICABLE).
           materials_supplies_articles_equipment: Whether the Walsh-Healey Public Contracts Act applies (YES / NO / NOT APPLICABLE).
           naics_code: North American Industry Classification System code for the work.
@@ -1972,9 +1974,35 @@ databases:
           contracting_officers_determination_of_business_size: Whether the contracting officer judged the recipient small or other than small.
           primary_place_of_performance_state_code: State where the work is performed, which often differs from the recipient's address.
           highly_compensated_officer_1_amount: Compensation of the recipient's highest-paid officer, where reporting is required.
+      recipients:
+        title: Recipients
+        description: One row per recipient UEI — every entity that has received a federal contract since FY2008 — with its current name and address (from its most recent transaction), lifetime totals, and the NAICS, awarding agency, and place of performance that account for the most dollars. Sorted by lifetime obligations.
+        columns:
+          recipient_uei: Unique Entity Identifier — per SAM registration, not per company; see recipient_parent_uei.
+          recipient_name: Name as of the recipient's most recent transaction.
+          doing_business_as: Trade name, if registered.
+          recipient_parent_uei: UEI of the ultimate parent. Group on this for company-level totals.
+          address: Street address as of the most recent transaction.
+          zip: Five-digit ZIP as of the most recent transaction.
+          first_fiscal_year: First fiscal year (FY2008 onward) with a transaction.
+          last_fiscal_year: Most recent fiscal year with a transaction.
+          transactions: Contract actions since FY2008.
+          awards: Distinct contract numbers (PIIDs) since FY2008.
+          obligations: Total dollars obligated since FY2008.
+          service_contract_act_obligations: Obligations on actions where the Service Contract Act applies.
+          davis_bacon_obligations: Obligations on actions carrying Davis-Bacon construction wage rates.
+          walsh_healey_obligations: Obligations on actions under the Walsh-Healey Public Contracts Act.
+          business_size: Contracting officer's most recent size determination (SMALL BUSINESS / OTHER THAN SMALL BUSINESS).
+          nonprofit: Registered as a nonprofit, per the most recent transaction.
+          state_or_local_government: Recipient is a state or local government body.
+          top_officer_compensation: Highest reported officer compensation across all years, where reporting was required.
+          top_naics_code: NAICS code accounting for the most obligated dollars.
+          top_naics: Description of top_naics_code.
+          top_awarding_agency: Awarding agency accounting for the most obligated dollars.
+          top_place_of_performance_state: State where the most dollars' worth of work is performed.
       recipient_year:
         title: Recipient by fiscal year
-        description: One row per recipient UEI per fiscal year, with obligations split out by prevailing-wage regime.
+        description: One row per recipient UEI per fiscal year, with obligations split out by prevailing-wage regime. For one recipient's breakdown by agency, place, or award, use the canned queries.
         columns:
           fiscal_year: Federal fiscal year.
           recipient_uei: Unique Entity Identifier — per SAM registration, not per company.
@@ -1985,9 +2013,3 @@ databases:
           davis_bacon_obligations: Obligations on actions carrying Davis-Bacon construction wage rates.
           walsh_healey_obligations: Obligations on actions under the Walsh-Healey Public Contracts Act.
           top_officer_compensation: Highest reported officer compensation for the recipient that year.
-      recipient_year_agency:
-        title: Recipient by fiscal year and agency
-        description: The recipient_year rollup split further by awarding agency, for "who funds this employer" questions.
-        columns:
-          awarding_agency_code: Code of the agency that awarded the contracts.
-          awarding_agency_name: Name of the awarding agency.

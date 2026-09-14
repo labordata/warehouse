@@ -22,7 +22,10 @@
     {% set db_title = (db_titles or {}).get(database.name) or database.name %}
     <h2><a href="{{ urls.database(database.name) }}">{{ db_title }}</a>{% if database.private %} 🔒{% endif %}</h2>
     <p>
+        {# A views-only database (usaspending) reads "3 views", not "0 tables, 3 views". #}
+        {% if database.tables_count or not database.views_count -%}
         {% if database.show_table_row_counts %}{{ "{:,}".format(database.table_rows_sum) }} rows in {% endif %}{{ database.tables_count }} table{% if database.tables_count != 1 %}s{% endif %}{% if database.hidden_tables_count %}, {% endif -%}
+        {% endif -%}
         {% if database.hidden_tables_count -%}
             {% if database.show_table_row_counts %}{{ "{:,}".format(database.hidden_table_rows_sum) }} rows in {% endif %}{{ database.hidden_tables_count }} hidden table{% if database.hidden_tables_count != 1 %}s{% endif -%}
         {% endif -%}

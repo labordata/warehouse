@@ -433,14 +433,17 @@ jobs:
 
           # usaspending's data is Parquet served in place, pulled from its own
           # prefix (not re-uploaded through duckdb/) into the nested paths that
-          # usaspending.duckdb's views reference.
+          # usaspending.duckdb's views reference. The names are prefix-qualified
+          # (usaspending/contracts/FY2024.parquet) and pulled from the bucket
+          # root, so they land at /data/usaspending/... -- the same paths the
+          # views were built against.
           PARQUET="$(python -c "
           import json
           print(' '.join(json.load(open('usaspending-files.json'))))
           ")"
           echo "Pulling usaspending parquet: $PARQUET"
           flyctl ssh console --app "$FLY_APP" --machine "${{ steps.mach.outputs.id }}" \
-            -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE/$USASPENDING_PREFIX $PARQUET"
+            -C "sh /tmp/pull-from-r2-direct.sh $R2_PUBLIC_BASE $PARQUET"
 
       - name: Restart staging to attach fresh data
         env:
