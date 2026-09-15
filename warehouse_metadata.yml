@@ -1947,7 +1947,7 @@ databases:
     tables:
       contracts:
         title: Contract transactions
-        description: One row per prime contract action (award or modification), fiscal years 2008 onward. Every column USAspending publishes except four that are derivable from the others.
+        description: One row per prime contract action (award or modification), fiscal years 2008 onward. 
         columns:
           award_id_piid: Procurement Instrument Identifier — the contract number. Unique only within the awarding agency.
           modification_number: Identifies this action against the award; the original award is usually "0".
@@ -1998,7 +1998,7 @@ databases:
           top_place_of_performance_state: State where the most dollars' worth of work is performed.
       recipient_year:
         title: Recipient by fiscal year
-        description: One row per recipient UEI per fiscal year, with obligations split out by prevailing-wage regime. For one recipient's breakdown by agency, place, or award, use the canned queries.
+        description: One row per recipient UEI per fiscal year, with obligations split out by prevailing-wage regime.
         columns:
           fiscal_year: Federal fiscal year.
           recipient_uei: Unique Entity Identifier — per SAM registration, not per company.
