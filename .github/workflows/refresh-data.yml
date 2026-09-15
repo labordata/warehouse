@@ -62,7 +62,7 @@ env:
   # labordata/usaspending publishes Parquet here; it is served as
   # Parquet (see scripts/usaspending_views.py), not converted.
   USASPENDING_PREFIX: usaspending
-  STAGING_VOL_GB: 20
+  STAGING_VOL_GB: 30
   # Schedule + default-dispatch promote; workflow_dispatch can set
   # promote=false to dry-run.
   PROMOTE: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.promote == true)) && 'true' || 'false' }}

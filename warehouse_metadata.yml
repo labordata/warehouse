@@ -1921,12 +1921,12 @@ databases:
           load_dt: Timestamp when this row was loaded.
 
   usaspending:
-    title: Federal Contract Awards (USAspending)
+    title: Federal Spending (USAspending)
     description_html: |-
-      <p>Every prime contract transaction the federal government has reported to FPDS since fiscal year 2008</p>
+      <p>Every federal contract and financial-assistance transaction since fiscal year 2008, every reported subaward since FY2011, and the SAM.gov entity registrations behind them.</p>
       <p>Recipients are identified by UEI, which is per SAM registration rather than per company — a large contractor has many (Boeing had 28 in FY2026), so roll up on <code>recipient_parent_uei</code> for company-level totals. And FY2015 has far more rows than FY2014 with no matching jump in dollars, because FPDS began capturing many low-value purchases then.</p>
     source: USAspending.gov award data archive, processed
-    source_description: Prime federal contract award transactions reported to the Federal Procurement Data System, published through USAspending.gov.
+    source_description: Federal contract, financial-assistance, and subaward transactions and SAM.gov entity registrations, published through USAspending.gov.
     source_license: https://creativecommons.org/publicdomain/mark/1.0/
     source_url: https://www.usaspending.gov/download_center/award_data_archive
     code_repository: https://github.com/labordata/usaspending
@@ -1939,6 +1939,9 @@ databases:
       - federal contracting
       - government procurement
       - federal contractors
+      - federal grants
+      - subcontractors
+      - SAM.gov
       - Service Contract Act
       - Davis-Bacon Act
       - prevailing wage
@@ -1970,6 +1973,78 @@ databases:
           contracting_officers_determination_of_business_size: Whether the contracting officer judged the recipient small or other than small.
           primary_place_of_performance_state_code: State where the work is performed, which often differs from the recipient's address.
           highly_compensated_officer_1_amount: Compensation of the recipient's highest-paid officer, where reporting is required.
+      assistance:
+        title: Financial assistance transactions
+        description: One row per financial-assistance action — grants, cooperative agreements, loans, direct payments, insurance — FY2008 onward. Includes county-level aggregate records and PII-redacted payments to individuals; record_type_code = '2' is identified organizations.
+        columns:
+          award_id_fain: Federal Award Identification Number — the grant or loan number.
+          award_id_uri: Identifier for aggregate (county-level) records, which have no FAIN.
+          assistance_type_description: Grant, cooperative agreement, direct loan, guaranteed loan, direct payment, insurance, other.
+          record_type_description: Aggregate (many recipients summed), non-aggregate (one identified recipient), or non-aggregate to an individual (PII redacted).
+          cfda_number: Assistance Listing (formerly CFDA) program number; see the cfda table.
+          federal_action_obligation: Dollars obligated by this action.
+          face_value_of_loan: For loans, the principal.
+          business_types_description: Recipient's business type.
+      subawards:
+        title: Subawards
+        description: Every subcontract and sub-grant reported under FFATA (≥ $30,000, FY2011 onward), with the prime award and both parties' identity, address, and business types. Self-reported by the prime; amounts and dates are as reported, errors included.
+        columns:
+          subaward_type: sub-contract or sub-grant.
+          unique_award_key: The prime award this sits under (matches contracts / assistance).
+          awardee_or_recipient_uei: UEI of the prime recipient.
+          awardee_or_recipient_legal: Prime recipient's legal name.
+          sub_awardee_or_recipient_uei: UEI of the subrecipient.
+          sub_awardee_or_recipient_legal: Subrecipient's legal name.
+          sub_ultimate_parent_uei: UEI of the subrecipient's ultimate parent.
+          subaward_amount: Dollars, as reported by the prime.
+          sub_action_date: Date of the subaward.
+          sub_fiscal_year: Federal fiscal year of the subaward.
+          subaward_description: What the subrecipient is doing, as reported.
+          sub_place_of_perform_state_code: State where the subrecipient performs the work.
+          sub_business_types: Subrecipient's business types, as reported by the prime.
+      sam_entities:
+        title: SAM.gov entity registrations
+        description: Every entity registered in SAM.gov as USAspending ingests it — one row per UEI, awarded or not — with name, parent, address, business-type codes, and entity structure as of the registration's last update.
+        columns:
+          uei: Unique Entity Identifier.
+          awardee_or_recipient_uniqu: DUNS number (the pre-2022 identifier), where the registration had one.
+          legal_business_name: Registered legal name.
+          dba_name: Doing-business-as name.
+          ultimate_parent_uei: UEI of the ultimate parent entity.
+          ultimate_parent_legal_enti: Ultimate parent's legal name.
+          business_types_codes: SAM business-type codes (2X for-profit, A8 nonprofit, 2R small business, …).
+          entity_structure: Legal form code (2L corporation, 2J sole proprietorship, 8H LLC, …).
+          update_date: When SAM last updated the registration.
+      recipient_lookup:
+        title: Recipient name variants
+        description: USAspending's recipient master, kept to the rows with a UEI or DUNS. alternate_names lists other names a recipient has appeared under — useful when matching employer names from other datasets.
+        columns:
+          alternate_names: Other legal names seen for this recipient in award records.
+          source: Where USAspending took the canonical record from (sam, fpds, fabs; -parent variants for parents).
+      uei_crosswalk:
+        title: DUNS to UEI crosswalk
+        description: DUNS numbers (used through April 2022) mapped to the UEIs that replaced them.
+      historic_parent_duns:
+        title: Historical parent DUNS
+        description: DUNS → ultimate-parent DUNS by year, as SAM reported it. 2014–2018 only.
+      naics:
+        title: NAICS codes
+        description: North American Industry Classification System codes and descriptions.
+      psc:
+        title: Product and service codes
+        description: Federal product/service codes (PSC) that classify what a contract buys.
+      cfda:
+        title: Assistance listings (CFDA)
+        description: Federal assistance programs by Assistance Listing number, with title, agency, objectives, and eligibility.
+      toptier_agency:
+        title: Top-tier agencies
+        description: Departments and independent agencies, by top-tier code.
+      subtier_agency:
+        title: Sub-tier agencies
+        description: Bureaus and components within top-tier agencies.
+      office:
+        title: Offices
+        description: Awarding and funding offices, by office code.
       recipients:
         title: Recipients
         description: One row per recipient UEI — every entity that has received a federal contract since FY2008 — with its current name and address (from its most recent transaction), lifetime totals, and the NAICS, awarding agency, and place of performance that account for the most dollars. Sorted by lifetime obligations.
