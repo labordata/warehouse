@@ -16,9 +16,23 @@ FROM python:3.12-slim
 # git is needed because we pip install datasette + the plugin from
 # git+https://... URLs. wget is for pull-from-r2-direct.sh, which the refresh
 # job SFTPs onto the machine and runs to populate /data from R2.
+# libjemalloc2 replaces glibc malloc for the whole process (see LD_PRELOAD).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential git wget \
+ && apt-get install -y --no-install-recommends build-essential git wget libjemalloc2 \
  && rm -rf /var/lib/apt/lists/*
+
+# Run datasette under jemalloc instead of glibc malloc. The DuckDB wheel has no
+# jemalloc built in, and glibc never returns the memory from DuckDB's large
+# transient allocations (binding a Parquet view deserializes every file footer
+# into hundreds of thousands of small objects; once freed they are fragmented
+# through the heap and stay resident, per thread arena). Measured 2026-09-15:
+# one /usaspending/contracts page took RSS 154 -> 650 MB with DuckDB's own
+# accounting flat at 34 MB, and the box bled to 0 MB free in ~2h and wedged.
+# jemalloc consolidates freed small objects and purges unused pages back to the
+# OS; background_thread makes that purge run on a timer rather than only on the
+# next allocation from the same (possibly idle) thread.
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 \
+    MALLOC_CONF=background_thread:true
 
 # datasette (backend seams) + the DuckDB backend plugin, both from
 # `duckdb-deploy` — the merge of `duckdb-backend` (clean upstream PR

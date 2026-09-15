@@ -31,9 +31,15 @@ plugins:
     # the whole budget instead of being starved by a low per-instance cap (which
     # broke 500k-row CSV exports). See fgregg/datasette#31.
     shared_instance: true
-    # The single global memory_limit (vs the old 128MB-per-instance cap). ~1.4GB
-    # leaves headroom for base + python on the 2GB box.
-    memory_limit: 1400MB
+    # The single global memory_limit (vs the old 128MB-per-instance cap). This
+    # caps only DuckDB's buffer pool; python/datasette (~150MB) and DuckDB's
+    # untracked transients sit outside it. The usaspending Parquet views made
+    # those transients large (~100MB+ per `select *` over 293 columns, per
+    # concurrent SQL thread), so 1400MB -- sized before Parquet existed --
+    # left nothing over and the box wedged at 0 MB free (2026-09-15). 1000MB
+    # leaves ~850MB for everything else. The .duckdb working set never fit in
+    # the pool anyway; the OS page cache backfills the difference.
+    memory_limit: 1000MB
     # 1 vCPU: more threads only multiply sort/agg memory and worsen latency-
     # fairness (measured), with no compute gain.
     threads: 1
