@@ -28,6 +28,7 @@ count query reports ">10,000 rows" for a view otherwise, and inspect-data.json
 is the one thing it will trust instead.
 """
 import argparse
+import datetime
 import json
 import os
 import re
@@ -39,34 +40,55 @@ import duckdb
 # per-year contract files so a bare `select *` starts in the current year.
 VIEW_PATTERNS = {
     "contracts": re.compile(r"^contracts/FY(\d{4})\.parquet$"),
+    "assistance": re.compile(r"^assistance/FY(\d{4})\.parquet$"),
+    "subawards": re.compile(r"^subawards\.parquet$"),
     "recipients": re.compile(r"^recipients\.parquet$"),
     "recipient_year": re.compile(r"^recipient_year\.parquet$"),
+    "sam_entities": re.compile(r"^sam_entities\.parquet$"),
+    "recipient_lookup": re.compile(r"^recipient_lookup\.parquet$"),
+    "uei_crosswalk": re.compile(r"^uei_crosswalk\.parquet$"),
+    "historic_parent_duns": re.compile(r"^historic_parent_duns\.parquet$"),
+    "naics": re.compile(r"^naics\.parquet$"),
+    "psc": re.compile(r"^psc\.parquet$"),
+    "cfda": re.compile(r"^cfda\.parquet$"),
+    "toptier_agency": re.compile(r"^toptier_agency\.parquet$"),
+    "subtier_agency": re.compile(r"^subtier_agency\.parquet$"),
+    "office": re.compile(r"^office\.parquet$"),
 }
 
 
 def list_keys(base):
     """Parquet keys published under the usaspending prefix.
 
-    Enumerated from the fiscal years the API offers plus the two rollups,
-    then confirmed with a HEAD -- the bucket has no public listing.
+    One HEAD per candidate name -- the bucket has no public listing. Single
+    files are named by VIEW_PATTERNS; the per-fiscal-year sets are probed
+    for every year from FY2008 through next fiscal year.
     """
-    keys = ["recipients.parquet", "recipient_year.parquet"]
-    keys += [f"contracts/FY{fy}.parquet" for fy in range(2008, 2100)]
+    singles = [k + ".parquet" for k, pat in VIEW_PATTERNS.items()
+               if "FY" not in pat.pattern]
     found = []
-    misses = 0
-    for key in keys:
-        req = urllib.request.Request(f"{base}/{key}", method="HEAD",
-                                     headers={"User-Agent": "warehouse-build/1.0"})
-        try:
-            with urllib.request.urlopen(req, timeout=30):
+    for key in singles:
+        if head(base, key):
+            found.append(key)
+    # Every fiscal year from the archive's first through next year -- a set
+    # can be partially backfilled, so gaps mean nothing.
+    last_fy = datetime.date.today().year + 1
+    for kind in ("contracts", "assistance"):
+        for fy in range(2008, last_fy + 1):
+            key = f"{kind}/FY{fy}.parquet"
+            if head(base, key):
                 found.append(key)
-                misses = 0
-        except urllib.error.HTTPError:
-            misses += 1
-            # fiscal years run out; stop after a couple of consecutive gaps
-            if misses >= 3 and key.startswith("contracts/"):
-                break
     return found
+
+
+def head(base, key):
+    req = urllib.request.Request(f"{base}/{key}", method="HEAD",
+                                 headers={"User-Agent": "warehouse-build/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=30):
+            return True
+    except urllib.error.HTTPError:
+        return False
 
 
 def main():
