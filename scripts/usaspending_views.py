@@ -26,6 +26,17 @@ Row counts come from the remote Parquet footers and are written to
 `--counts-out`, for injecting into inspect-data.json: Datasette's bounded
 count query reports ">10,000 rows" for a view otherwise, and inspect-data.json
 is the one thing it will trust instead.
+
+The multi-file views deliberately do NOT use `union_by_name=true`. With it,
+DuckDB reads and deserializes every member file's footer on every bind (19 x
+~1.35 MB of thrift for contracts: 293 columns x ~55 row groups of stats), which
+is ~190 MB of transient allocation and most of the page time on shared-cpu-1x;
+Datasette binds a view several times per page. Without it, only the first
+file's footer is read at bind and the rest are opened lazily as scanned. The
+per-year files come from one pipeline and share a schema, so the union buys
+nothing -- but that is checked here at build time, and a view whose members
+do differ falls back to `union_by_name=true` (with a warning) rather than
+breaking.
 """
 import argparse
 import datetime
@@ -132,7 +143,17 @@ def main():
         if not members:
             continue
         paths = ", ".join(f"'{local[k]}'" for k in members)
-        db.execute(f"CREATE VIEW {view} AS SELECT * FROM read_parquet([{paths}], union_by_name=true)")
+        # Schemas are (name, type) tuples from the placeholders, which carry
+        # the remote files' exact schemas. See the module docstring for why
+        # union_by_name is the fallback, not the default.
+        schemas = {tuple(con.execute(f"DESCRIBE SELECT * FROM '{local[k]}'").fetchall())
+                   for k in members}
+        opts = ""
+        if len(schemas) > 1:
+            print(f"WARNING: {view}: {len(schemas)} distinct schemas across "
+                  f"{len(members)} files; using union_by_name (slow bind)")
+            opts = ", union_by_name=true"
+        db.execute(f"CREATE VIEW {view} AS SELECT * FROM read_parquet([{paths}]{opts})")
         view_counts[view] = sum(counts[k] for k in members)
         print(f"view {view}: {len(members)} file(s), {view_counts[view]:,} rows")
     db.close()
