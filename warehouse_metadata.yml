@@ -1975,12 +1975,12 @@ databases:
           highly_compensated_officer_1_amount: Compensation of the recipient's highest-paid officer, where reporting is required.
       assistance:
         title: Financial assistance transactions
-        description: One row per financial-assistance action — grants, cooperative agreements, loans, direct payments, insurance — FY2008 onward. Includes county-level aggregate records and PII-redacted payments to individuals; record_type_code = '2' is identified organizations.
+        description: One row per financial-assistance action — grants, cooperative agreements, loans, direct payments, insurance — to an identified organization, FY2008 onward. County-level aggregate records and PII-redacted payments to individuals are left out. Before FY2019 the *_description columns are empty; the *_code columns are populated in every year.
         columns:
           award_id_fain: Federal Award Identification Number — the grant or loan number.
           award_id_uri: Identifier for aggregate (county-level) records, which have no FAIN.
           assistance_type_description: Grant, cooperative agreement, direct loan, guaranteed loan, direct payment, insurance, other.
-          record_type_description: Aggregate (many recipients summed), non-aggregate (one identified recipient), or non-aggregate to an individual (PII redacted).
+          assistance_type_code: "02 block grant, 03 formula grant, 04 project grant, 05 cooperative agreement, 06 direct payment (specified use), 07 direct loan, 08 guaranteed loan, 09 insurance, 10 direct payment (unrestricted), 11 other."
           cfda_number: Assistance Listing (formerly CFDA) program number; see the cfda table.
           federal_action_obligation: Dollars obligated by this action.
           face_value_of_loan: For loans, the principal.
@@ -2047,7 +2047,7 @@ databases:
         description: Awarding and funding offices, by office code.
       recipients:
         title: Recipients
-        description: One row per recipient UEI — every entity that has received a federal contract since FY2008 — with its current name and address (from its most recent transaction), lifetime totals, and the NAICS, awarding agency, and place of performance that account for the most dollars. Sorted by lifetime obligations.
+        description: One row per recipient UEI — every organization that has received a federal contract or financial assistance since FY2008 — with its current name and address (from its most recent transaction), lifetime totals split by kind, and the NAICS, assistance program, awarding agency, and place of performance that account for the most dollars. Sorted by lifetime obligations.
         columns:
           recipient_uei: Unique Entity Identifier — per SAM registration, not per company; see recipient_parent_uei.
           recipient_name: Name as of the recipient's most recent transaction.
@@ -2059,8 +2059,15 @@ databases:
           last_fiscal_year: Most recent fiscal year with a transaction.
           transactions: Contract actions since FY2008.
           awards: Distinct contract numbers (PIIDs) since FY2008.
-          obligations: Total dollars obligated since FY2008.
-          service_contract_act_obligations: Obligations on actions where the Service Contract Act applies.
+          obligations: Total dollars obligated since FY2008, contracts and assistance together.
+          contract_obligations: Obligations on contracts.
+          assistance_obligations: Obligations on financial assistance of every type.
+          grant_obligations: Obligations on block, formula, and project grants and cooperative agreements.
+          loan_face_value: Principal of direct and guaranteed loans (loans carry no obligation).
+          assistance_business_type: Recipient's business type as reported on its most recent assistance award (state government, nonprofit, higher education, …).
+          top_cfda_number: Assistance Listing (CFDA) program accounting for the most dollars.
+          top_cfda: Title of top_cfda_number.
+          service_contract_act_obligations: Obligations on contract actions where the Service Contract Act applies.
           davis_bacon_obligations: Obligations on actions carrying Davis-Bacon construction wage rates.
           walsh_healey_obligations: Obligations on actions under the Walsh-Healey Public Contracts Act.
           business_size: Contracting officer's most recent size determination (SMALL BUSINESS / OTHER THAN SMALL BUSINESS).
@@ -2079,8 +2086,11 @@ databases:
           recipient_uei: Unique Entity Identifier — per SAM registration, not per company.
           transactions: Number of contract actions in the year.
           awards: Distinct contract numbers (PIIDs) in the year.
-          obligations: Total dollars obligated in the year.
-          service_contract_act_obligations: Obligations on actions where the Service Contract Act applies.
-          davis_bacon_obligations: Obligations on actions carrying Davis-Bacon construction wage rates.
-          walsh_healey_obligations: Obligations on actions under the Walsh-Healey Public Contracts Act.
+          obligations: Total dollars obligated in the year, contracts and assistance together.
+          contract_obligations: Obligations on contracts.
+          assistance_obligations: Obligations on financial assistance.
+          loan_face_value: Principal of loans made that year.
+          service_contract_act_obligations: Obligations on contract actions where the Service Contract Act applies.
+          davis_bacon_obligations: Obligations on contract actions carrying Davis-Bacon construction wage rates.
+          walsh_healey_obligations: Obligations on contract actions under the Walsh-Healey Public Contracts Act.
           top_officer_compensation: Highest reported officer compensation for the recipient that year.
