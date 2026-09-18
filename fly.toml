@@ -49,7 +49,17 @@ primary_region = "iad"
     protocol = "http"
     timeout = "30s"
 
+# shared-cpu-4x, not 1x (2026-09-18). Fly shared CPUs run on a burst-credit
+# bank over a baseline of 1/16 core per vCPU; a few minutes of full-CPU export
+# traffic drains the bank and the machine is then held to the baseline, where
+# the request queue never drains and every request 524s until restarted (the
+# 2026-06-19, 09-15 and 09-18 wedges -- fly_instance_cpu_balance hits 0 and
+# steal goes to ~92%). Each daily refresh also replaces the machine, and a new
+# one starts with ~1/7 of a full bank. 4 vCPUs = 4x baseline and 4x bank for
+# ~$2/mo (RAM dominates the price), and DuckDB releases the GIL so the SQL
+# threads actually run in parallel. NB: refresh-data.yml's `machine run` flags
+# are what size the live machine; keep --vm-cpus in step with this.
 [[vm]]
-  size = "shared-cpu-1x"
+  size = "shared-cpu-4x"
   memory = "2gb"
-  cpus = 1
+  cpus = 4

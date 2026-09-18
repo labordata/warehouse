@@ -391,7 +391,7 @@ jobs:
               --metadata role=staging \
               --metadata refresh_run="$GITHUB_RUN_ID" \
               --vm-cpu-kind shared \
-              --vm-cpus 1 \
+              --vm-cpus 4 \
               --vm-memory 2048 > /tmp/machine_run.log 2>&1
             rc=$?
             set -e
