@@ -43,6 +43,15 @@ plugins:
     # 1 vCPU: more threads only multiply sort/agg memory and worsen latency-
     # fairness (measured), with no compute gain.
     threads: 1
+    # Filesystem sandbox for the public /-/query endpoint. Datasette only lets
+    # SELECT/WITH through, but DuckDB table functions run inside a SELECT, so
+    # without this anyone could `read_text('/proc/self/environ')`,
+    # `read_csv('/etc/passwd')` or `glob('/**')` (confirmed 2026-09-15). Sets
+    # enable_external_access=false on the shared instance after its ATTACHes;
+    # allowed_directories re-opens /data so the usaspending views' Parquet
+    # files still resolve. Everything else -> Permission Error (a 400).
+    external_access: false
+    allowed_directories: [/data]
     # ROLLBACK: to revert to per-instance mode set `shared_instance: false` AND
     # `memory_limit: 128MB` together (a 1.4GB *per-instance* cap would OOM).
   query-concurrency:
