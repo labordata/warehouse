@@ -15,6 +15,16 @@ primary_region = "iad"
 # instead created and attached per-refresh by refresh-data.yml via
 # `flyctl machine run --volume <id>:/data`.
 
+# The live machine's services do NOT come from this block. deploy.yml only
+# builds here (--build-only) and rolls the image with `machine update --image`,
+# and refresh-data.yml promotes each new machine with
+# `machine update --port 80:8080/tcp:http --port 443:8080/tcp:tls:http`. So
+# the machine runs Fly's defaults: connection-based concurrency, soft limit 20,
+# no hard limit, no Fly health checks. A [services.concurrency] or
+# [[services.http_checks]] here would be silently ignored, which is why neither
+# is kept (a stale hard_limit=100 here misled the 2026-09-22 wedge diagnosis).
+# Overload shedding lives in the app (plugins/query_concurrency.py); health is
+# checked by refresh-data.yml's smoke test before a new machine is promoted.
 [[services]]
   protocol = "tcp"
   internal_port = 8080
@@ -30,24 +40,6 @@ primary_region = "iad"
   [[services.ports]]
     port = 443
     handlers = ["tls", "http"]
-
-  [services.concurrency]
-    type = "requests"
-    soft_limit = 60
-    hard_limit = 100
-
-  [[services.http_checks]]
-    # /-/versions.json is constant-time and doesn't touch the databases.
-    interval = "30s"
-    # Datasette boot over 13 attached duckdb databases on shared-cpu-1x is
-    # ~2 min (plugin discovery + 13 startup-hook add_database + 13
-    # check_databases). Headroom past that so the health check doesn't
-    # decide the machine is unhealthy mid-boot and kill it.
-    grace_period = "240s"
-    method = "get"
-    path = "/-/versions.json"
-    protocol = "http"
-    timeout = "30s"
 
 # shared-cpu-4x, not 1x (2026-09-18). Fly shared CPUs run on a burst-credit
 # bank over a baseline of 1/16 core per vCPU; a few minutes of full-CPU export
