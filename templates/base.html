@@ -74,5 +74,16 @@
 {% if select_templates %}<!-- Templates considered: {{ select_templates|join(", ") }} -->{% endif %}
 <script src="{{ urls.static('navigation-search.js') }}" defer></script>
 <navigation-search url="/-/tables"></navigation-search>
+
+{# Cloudflare Turnstile (invisible, pre-clearance): silently mints a cf_clearance
+   cookie on any page so human browsers skip the WAF managed-challenge
+   interstitial on requests that carry a query string (sort, facet, filter,
+   pagination, sql=) -- the only "back-room" left since row pages were retired.
+   Honest non-browser clients never run it; no-JS crawlers can't. Widget mode +
+   pre-clearance level are configured dashboard-side on this sitekey. Removed in
+   #50 and restored 2026-09-23 after jscrawler enumerated ?_sort URLs and wedged
+   the box. See ../labordata_firewall/turnstile-lobby-plan.md #}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<div class="cf-turnstile" data-sitekey="0x4AAAAAADWy_1LGnPd95_Qc" data-appearance="interaction-only"></div>
 </body>
 </html>
