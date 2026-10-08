@@ -79,6 +79,14 @@ plugins:
     # where suggestion costs ~0.15s and earns it -- keep theirs.
     databases:
       - usaspending
+  no-csv-stream:
+    # A streamed CSV (?_stream=on) walks the whole table in one request;
+    # sql_time_limit_ms is per page, so nothing stops it. A full stream of
+    # usaspending's contracts view pegged all 4 vCPUs and drained the CPU-credit
+    # bank twice (2026-10-07/08). Streams on the native tables are cheap and
+    # used, so this is per database. See plugins/no_csv_stream.py.
+    databases:
+      - usaspending
   datasette-block-robots:
     literal: |-
       User-agent: *
