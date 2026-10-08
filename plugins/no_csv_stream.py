@@ -15,6 +15,11 @@ setting, and streams on the native tables are cheap and used (laborlab's nlrb
 refresh), so this is per database. Non-streamed .csv/.json (one page) still
 work.
 
+The crawler got the URL from the "CSV" link on the table page, which
+templates/table.html and query.html build with `&_stream=on`. Blocking alone
+would leave a dead link, so this also sets `csv_stream_allowed` for those
+templates; on configured databases the link downloads the current page instead.
+
     plugins:
       no-csv-stream:
         databases: [usaspending]
@@ -27,6 +32,10 @@ FORBIDDEN_BODY = (
     b"403: streaming full exports of this database is disabled (it overloads "
     b"the server). Filter the table and page through results with _next.\n"
 )
+
+
+def _databases(datasette):
+    return (datasette.plugin_config("no-csv-stream") or {}).get("databases") or []
 
 
 def _is_blocked(scope, databases):
@@ -46,8 +55,7 @@ def asgi_wrapper(datasette):
     def wrap(app):
         async def wrapped(scope, receive, send):
             if scope.get("type") == "http":
-                config = datasette.plugin_config("no-csv-stream") or {}
-                if _is_blocked(scope, config.get("databases") or []):
+                if _is_blocked(scope, _databases(datasette)):
                     await send(
                         {
                             "type": "http.response.start",
@@ -66,3 +74,11 @@ def asgi_wrapper(datasette):
         return wrapped
 
     return wrap
+
+
+@hookimpl
+def extra_template_vars(database, datasette):
+    return {
+        "csv_stream_allowed": datasette.setting("allow_csv_stream")
+        and database not in _databases(datasette)
+    }
