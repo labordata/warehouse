@@ -98,6 +98,10 @@ jobs:
           # datasette in last so the backends module + the `inspect -c` flag
           # (used below to build inspect-data.json) are both available.
           pip install --force-reinstall --no-deps "datasette @ git+https://github.com/fgregg/datasette@duckdb-deploy"
+          # Pin duckdb to the same version the Fly image runs (see Dockerfile).
+          # DuckDB 2.0 writes storage version 69, which 1.5.x can't open, so an
+          # unpinned build after 2.0's release (2026-10-21) wedged every deploy.
+          pip install "duckdb==1.5.6"
           # Fail fast if anything is wrong.
           python -c "import datasette.backends, datasette_duckdb.convert; print('OK')"
 
