@@ -47,10 +47,12 @@ ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2 \
 # URL pointing at a branch is text-identical across deploys and BuildKit
 # silently reuses the cached pip layer with stale code.
 ARG DATASETTE_REF=duckdb-deploy
+# duckdb is pinned in lockstep with refresh-data.yml: the image must read the
+# storage format the refresh build writes (2.0 files are unreadable by 1.5.x).
 RUN pip install --no-cache-dir \
     "datasette @ git+https://github.com/fgregg/datasette@${DATASETTE_REF}" \
     "datasette-duckdb @ git+https://github.com/fgregg/datasette@${DATASETTE_REF}#subdirectory=datasette-duckdb" \
-    "duckdb>=1.0" \
+    "duckdb==1.5.6" \
     datasette-atom==0.10a0 \
     datasette-block-robots \
     datasette-pretty-traces \
